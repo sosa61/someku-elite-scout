@@ -2,10 +2,8 @@ import streamlit as st
 import pandas as pd
 import os
 
-# Sayfa Ayarları (Mobil ve Geniş Ekran Uyumu)
 st.set_page_config(page_title="SOMEKU ELITE SCOUT", layout="wide")
 
-# Görsel Tasarım ve Mobil Optimizasyon
 st.markdown("""
     <style>
     .stApp {
@@ -14,7 +12,6 @@ st.markdown("""
                           url('https://images2.imgbox.com/3f/82/XG4mOqZ1_o.png'); 
         background-size: cover; background-position: center; background-attachment: fixed;
     }
-    /* Tabloyu mobilde sığdırmak için font küçültme */
     .stDataFrame div[data-testid="stTable"] { font-size: 12px !important; }
     .filter-box, .compare-box {
         background-color: rgba(20, 20, 20, 0.98);
@@ -22,13 +19,12 @@ st.markdown("""
         margin-bottom: 15px;
     }
     h1 { text-shadow: 2px 2px 10px #00D2FF; font-size: 24px !important; text-align: center; color: #00D2FF; }
-    label { color: #FFFFFF !important; font-size: 14px !important; }
+    label { color: #FFFFFF !important; }
     </style>
     """, unsafe_allow_html=True)
 
 st.markdown("<h1>🌪️ SOMEKU ELITE SCOUT</h1>", unsafe_allow_html=True)
 
-# Mevki Eşleştirme Sözlüğü (Hata payını sıfırlamak için İngilizce kodlarla çalışır)
 mevki_sozlugu = {
     "Kaleci": "GK", "Stoper": "DC", "Sağ Bek": "DR", "Sol Bek": "DL",
     "Ön Libero": "DM", "Merkez Orta Saha": "MC", "Sağ Kanat": "AMR",
@@ -42,6 +38,10 @@ def load_data(path):
         df = pd.read_csv(path, sep=None, engine='python', on_bad_lines='skip')
         df.columns = ['ID', 'Oyuncu', 'Yaş', 'CA', 'PA', 'Ülke', 'Kulüp', 'Değer', 'Mevki', 'Rat', 'Pot_Rat'][:len(df.columns)]
         if 'ID' in df.columns: df = df.drop(columns=['ID'])
+        
+        # Hatalı/Boş verileri temizleme "Zırhı"
+        df['Kulüp'] = df['Kulüp'].fillna('Kulüpsüz').astype(str)
+        df['Oyuncu'] = df['Oyuncu'].fillna('Bilinmiyor').astype(str)
         df['PA'] = pd.to_numeric(df['PA'], errors='coerce').fillna(0).astype(int)
         df['Yaş'] = pd.to_numeric(df['Yaş'], errors='coerce').fillna(0).astype(int)
         return df
@@ -50,38 +50,33 @@ def load_data(path):
 df = load_data("players_export.csv")
 
 if df is not None:
-    # --- 1. OYUNCU KARŞILAŞTIRMA (ARTIK ANA EKRANDA) ---
+    # Karşılaştırma Paneli
     with st.expander("⚔️ OYUNCU KARŞILAŞTIRMA PANELİ", expanded=False):
-        st.markdown("<div class='compare-box'>", unsafe_allow_html=True)
+        oyuncu_listesi = ["Seçiniz..."] + sorted([x for x in df['Oyuncu'].unique() if isinstance(x, str)])
         c1, c2 = st.columns(2)
-        oyuncu_listesi = ["Seçiniz..."] + sorted(df['Oyuncu'].unique().tolist())
         p1 = c1.selectbox("1. Oyuncu:", oyuncu_listesi, key="p1")
         p2 = c2.selectbox("2. Oyuncu:", oyuncu_listesi, key="p2")
-        
         if p1 != "Seçiniz..." and p2 != "Seçiniz...":
-            d1 = df[df['Oyuncu'] == p1].iloc[0]
-            d2 = df[df['Oyuncu'] == p2].iloc[0]
+            d1, d2 = df[df['Oyuncu'] == p1].iloc[0], df[df['Oyuncu'] == p2].iloc[0]
             col_a, col_b = st.columns(2)
             col_a.metric(p1, f"PA: {d1['PA']}", f"Yaş: {d1['Yaş']}")
             col_b.metric(p2, f"PA: {d2['PA']}", f"Yaş: {d2['Yaş']}")
-        st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- 2. TAKIMLARA GÖRE BAK (YENİ ÖZELLİK) ---
-    secilen_takim = st.selectbox("🏰 Takım Seç ve Kadroya Bak:", ["Tüm Takımlar"] + sorted(df['Kulüp'].unique().tolist()))
+    # Takım Seçimi (Hatayı buradaki 'sorted' veriyordu, düzelttik)
+    takimlar = ["Tüm Takımlar"] + sorted([t for t in df['Kulüp'].unique() if isinstance(t, str)])
+    secilen_takim = st.selectbox("🏰 Takım Seç ve Kadroya Bak:", takimlar)
 
-    # --- 3. FİLTRELEME PANELİ ---
+    # Filtreleme
     st.markdown("<div class='filter-box'>", unsafe_allow_html=True)
-    f_mevki = st.multiselect("⚽ Mevki (Türkçe seçin, İngilizce aranır):", list(mevki_sozlugu.keys()))
+    f_mevki = st.multiselect("⚽ Mevki Seç:", list(mevki_sozlugu.keys()))
     col_x, col_y = st.columns(2)
     f_yas = col_x.slider("🎂 Yaş:", 14, 45, (14, 25))
     f_pa = col_y.slider("🔥 PA:", 0, 200, (130, 200))
     search = st.text_input("🔍 İsimle Ara:", placeholder="Oyuncu adı...")
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- FİLTRELEME MANTIĞI ---
     filtered = df.copy()
-    if secilen_takim != "Tüm Takımlar":
-        filtered = filtered[filtered['Kulüp'] == secilen_takim]
+    if secilen_takim != "Tüm Takımlar": filtered = filtered[filtered['Kulüp'] == secilen_takim]
     
     filtered = filtered[
         (filtered['Oyuncu'].str.contains(search, case=False, na=False)) &
@@ -91,14 +86,10 @@ if df is not None:
 
     if f_mevki:
         ing_mevkiler = [mevki_sozlugu[m] for m in f_mevki]
-        # Regex ile "veya" mantığı: Herhangi birini içeriyorsa getir
         filtered = filtered[filtered['Mevki'].str.contains('|'.join(ing_mevkiler), case=False, na=False)]
 
-    # --- MOBİL UYUMLU TABLO ---
     st.subheader(f"✅ {len(filtered)} Oyuncu")
-    # Mobilde sığması için sadece en önemli sütunları gösteriyoruz
-    mobil_df = filtered[['Oyuncu', 'Yaş', 'PA', 'Mevki', 'Kulüp', 'Değer']]
-    st.dataframe(mobil_df, use_container_width=True, height=400)
-
+    # Mobil uyum: Sütunları kısıtlı tutuyoruz
+    st.dataframe(filtered[['Oyuncu', 'Yaş', 'PA', 'Mevki', 'Kulüp', 'Değer']], use_container_width=True)
 else:
     st.error("Veri yüklenemedi!")
