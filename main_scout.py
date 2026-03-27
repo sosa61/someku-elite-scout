@@ -4,6 +4,7 @@ import os
 
 st.set_page_config(page_title="SOMEKU ELITE SCOUT", layout="wide")
 
+# Görsel Tasarım
 st.markdown("""
     <style>
     .stApp {
@@ -12,7 +13,6 @@ st.markdown("""
                           url('https://images2.imgbox.com/3f/82/XG4mOqZ1_o.png'); 
         background-size: cover; background-position: center; background-attachment: fixed;
     }
-    .stDataFrame div[data-testid="stTable"] { font-size: 12px !important; }
     .filter-box, .compare-box {
         background-color: rgba(20, 20, 20, 0.98);
         padding: 15px; border-radius: 15px; border: 1px solid #00D2FF;
@@ -25,10 +25,18 @@ st.markdown("""
 
 st.markdown("<h1>🌪️ SOMEKU ELITE SCOUT</h1>", unsafe_allow_html=True)
 
+# FM'deki karmaşık yazımları yakalamak için yeni sözlük
 mevki_sozlugu = {
-    "Kaleci": "GK", "Stoper": "DC", "Sağ Bek": "DR", "Sol Bek": "DL",
-    "Ön Libero": "DM", "Merkez Orta Saha": "MC", "Sağ Kanat": "AMR",
-    "Sol Kanat": "AML", "On Numara": "AMC", "Forvet": "ST"
+    "Kaleci": "GK",
+    "Stoper": "D (C)",
+    "Sağ Bek": "D (R)",
+    "Sol Bek": "D (L)",
+    "Ön Libero": "DM",
+    "Merkez Orta Saha": "M (C)",
+    "Sağ Kanat": "(R)",  # İçinde R geçen kanatları yakalar
+    "Sol Kanat": "(L)",  # İçinde L geçen kanatları yakalar
+    "On Numara": "AM (C)",
+    "Forvet": "S (C)"
 }
 
 @st.cache_data
@@ -38,10 +46,8 @@ def load_data(path):
         df = pd.read_csv(path, sep=None, engine='python', on_bad_lines='skip')
         df.columns = ['ID', 'Oyuncu', 'Yaş', 'CA', 'PA', 'Ülke', 'Kulüp', 'Değer', 'Mevki', 'Rat', 'Pot_Rat'][:len(df.columns)]
         if 'ID' in df.columns: df = df.drop(columns=['ID'])
-        
-        # Hatalı/Boş verileri temizleme "Zırhı"
         df['Kulüp'] = df['Kulüp'].fillna('Kulüpsüz').astype(str)
-        df['Oyuncu'] = df['Oyuncu'].fillna('Bilinmiyor').astype(str)
+        df['Mevki'] = df['Mevki'].fillna('-').astype(str)
         df['PA'] = pd.to_numeric(df['PA'], errors='coerce').fillna(0).astype(int)
         df['Yaş'] = pd.to_numeric(df['Yaş'], errors='coerce').fillna(0).astype(int)
         return df
@@ -50,31 +56,28 @@ def load_data(path):
 df = load_data("players_export.csv")
 
 if df is not None:
-    # Karşılaştırma Paneli
-    with st.expander("⚔️ OYUNCU KARŞILAŞTIRMA PANELİ", expanded=False):
+    # ⚔️ Karşılaştırma
+    with st.expander("⚔️ OYUNCU KARŞILAŞTIRMA PANELİ"):
         oyuncu_listesi = ["Seçiniz..."] + sorted([x for x in df['Oyuncu'].unique() if isinstance(x, str)])
-        c1, c2 = st.columns(2)
-        p1 = c1.selectbox("1. Oyuncu:", oyuncu_listesi, key="p1")
-        p2 = c2.selectbox("2. Oyuncu:", oyuncu_listesi, key="p2")
+        p1 = st.selectbox("1. Oyuncu:", oyuncu_listesi, key="p1")
+        p2 = st.selectbox("2. Oyuncu:", oyuncu_listesi, key="p2")
         if p1 != "Seçiniz..." and p2 != "Seçiniz...":
             d1, d2 = df[df['Oyuncu'] == p1].iloc[0], df[df['Oyuncu'] == p2].iloc[0]
-            col_a, col_b = st.columns(2)
-            col_a.metric(p1, f"PA: {d1['PA']}", f"Yaş: {d1['Yaş']}")
-            col_b.metric(p2, f"PA: {d2['PA']}", f"Yaş: {d2['Yaş']}")
+            st.metric(f"{p1} vs {p2}", f"PA: {d1['PA']} - {d2['PA']}", f"Yaş: {d1['Yaş']} - {d2['Yaş']}")
 
-    # Takım Seçimi (Hatayı buradaki 'sorted' veriyordu, düzelttik)
+    # 🏰 Takım Seçimi
     takimlar = ["Tüm Takımlar"] + sorted([t for t in df['Kulüp'].unique() if isinstance(t, str)])
-    secilen_takim = st.selectbox("🏰 Takım Seç ve Kadroya Bak:", takimlar)
+    secilen_takim = st.selectbox("🏰 Takım Seç:", takimlar)
 
-    # Filtreleme
+    # 🔍 Filtreler
     st.markdown("<div class='filter-box'>", unsafe_allow_html=True)
     f_mevki = st.multiselect("⚽ Mevki Seç:", list(mevki_sozlugu.keys()))
-    col_x, col_y = st.columns(2)
-    f_yas = col_x.slider("🎂 Yaş:", 14, 45, (14, 25))
-    f_pa = col_y.slider("🔥 PA:", 0, 200, (130, 200))
-    search = st.text_input("🔍 İsimle Ara:", placeholder="Oyuncu adı...")
+    f_yas = st.slider("🎂 Yaş:", 14, 45, (14, 25))
+    f_pa = st.slider("🔥 PA:", 0, 200, (130, 200))
+    search = st.text_input("🔍 İsimle Ara:")
     st.markdown("</div>", unsafe_allow_html=True)
 
+    # Filtreleme Başlıyor
     filtered = df.copy()
     if secilen_takim != "Tüm Takımlar": filtered = filtered[filtered['Kulüp'] == secilen_takim]
     
@@ -84,12 +87,15 @@ if df is not None:
         (filtered['PA'] >= f_pa[0]) & (filtered['PA'] <= f_pa[1])
     ]
 
+    # AKILLI MEVKİ ARAMA (Burası sorunu çözen yer)
     if f_mevki:
-        ing_mevkiler = [mevki_sozlugu[m] for m in f_mevki]
-        filtered = filtered[filtered['Mevki'].str.contains('|'.join(ing_mevkiler), case=False, na=False)]
+        # Regex (düzenli ifadeler) kullanarak FM yazım stillerini yakalıyoruz
+        karsiliklar = [mevki_sozlugu[m] for m in f_mevki]
+        patterns = '|'.join([f"\\{k}" if "(" in k else k for k in karsiliklar])
+        filtered = filtered[filtered['Mevki'].str.contains(patterns, case=False, na=False, regex=True)]
 
     st.subheader(f"✅ {len(filtered)} Oyuncu")
-    # Mobil uyum: Sütunları kısıtlı tutuyoruz
+    # Mobil uyumlu tablo görünümü
     st.dataframe(filtered[['Oyuncu', 'Yaş', 'PA', 'Mevki', 'Kulüp', 'Değer']], use_container_width=True)
 else:
-    st.error("Veri yüklenemedi!")
+    st.error("Veri dosyası bulunamadı!")
