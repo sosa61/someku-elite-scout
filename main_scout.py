@@ -13,6 +13,7 @@ st.markdown("""
                           url('https://images2.imgbox.com/3f/82/XG4mOqZ1_o.png'); 
         background-size: cover; background-position: center; background-attachment: fixed;
     }
+    .stDataFrame div[data-testid="stTable"] { font-size: 12px !important; }
     .filter-box, .compare-box {
         background-color: rgba(20, 20, 20, 0.98);
         padding: 15px; border-radius: 15px; border: 1px solid #00D2FF;
@@ -25,18 +26,10 @@ st.markdown("""
 
 st.markdown("<h1>🌪️ SOMEKU ELITE SCOUT</h1>", unsafe_allow_html=True)
 
-# FM'deki karmaşık yazımları yakalamak için yeni sözlük
 mevki_sozlugu = {
-    "Kaleci": "GK",
-    "Stoper": "D (C)",
-    "Sağ Bek": "D (R)",
-    "Sol Bek": "D (L)",
-    "Ön Libero": "DM",
-    "Merkez Orta Saha": "M (C)",
-    "Sağ Kanat": "(R)",  # İçinde R geçen kanatları yakalar
-    "Sol Kanat": "(L)",  # İçinde L geçen kanatları yakalar
-    "On Numara": "AM (C)",
-    "Forvet": "S (C)"
+    "Kaleci": "GK", "Stoper": "D (C)", "Sağ Bek": "D (R)", "Sol Bek": "D (L)",
+    "Ön Libero": "DM", "Merkez Orta Saha": "M (C)", "Sağ Kanat": "(R)",
+    "Sol Kanat": "(L)", "On Numara": "AM (C)", "Forvet": "S (C)"
 }
 
 @st.cache_data
@@ -50,6 +43,8 @@ def load_data(path):
         df['Mevki'] = df['Mevki'].fillna('-').astype(str)
         df['PA'] = pd.to_numeric(df['PA'], errors='coerce').fillna(0).astype(int)
         df['Yaş'] = pd.to_numeric(df['Yaş'], errors='coerce').fillna(0).astype(int)
+        # PA'ya göre büyükten küçüğe sırala (Mbappe en başa gelsin)
+        df = df.sort_values(by='PA', ascending=False)
         return df
     except: return None
 
@@ -69,15 +64,16 @@ if df is not None:
     takimlar = ["Tüm Takımlar"] + sorted([t for t in df['Kulüp'].unique() if isinstance(t, str)])
     secilen_takim = st.selectbox("🏰 Takım Seç:", takimlar)
 
-    # 🔍 Filtreler
+    # 🔍 Filtreler (AYARLAR GÜNCELLENDİ)
     st.markdown("<div class='filter-box'>", unsafe_allow_html=True)
     f_mevki = st.multiselect("⚽ Mevki Seç:", list(mevki_sozlugu.keys()))
-    f_yas = st.slider("🎂 Yaş:", 14, 45, (14, 25))
-    f_pa = st.slider("🔥 PA:", 0, 200, (130, 200))
+    # Varsayılan Yaş: 14-45 (Mbappe ve Ronaldo dahil)
+    f_yas = st.slider("🎂 Yaş:", 14, 45, (14, 45))
+    # Varsayılan PA: 0-200 (Herkes dahil)
+    f_pa = st.slider("🔥 PA:", 0, 200, (0, 200))
     search = st.text_input("🔍 İsimle Ara:")
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # Filtreleme Başlıyor
     filtered = df.copy()
     if secilen_takim != "Tüm Takımlar": filtered = filtered[filtered['Kulüp'] == secilen_takim]
     
@@ -87,15 +83,12 @@ if df is not None:
         (filtered['PA'] >= f_pa[0]) & (filtered['PA'] <= f_pa[1])
     ]
 
-    # AKILLI MEVKİ ARAMA (Burası sorunu çözen yer)
     if f_mevki:
-        # Regex (düzenli ifadeler) kullanarak FM yazım stillerini yakalıyoruz
         karsiliklar = [mevki_sozlugu[m] for m in f_mevki]
         patterns = '|'.join([f"\\{k}" if "(" in k else k for k in karsiliklar])
         filtered = filtered[filtered['Mevki'].str.contains(patterns, case=False, na=False, regex=True)]
 
     st.subheader(f"✅ {len(filtered)} Oyuncu")
-    # Mobil uyumlu tablo görünümü
     st.dataframe(filtered[['Oyuncu', 'Yaş', 'PA', 'Mevki', 'Kulüp', 'Değer']], use_container_width=True)
 else:
     st.error("Veri dosyası bulunamadı!")
