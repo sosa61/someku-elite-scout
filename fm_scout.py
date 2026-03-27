@@ -2,10 +2,8 @@ import streamlit as st
 import pandas as pd
 import os
 
-# --- SAYFA AYARLARI ---
 st.set_page_config(page_title="SOMEKU ELITE SCOUT", layout="wide")
 
-# --- ARKA PLAN VE MODERN TASARIM ---
 st.markdown("""
     <style>
     .stApp {
@@ -27,7 +25,6 @@ st.markdown("""
 st.markdown("<h1>🌪️ SOMEKU ELITE SCOUT</h1>", unsafe_allow_html=True)
 st.sidebar.write("👤 Geliştirici: **SOMEKU**")
 
-# --- VERİ OKUMA ---
 FILE_NAME = "players_export.csv"
 
 @st.cache_data
@@ -43,40 +40,21 @@ def load_data(path):
 
 if os.path.exists(FILE_NAME):
     df = load_data(FILE_NAME)
-    
     if df is not None:
-        # --- 1. ANA ARAMA ÇUBUĞU (TEK VE MERKEZİ) ---
         search_name = st.text_input("", placeholder="🔍 Oyuncu ismini buraya yazın... (Örn: Oulai, Yamal, Arda)", key="main_search")
-
-        # --- 2. FİLTRE PANELİ (OYUNCU İSMİ KUTUSU KALDIRILDI) ---
         st.markdown("<div class='filter-box'>", unsafe_allow_html=True)
         f1, f2, f3 = st.columns([3, 2, 2])
-        
-        with f1:
-            m_secim = st.multiselect("⚽ Mevki Seç:", ["GK", "DC", "DR", "DL", "DM", "MC", "AMR", "AML", "AMC", "ST"])
-        with f2:
-            yas_araligi = st.slider("🎂 Yaş:", 14, 45, (14, 23))
-        with f3:
-            pa_araligi = st.slider("🔥 PA Potansiyel:", 0, 200, (0, 200))
+        with f1: m_secim = st.multiselect("⚽ Mevki Seç:", ["GK", "DC", "DR", "DL", "DM", "MC", "AMR", "AML", "AMC", "ST"])
+        with f2: yas_araligi = st.slider("🎂 Yaş:", 14, 45, (14, 23))
+        with f3: pa_araligi = st.slider("🔥 PA Potansiyel:", 0, 200, (0, 200))
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # --- LİSTELEME MANTIĞI ---
         if not search_name and not m_secim and pa_araligi == (0, 200):
             st.info("💡 Aramaya başlamak için yukarıdaki çubuğa isim yazın veya bir mevki seçin.")
         else:
-            f_df = df[
-                (df['Oyuncu'].str.contains(search_name, case=False, na=False)) &
-                (df['Yaş'] >= yas_araligi[0]) & (df['Yaş'] <= yas_araligi[1]) &
-                (df['PA'] >= pa_araligi[0]) & (df['PA'] <= pa_araligi[1])
-            ]
-            
-            if m_secim:
-                f_df = f_df[f_df['Mevki'].str.contains('|'.join(m_secim), case=False, na=False)]
-
-            # --- TABLO ---
+            f_df = df[(df['Oyuncu'].str.contains(search_name, case=False, na=False)) & (df['Yaş'] >= yas_araligi[0]) & (df['Yaş'] <= yas_araligi[1]) & (df['PA'] >= pa_araligi[0]) & (df['PA'] <= pa_araligi[1])]
+            if m_secim: f_df = f_df[f_df['Mevki'].str.contains('|'.join(m_secim), case=False, na=False)]
             st.subheader(f"✅ Filtrelere Uygun {len(f_df)} Kayıt")
-            st.dataframe(f_df[['PA', 'CA', 'Oyuncu', 'Yaş', 'Mevki', 'Kulüp', 'Değer', 'Ülke']].sort_values(by="PA", ascending=False), 
-                         use_container_width=True, height=650)
-
-    else: st.error("Veri dosyası okunurken hata oluştu!")
+            st.dataframe(f_df[['PA', 'CA', 'Oyuncu', 'Yaş', 'Mevki', 'Kulüp', 'Değer', 'Ülke']].sort_values(by="PA", ascending=False), use_container_width=True, height=650)
+    else: st.error("Dosya okunurken hata!")
 else: st.error("players_export.csv bulunamadı!")
