@@ -1,10 +1,10 @@
 import streamlit as st
 import pandas as pd
 import os
+import re
 
 st.set_page_config(page_title="SOMEKU ELITE SCOUT", layout="wide")
 
-# Görsel Tasarım
 st.markdown("""
     <style>
     .stApp {
@@ -13,7 +13,6 @@ st.markdown("""
                           url('https://images2.imgbox.com/3f/82/XG4mOqZ1_o.png'); 
         background-size: cover; background-position: center; background-attachment: fixed;
     }
-    .stDataFrame div[data-testid="stTable"] { font-size: 12px !important; }
     .filter-box, .compare-box {
         background-color: rgba(20, 20, 20, 0.98);
         padding: 15px; border-radius: 15px; border: 1px solid #00D2FF;
@@ -26,10 +25,18 @@ st.markdown("""
 
 st.markdown("<h1>🌪️ SOMEKU ELITE SCOUT</h1>", unsafe_allow_html=True)
 
+# Mevkiler (FM'deki tam karşılıkları ile eşleşecek şekilde güncellendi)
 mevki_sozlugu = {
-    "Kaleci": "GK", "Stoper": "D (C)", "Sağ Bek": "D (R)", "Sol Bek": "D (L)",
-    "Ön Libero": "DM", "Merkez Orta Saha": "M (C)", "Sağ Kanat": "(R)",
-    "Sol Kanat": "(L)", "On Numara": "AM (C)", "Forvet": "S (C)"
+    "Kaleci": "GK",
+    "Stoper": "D (C)",
+    "Sağ Bek": "D (R)",
+    "Sol Bek": "D (L)",
+    "Ön Libero": "DM",
+    "Merkez Orta Saha": "M (C)",
+    "Sağ Kanat": "(R)",
+    "Sol Kanat": "(L)",
+    "On Numara": "AM (C)",
+    "Forvet": "S (C)"
 }
 
 @st.cache_data
@@ -43,7 +50,6 @@ def load_data(path):
         df['Mevki'] = df['Mevki'].fillna('-').astype(str)
         df['PA'] = pd.to_numeric(df['PA'], errors='coerce').fillna(0).astype(int)
         df['Yaş'] = pd.to_numeric(df['Yaş'], errors='coerce').fillna(0).astype(int)
-        # PA'ya göre büyükten küçüğe sırala (Mbappe en başa gelsin)
         df = df.sort_values(by='PA', ascending=False)
         return df
     except: return None
@@ -51,7 +57,7 @@ def load_data(path):
 df = load_data("players_export.csv")
 
 if df is not None:
-    # ⚔️ Karşılaştırma
+    # ⚔️ Karşılaştırma Paneli
     with st.expander("⚔️ OYUNCU KARŞILAŞTIRMA PANELİ"):
         oyuncu_listesi = ["Seçiniz..."] + sorted([x for x in df['Oyuncu'].unique() if isinstance(x, str)])
         p1 = st.selectbox("1. Oyuncu:", oyuncu_listesi, key="p1")
@@ -64,12 +70,10 @@ if df is not None:
     takimlar = ["Tüm Takımlar"] + sorted([t for t in df['Kulüp'].unique() if isinstance(t, str)])
     secilen_takim = st.selectbox("🏰 Takım Seç:", takimlar)
 
-    # 🔍 Filtreler (AYARLAR GÜNCELLENDİ)
+    # 🔍 Filtreler
     st.markdown("<div class='filter-box'>", unsafe_allow_html=True)
     f_mevki = st.multiselect("⚽ Mevki Seç:", list(mevki_sozlugu.keys()))
-    # Varsayılan Yaş: 14-45 (Mbappe ve Ronaldo dahil)
     f_yas = st.slider("🎂 Yaş:", 14, 45, (14, 45))
-    # Varsayılan PA: 0-200 (Herkes dahil)
     f_pa = st.slider("🔥 PA:", 0, 200, (0, 200))
     search = st.text_input("🔍 İsimle Ara:")
     st.markdown("</div>", unsafe_allow_html=True)
@@ -77,16 +81,21 @@ if df is not None:
     filtered = df.copy()
     if secilen_takim != "Tüm Takımlar": filtered = filtered[filtered['Kulüp'] == secilen_takim]
     
+    # Temel Filtreleme
     filtered = filtered[
         (filtered['Oyuncu'].str.contains(search, case=False, na=False)) &
         (filtered['Yaş'] >= f_yas[0]) & (filtered['Yaş'] <= f_yas[1]) &
         (filtered['PA'] >= f_pa[0]) & (filtered['PA'] <= f_pa[1])
     ]
 
+    # ✅ HATAYI ÇÖZEN MEVKİ FİLTRELEMESİ
     if f_mevki:
         karsiliklar = [mevki_sozlugu[m] for m in f_mevki]
-        patterns = '|'.join([f"\\{k}" if "(" in k else k for k in karsiliklar])
-        filtered = filtered[filtered['Mevki'].str.contains(patterns, case=False, na=False, regex=True)]
+        # Regex hatalarını önlemek için escape (kaçış) karakteri kullanıyoruz
+        def mevki_kontrol(mevki_hucre):
+            return any(re.search(re.escape(k), mevki_hucre, re.IGNORECASE) for k in karsiliklar)
+        
+        filtered = filtered[filtered['Mevki'].apply(mevki_kontrol)]
 
     st.subheader(f"✅ {len(filtered)} Oyuncu")
     st.dataframe(filtered[['Oyuncu', 'Yaş', 'PA', 'Mevki', 'Kulüp', 'Değer']], use_container_width=True)
