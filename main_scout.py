@@ -11,35 +11,23 @@ supabase: Client = create_client(URL, KEY)
 
 st.set_page_config(page_title="SOMEKU ELITE SCOUT", layout="wide")
 
-# FM POZİSYON SÖZLÜĞÜ (Ömer için)
-pozisyon_sozlugu = {
+# SADECE ANA POZİSYONLAR (Ömer'in isteği üzerine)
+ana_mevkiler = {
     "GK": "Kaleci",
     "D C": "Stoper",
     "D L": "Sol Bek",
     "D R": "Sağ Bek",
     "DM": "Ön Libero",
     "M C": "Orta Saha",
-    "M L": "Sol Orta Saha",
-    "M R": "Sağ Orta Saha",
     "AM C": "On Numara",
     "AM L": "Sol Kanat",
     "AM R": "Sağ Kanat",
-    "ST": "Forvet",
-    "S C": "Santrafor",
-    "WB L": "Sol Kanat Bek",
-    "WB R": "Sağ Kanat Bek"
+    "ST": "Forvet"
 }
-
-def turkcelestir(mevki):
-    # Karmaşık mevkileri (Örn: AM LC) parçalayıp çevirir
-    parcalar = mevki.replace("/", " ").split()
-    ceviriler = [pozisyon_sozlugu.get(p, p) for p in parcalar]
-    return f"{mevki} ({', '.join(ceviriler)})"
 
 def make_hashes(password): return hashlib.sha256(str.encode(password)).hexdigest()
 def check_hashes(password, hashed_text): return hashed_text if make_hashes(password) == hashed_text else False
 
-# Tema
 st.markdown("""<style>.stApp { background-color: #0E1117; color: white; background-image: linear-gradient(rgba(14,23,23,0.9), rgba(14,23,23,0.95)), url('https://images2.imgbox.com/3f/82/XG4mOqZ1_o.png'); background-size: cover; background-attachment: fixed; }</style>""", unsafe_allow_html=True)
 
 if 'user' not in st.session_state: st.session_state.user = None
@@ -48,14 +36,14 @@ if st.session_state.user is None:
     st.markdown("<h1>🔐 GİRİŞ</h1>", unsafe_allow_html=True)
     mode = st.radio("", ["Giriş Yap", "Kayıt Ol"], horizontal=True)
     user = st.text_input("Kullanıcı Adı").strip()
-    password = st.text_input("Şifre", type="password")
-    if st.button("Devam Et"):
+    pw = st.text_input("Şifre", type="password")
+    if st.button("Devam"):
         if mode == "Kayıt Ol":
-            supabase.table("kullanicilar").insert({"username": user, "password": make_hashes(password)}).execute()
-            st.success("Kayıt tamam!")
+            supabase.table("kullanicilar").insert({"username": user, "password": make_hashes(pw)}).execute()
+            st.success("Kayıt Başarılı!")
         else:
             res = supabase.table("kullanicilar").select("*").eq("username", user).execute()
-            if res.data and check_hashes(password, res.data[0]['password']):
+            if res.data and check_hashes(pw, res.data[0]['password']):
                 st.session_state.user = user
                 st.rerun()
             else: st.error("Hatalı!")
@@ -74,16 +62,20 @@ else:
     df = load_data()
     st.markdown("<h1>🌪️ SOMEKU ELITE SCOUT</h1>", unsafe_allow_html=True)
     
-    tabs = st.tabs(["🔍 Scouting", "⭐ Listem", "⚔️ Kıyasla"])
+    # ADMIN KONTROLÜ (Garantili)
+    u_lower = st.session_state.user.lower()
+    tabs_to_show = ["🔍 Scouting", "⭐ Listem", "⚔️ Kıyasla"]
+    if "someku" in u_lower or "omer" in u_lower or "ömer" in u_lower:
+        tabs_to_show.append("🛠️ Admin")
+    
+    tabs = st.tabs(tabs_to_show)
 
-    with tabs[0]:
+    with tabs[0]: # SCOUTING
         st.markdown("<div style='background:rgba(20,20,20,0.9);padding:15px;border-radius:10px;border:1px solid #00D2FF'>", unsafe_allow_html=True)
-        search = st.text_input("🔍 İsim/Kulüp Ara:")
+        search = st.text_input("🔍 İsim/Kulüp:")
         
-        # MEVKİ TÜRKÇELEŞTİRME BURADA ✅
-        mevkiler = sorted(df['Mevki'].unique().tolist())
-        mevki_secenekleri = {m: turkcelestir(m) for m in mevkiler}
-        f_mevki_kodlar = st.multiselect("⚽ Mevki (Türkçe Açıklamalı):", options=list(mevki_secenekleri.keys()), format_func=lambda x: mevki_secenekleri[x])
+        # Mevki Filtresi (Sadece Temel Olanlar)
+        f_mevki = st.multiselect("⚽ Mevki Seç:", options=list(ana_mevkiler.keys()), format_func=lambda x: f"{x} ({ana_mevkiler[x]})")
         
         countries = set()
         for v in df['Ülke'].unique():
@@ -97,22 +89,26 @@ else:
 
         f_df = df.copy()
         if search: f_df = f_df[(f_df['Oyuncu'].str.contains(search, case=False)) | (f_df['Kulüp'].str.contains(search, case=False))]
-        if f_mevki_kodlar: f_df = f_df[f_df['Mevki'].isin(f_mevki_kodlar)]
+        if f_mevki:
+            # Oyuncunun mevkisinin içinde seçilen ana mevki geçiyorsa gösterir (Esnek arama)
+            f_df = f_df[f_df['Mevki'].apply(lambda x: any(m in x for m in f_mevki))]
         if f_ulke: f_df = f_df[f_df['Ülke'].apply(lambda x: any(u in x for u in f_ulke))]
         f_df = f_df[(f_df['PA'] >= f_pa[0]) & (f_df['PA'] <= f_pa[1]) & (f_df['Yaş'] >= f_yas[0]) & (f_df['Yaş'] <= f_yas[1])]
 
-        st.subheader(f"✅ {len(f_df)} Oyuncu")
-        p_sel = st.selectbox("⭐ Ekle:", ["Seç..."] + f_df['Oyuncu'].tolist())
-        if st.button("Kaydet") and p_sel != "Seç...":
+        st.info("Kimi ekleyelim?")
+        p_sel = st.selectbox("Oyuncu Seç:", ["Seç..."] + f_df['Oyuncu'].tolist())
+        if st.button("Yıldızla") and p_sel != "Seç...":
             supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": p_sel}).execute()
-            st.toast("Eklendi!")
+            st.toast(f"{p_sel} eklendi!")
         st.dataframe(f_df, use_container_width=True)
 
     with tabs[1]: # LİSTEM
         res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", st.session_state.user).execute()
         if res.data:
             st.dataframe(df[df['Oyuncu'].isin([i['oyuncu_adi'] for i in res.data])], use_container_width=True)
-            if st.button("Tümünü Sil"): supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).execute(); st.rerun()
+            if st.button("Listeyi Boşalt"):
+                supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).execute()
+                st.rerun()
 
     with tabs[2]: # KIYASLA
         c1, c2 = st.columns(2)
@@ -120,6 +116,13 @@ else:
         p2 = c2.selectbox("2. Oyuncu", ["Seç..."] + sorted(df['Oyuncu'].tolist()), key="k2")
         if p1 != "Seç..." and p2 != "Seç...":
             r1, r2 = df[df['Oyuncu'] == p1].iloc[0], df[df['Oyuncu'] == p2].iloc[0]
-            st.table(pd.DataFrame({"Özellik": ["PA", "CA", "Yaş", "Kulüp"], p1: [r1['PA'], r1['CA'], r1['Yaş'], r1['Kulüp']], p2: [r2['PA'], r2['CA'], r2['Yaş'], r2['Kulüp']]}))
+            st.table(pd.DataFrame({"Özellik": ["PA", "Yaş", "Kulüp", "Mevki"], p1: [r1['PA'], r1['Yaş'], r1['Kulüp'], r1['Mevki']], p2: [r2['PA'], r2['Yaş'], r2['Kulüp'], r2['Mevki']]}))
+
+    # ADMIN PANELİ (Sadece Sana Özel)
+    if "🛠️ Admin" in tabs_to_show:
+        with tabs[-1]:
+            st.subheader("🛠️ Tüm Hareketler (Admin)")
+            adm = supabase.table("favoriler").select("*").execute()
+            if adm.data: st.dataframe(pd.DataFrame(adm.data).tail(30))
 
     if st.sidebar.button("Çıkış"): st.session_state.user = None; st.rerun()
