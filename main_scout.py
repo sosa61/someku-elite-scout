@@ -4,7 +4,7 @@ import os
 
 st.set_page_config(page_title="SOMEKU ELITE SCOUT", layout="wide")
 
-# Görsel Tasarım ve Türkçeleştirme
+# Görsel Tasarım
 st.markdown("""
     <style>
     .stApp {
@@ -13,36 +13,23 @@ st.markdown("""
                           url('https://images2.imgbox.com/3f/82/XG4mOqZ1_o.png'); 
         background-size: cover; background-position: center; background-attachment: fixed;
     }
-    .filter-box {
+    .filter-box, .compare-box {
         background-color: rgba(20, 20, 20, 0.98);
-        padding: 30px; border-radius: 25px; border: 2px solid #00D2FF;
-        margin-bottom: 25px; box-shadow: 0 0 30px rgba(0, 210, 255, 0.2);
+        padding: 25px; border-radius: 20px; border: 1px solid #00D2FF;
+        margin-bottom: 20px; box-shadow: 0 0 20px rgba(0, 210, 255, 0.2);
     }
-    h1 { text-shadow: 2px 2px 20px #00D2FF; font-weight: 900; text-align: center; color: #00D2FF; margin-bottom: 10px; }
-    h3 { color: #00D2FF !important; }
-    label { color: #FFFFFF !important; font-size: 16px !important; font-weight: bold !important; }
-    .stMultiSelect div div div div { color: #00D2FF !important; background-color: #1E1E1E !important; }
+    h1, h2, h3 { color: #00D2FF !important; text-align: center; text-shadow: 2px 2px 10px rgba(0,210,255,0.5); }
+    label { color: #FFFFFF !important; font-weight: bold !important; }
     </style>
     """, unsafe_allow_html=True)
 
 st.markdown("<h1>🌪️ SOMEKU ELITE SCOUT</h1>", unsafe_allow_html=True)
-st.sidebar.write("👤 Geliştirici: **SOMEKU**")
-st.sidebar.info("Trabzonspor Scouting Sistemi v2.0")
 
-FILE_NAME = "players_export.csv"
-
-# Mevki Eşleştirme Sözlüğü (Detaylı Türkçe)
+# Mevki Eşleştirme
 mevki_sozlugu = {
-    "Kaleci": "GK",
-    "Stoper": "DC",
-    "Sağ Bek": "DR",
-    "Sol Bek": "DL",
-    "Ön Libero": "DM",
-    "Merkez Orta Saha": "MC",
-    "Sağ Kanat": "AMR",
-    "Sol Kanat": "AML",
-    "Ofansif Orta Saha": "AMC",
-    "Forvet": "ST"
+    "Kaleci": "GK", "Stoper": "DC", "Sağ Bek": "DR", "Sol Bek": "DL",
+    "Ön Libero": "DM", "Merkez Orta Saha": "MC", "Sağ Kanat": "AMR",
+    "Sol Kanat": "AML", "On Numara": "AMC", "Forvet": "ST"
 }
 
 @st.cache_data
@@ -56,42 +43,64 @@ def load_data(path):
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
         return df
     except Exception as e:
-        st.error(f"Veri yüklenirken hata: {e}")
+        st.error(f"Veri hatası: {e}")
         return None
 
-if os.path.exists(FILE_NAME):
-    df = load_data(FILE_NAME)
+if os.path.exists("players_export.csv"):
+    df = load_data("players_export.csv")
     if df is not None:
-        search_name = st.text_input("", placeholder="🔍 Aramak istediğiniz oyuncunun ismini yazın...", key="main_search")
+        # --- SOL MENÜ (SİDEBAR) ---
+        st.sidebar.markdown("### 👤 Geliştirici: SOMEKU")
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("### ⚔️ Oyuncu Karşılaştır")
+        
+        p1 = st.sidebar.selectbox("1. Oyuncuyu Seç:", ["Seçiniz..."] + list(df['Oyuncu'].unique()))
+        p2 = st.sidebar.selectbox("2. Oyuncuyu Seç:", ["Seçiniz..."] + list(df['Oyuncu'].unique()))
+        
+        if p1 != "Seçiniz..." and p2 != "Seçiniz...":
+            st.markdown("<div class='compare-box'>", unsafe_allow_html=True)
+            st.markdown("### ⚔️ Karşılaştırma Paneli")
+            c1, c2 = st.columns(2)
+            d1 = df[df['Oyuncu'] == p1].iloc[0]
+            d2 = df[df['Oyuncu'] == p2].iloc[0]
+            
+            with c1:
+                st.info(f"**{p1}**")
+                st.write(f"🎂 Yaş: {d1['Yaş']} | 🌍 {d1['Ülke']}")
+                st.write(f"🔥 PA: {d1['PA']} | 📈 Rat: {d1['Rat']}")
+                st.progress(int(d1['PA'])/200)
+            
+            with c2:
+                st.success(f"**{p2}**")
+                st.write(f"🎂 Yaş: {d2['Yaş']} | 🌍 {d2['Ülke']}")
+                st.write(f"🔥 PA: {d2['PA']} | 📈 Rat: {d2['Rat']}")
+                st.progress(int(d2['PA'])/200)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        # --- ANA FİLTRELEME ---
+        search_name = st.text_input("", placeholder="🔍 Oyuncu ismini buraya yazın...")
         
         st.markdown("<div class='filter-box'>", unsafe_allow_html=True)
-        st.markdown("<h3 style='text-align: center;'>🎯 Detaylı Filtreleme Paneli</h3>", unsafe_allow_html=True)
-        
-        col1, col2 = st.columns([1, 1])
+        col1, col2 = st.columns(2)
         with col1:
-            secilen_turkce_mevkiler = st.multiselect(
-                "⚽ Sahadaki Pozisyonu Seçin:", 
-                options=list(mevki_sozlugu.keys()),
-                help="Birden fazla mevki seçebilirsiniz."
-            )
+            secilen_mevkiler = st.multiselect("⚽ Mevki Seç:", list(mevki_sozlugu.keys()))
         with col2:
-            yas_araligi = st.slider("🎂 Yaş Aralığı:", 14, 45, (14, 25))
-            
-        pa_araligi = st.slider("🔥 Minimum - Maksimum Potansiyel (PA):", 0, 200, (135, 200))
+            yas_araligi = st.slider("🎂 Yaş:", 14, 45, (14, 25))
+        pa_araligi = st.slider("🔥 Potansiyel (PA):", 0, 200, (135, 200))
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # Filtreleme Mantığı
+        # Filtreleme
         f_df = df[
             (df['Oyuncu'].str.contains(search_name, case=False, na=False)) &
             (df['Yaş'] >= yas_araligi[0]) & (df['Yaş'] <= yas_araligi[1]) &
             (df['PA'] >= pa_araligi[0]) & (df['PA'] <= pa_araligi[1])
         ]
         
-        if secilen_turkce_mevkiler:
-            ingilizce_karsiliklar = [mevki_sozlugu[m] for m in secilen_turkce_mevkiler]
-            f_df = f_df[f_df['Mevki'].str.contains('|'.join(ingilizce_karsiliklar), case=False, na=False)]
+        if secilen_mevkiler:
+            karsiliklar = [mevki_sozlugu[m] for m in secilen_mevkiler]
+            f_df = f_df[f_df['Mevki'].str.contains('|'.join(karsiliklar), case=False, na=False)]
             
-        st.subheader(f"📊 Kriterlere Uygun {len(f_df)} Potansiyel Oyuncu")
-        st.dataframe(f_df, use_container_width=True, height=600)
+        st.subheader(f"✅ {len(f_df)} Oyuncu Listelendi")
+        st.dataframe(f_df, use_container_width=True, height=500)
 else:
-    st.error("⚠️ Veri dosyası (players_export.csv) bulunamadı!")
+    st.error("⚠️ Veri bulunamadı!")
