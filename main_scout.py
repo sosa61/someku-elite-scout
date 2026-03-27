@@ -14,7 +14,7 @@ st.set_page_config(page_title="SOMEKU ELITE SCOUT", layout="wide")
 def make_hashes(password): return hashlib.sha256(str.encode(password)).hexdigest()
 def check_hashes(password, hashed_text): return hashed_text if make_hashes(password) == hashed_text else False
 
-# Tema
+# Tema (Değişmedi)
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: white; background-image: linear-gradient(rgba(14,23,23,0.9), rgba(14,23,23,0.95)), url('https://images2.imgbox.com/3f/82/XG4mOqZ1_o.png'); background-size: cover; background-attachment: fixed; }
@@ -35,40 +35,37 @@ if st.session_state.user is None:
         if auth_mode == "Kayıt Ol":
             if st.button("Hesap Oluştur"):
                 check = supabase.table("kullanicilar").select("*").eq("username", user).execute()
-                if len(check.data) > 0: st.error("Dolu!")
+                if len(check.data) > 0: st.error("Bu kullanıcı adı alınmış!")
                 else:
                     supabase.table("kullanicilar").insert({"username": user, "password": make_hashes(password)}).execute()
-                    st.success("Başarılı!")
+                    st.success("Kayıt başarılı! Şimdi giriş yapabilirsin.")
         else:
             if st.button("Giriş"):
                 res = supabase.table("kullanicilar").select("*").eq("username", user).execute()
                 if res.data and check_hashes(password, res.data[0]['password']):
                     st.session_state.user = user
                     st.rerun()
-                else: st.error("Hatalı!")
+                else: st.error("Hatalı kullanıcı veya şifre!")
         st.markdown("</div>", unsafe_allow_html=True)
 else:
-    # --- VERİ YÜKLEME (SIRALAMA DÜZELTİLDİ) ---
+    # --- VERİ YÜKLEME (SIRALAMA KORUMALI) ---
     @st.cache_data
     def load_data():
         if not os.path.exists("players_export.csv"): return None
-        # Dosyayı oku ama başlıkları kendimiz verelim (Kaymayı engeller)
-        df = pd.read_csv("players_export.csv", sep=None, engine='python')
+        # Dosyayı oku, başlık satırını atla ve kendi başlıklarımızı koy
+        df = pd.read_csv("players_export.csv", sep=None, engine='python', skiprows=1, header=None)
         
-        # Senin dosyandaki sütun sayısına göre (Resimden gördüğüm kadarıyla 11 sütun var)
-        # Sütun isimlerini manuel zorluyoruz:
-        yeni_sutunlar = ['ID', 'Oyuncu', 'Yaş', 'CA', 'PA', 'Ülke', 'Kulüp', 'Değer', 'Mevki', 'Rat', 'Pot_Rat']
-        if len(df.columns) >= len(yeni_sutunlar):
-            df.columns = yeni_sutunlar + list(df.columns[len(yeni_sutunlar):])
+        # Sütunları manuel eşleştiriyoruz (Resimdeki kaymaya göre)
+        # 1: Oyuncu, 2: Yaş, 3: CA, 4: PA, 5: Ülke, 6: Kulüp, 7: Değer, 8: Mevki
+        df = df[[1, 2, 3, 4, 5, 6, 7, 8]] 
+        df.columns = ['Oyuncu', 'Yaş', 'CA', 'PA', 'Ülke', 'Kulüp', 'Değer', 'Mevki']
         
-        # Temizlik
-        df['Oyuncu'] = df['Oyuncu'].astype(str).str.strip()
+        # Temizlik ve Sayıya Çevirme
         df['PA'] = pd.to_numeric(df['PA'], errors='coerce').fillna(0).astype(int)
         df['Yaş'] = pd.to_numeric(df['Yaş'], errors='coerce').fillna(0).astype(int)
-        df['Kulüp'] = df['Kulüp'].fillna('Unknown')
-        df['Ülke'] = df['Ülke'].fillna('Unknown')
-        df['Mevki'] = df['Mevki'].fillna('-')
-        
+        for col in ['Oyuncu', 'Ülke', 'Kulüp', 'Mevki']:
+            df[col] = df[col].fillna('Bilinmiyor').astype(str).str.strip()
+            
         return df.sort_values(by='PA', ascending=False)
 
     df = load_data()
@@ -77,11 +74,9 @@ else:
     if df is not None:
         tabs = st.tabs(["🔍 Scouting", "⭐ Transfer Listem", "⚔️ Karşılaştır"])
 
-        with tabs[0]:
+        with tabs[0]: # SCOUTING
             st.markdown("<div class='filter-box'>", unsafe_allow_html=True)
             search = st.text_input("🔍 Oyuncu veya Kulüp Ara:")
-            
-            # Dinamik Filtreler
             c1, c2 = st.columns(2)
             f_mevki = c1.multiselect("⚽ Mevki:", sorted(df['Mevki'].unique().tolist()))
             f_ulke = c1.multiselect("🌎 Ülke:", sorted(df['Ülke'].unique().tolist()))
@@ -91,25 +86,24 @@ else:
 
             # Filtreleme
             f_df = df.copy()
-            if search:
-                f_df = f_df[(f_df['Oyuncu'].str.contains(search, case=False)) | (f_df['Kulüp'].str.contains(search, case=False))]
+            if search: f_df = f_df[(f_df['Oyuncu'].str.contains(search, case=False)) | (f_df['Kulüp'].str.contains(search, case=False))]
             if f_mevki: f_df = f_df[f_df['Mevki'].isin(f_mevki)]
             if f_ulke: f_df = f_df[f_df['Ülke'].isin(f_ulke)]
             f_df = f_df[(f_df['PA'] >= f_pa[0]) & (f_df['PA'] <= f_pa[1])]
             f_df = f_df[(f_df['Yaş'] >= f_yas[0]) & (f_df['Yaş'] <= f_yas[1])]
 
             st.write(f"### ✅ {len(f_df)} Oyuncu")
-            
             for idx, row in f_df.head(15).iterrows():
-                c1, c2 = st.columns([5, 1])
-                c1.write(f"**{row['Oyuncu']}** ({row['Yaş']}) - {row['Kulüp']} | PA: {row['PA']}")
-                if c2.button("⭐", key=f"f_{idx}"):
+                col1, col2 = st.columns([5, 1])
+                col1.write(f"**{row['Oyuncu']}** ({row['Yaş']}) - {row['Kulüp']} | PA: {row['PA']}")
+                if col2.button("⭐", key=f"fav_{idx}"):
                     supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": row['Oyuncu']}).execute()
-                    st.toast("Eklendi!")
-            st.dataframe(f_df[['Oyuncu', 'Yaş', 'PA', 'Mevki', 'Ülke', 'Kulüp', 'Değer']], use_container_width=True)
+                    st.toast("Kaydedildi!")
+            st.dataframe(f_df, use_container_width=True)
 
-        with tabs[1]:
+        with tabs[1]: # FAVORİLER
             res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", st.session_state.user).execute()
             if res.data:
-                favs = [item['oyuncu_adi'] for item in res.data]
-                st.dataframe(df[df['Oyuncu'].isin(favs)], use_container_width=True)
+                fav_list = [item['oyuncu_adi'] for item in res.data]
+                st.dataframe(df[df['Oyuncu'].isin(fav_list)], use_container_width=True)
+            else: st.info("Henüz favori yok.")
