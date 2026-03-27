@@ -30,18 +30,23 @@ FILE_NAME = "players_export.csv"
 @st.cache_data
 def load_data(path):
     try:
-        df = pd.read_csv(path, sep='\t', names=['ID', 'Oyuncu', 'Yaş', 'CA', 'PA', 'Ülke', 'Kulüp', 'Değer', 'Mevki', 'Rat', 'Pot_Rat'])
-        df = df.drop(columns=['ID', 'Rat', 'Pot_Rat'])
-        df['PA'] = pd.to_numeric(df['PA'], errors='coerce').fillna(0).astype(int)
-        df['CA'] = pd.to_numeric(df['CA'], errors='coerce').fillna(0).astype(int)
-        df['Yaş'] = pd.to_numeric(df['Yaş'], errors='coerce').fillna(0).astype(int)
+        # Hata payını sıfırlamak için farklı ayırıcıları deniyoruz
+        df = pd.read_csv(path, sep=None, engine='python', on_bad_lines='skip')
+        # Sütun isimlerini zorla düzeltelim
+        df.columns = ['ID', 'Oyuncu', 'Yaş', 'CA', 'PA', 'Ülke', 'Kulüp', 'Değer', 'Mevki', 'Rat', 'Pot_Rat'][:len(df.columns)]
+        if 'ID' in df.columns: df = df.drop(columns=['ID'])
+        for col in ['PA', 'CA', 'Yaş']:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
         return df
-    except: return None
+    except Exception as e:
+        st.error(f"Veri okuma hatası: {e}")
+        return None
 
 if os.path.exists(FILE_NAME):
     df = load_data(FILE_NAME)
     if df is not None:
-        search_name = st.text_input("", placeholder="🔍 Oyuncu ismini buraya yazın... (Örn: Oulai, Yamal, Arda)", key="main_search")
+        search_name = st.text_input("", placeholder="🔍 Oyuncu ismini buraya yazın...", key="main_search")
         st.markdown("<div class='filter-box'>", unsafe_allow_html=True)
         f1, f2, f3 = st.columns([3, 2, 2])
         with f1: m_secim = st.multiselect("⚽ Mevki Seç:", ["GK", "DC", "DR", "DL", "DM", "MC", "AMR", "AML", "AMC", "ST"])
@@ -50,11 +55,16 @@ if os.path.exists(FILE_NAME):
         st.markdown("</div>", unsafe_allow_html=True)
 
         if not search_name and not m_secim and pa_araligi == (0, 200):
-            st.info("💡 Aramaya başlamak için yukarıdaki çubuğa isim yazın veya bir mevki seçin.")
+            st.info("💡 Aramaya başlamak için yukarıya bir isim yazın.")
         else:
-            f_df = df[(df['Oyuncu'].str.contains(search_name, case=False, na=False)) & (df['Yaş'] >= yas_araligi[0]) & (df['Yaş'] <= yas_araligi[1]) & (df['PA'] >= pa_araligi[0]) & (df['PA'] <= pa_araligi[1])]
-            if m_secim: f_df = f_df[f_df['Mevki'].str.contains('|'.join(m_secim), case=False, na=False)]
-            st.subheader(f"✅ Filtrelere Uygun {len(f_df)} Kayıt")
-            st.dataframe(f_df[['PA', 'CA', 'Oyuncu', 'Yaş', 'Mevki', 'Kulüp', 'Değer', 'Ülke']].sort_values(by="PA", ascending=False), use_container_width=True, height=650)
-    else: st.error("Dosya okunurken hata!")
-else: st.error("players_export.csv bulunamadı!")
+            f_df = df[
+                (df['Oyuncu'].str.contains(search_name, case=False, na=False)) &
+                (df['Yaş'] >= yas_araligi[0]) & (df['Yaş'] <= yas_araligi[1]) &
+                (df['PA'] >= pa_araligi[0]) & (df['PA'] <= pa_araligi[1])
+            ]
+            if m_secim:
+                f_df = f_df[f_df['Mevki'].str.contains('|'.join(m_secim), case=False, na=False)]
+            st.subheader(f"✅ {len(f_df)} Oyuncu Bulundu")
+            st.dataframe(f_df, use_container_width=True, height=650)
+else:
+    st.error("⚠️ players_export.csv dosyası bulunamadı! Lütfen GitHub'a yüklediğinizden emin olun.")
