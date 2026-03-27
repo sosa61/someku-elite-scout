@@ -11,16 +11,7 @@ supabase: Client = create_client(URL, KEY)
 
 st.set_page_config(page_title="SOMEKU ELITE SCOUT", layout="wide")
 
-# --- BÖLGESEL ÜLKE LİSTELERİ ---
-bolge_gruplari = {
-    "Güney Amerika": ["Argentina", "Brazil", "Uruguay", "Colombia", "Chile", "Ecuador", "Paraguay", "Peru", "Venezuela", "Bolivia"],
-    "Avrupa (Genel)": ["Germany", "France", "Spain", "Italy", "Portugal", "Netherlands", "Belgium", "Switzerland", "Austria", "England"],
-    "Kuzey Avrupa": ["Norway", "Sweden", "Denmark", "Finland", "Iceland"],
-    "Afrika": ["Nigeria", "Senegal", "Ivory Coast", "Cameroon", "Ghana", "Algeria", "Morocco", "Egypt", "Mali", "Tunisia"],
-    "Asya": ["Japan", "South Korea", "China", "Australia", "Iran", "Saudi Arabia", "Uzbekistan"],
-    "Balkanlar/Doğu": ["Turkey", "Croatia", "Serbia", "Greece", "Bulgaria", "Romania", "Poland", "Czech Republic", "Slovakia", "Hungary", "Ukraine", "Russia"]
-}
-
+# Tema Ayarları (Bozmadım!)
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: white; background-image: linear-gradient(rgba(14,23,23,0.9), rgba(14,23,23,0.95)), url('https://images2.imgbox.com/3f/82/XG4mOqZ1_o.png'); background-size: cover; background-attachment: fixed; }
@@ -29,31 +20,29 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- OTURUM ---
 if 'user' not in st.session_state: st.session_state.user = None
 
 if st.session_state.user is None:
     st.markdown("<h1>🔐 GİRİŞ YAP</h1>", unsafe_allow_html=True)
-    user_name = st.text_input("", placeholder="Profil İsminiz (Örn: Ramazan)...").strip()
+    user_name = st.text_input("", placeholder="İsminizi yazın...").strip()
     if st.button("Sisteme Gir"):
-        if user_name:
-            st.session_state.user = user_name
-            st.rerun()
+        if user_name: st.session_state.user = user_name; st.rerun()
 else:
     st.markdown("<h1>🌪️ SOMEKU ELITE SCOUT</h1>", unsafe_allow_html=True)
-    st.sidebar.success(f"👤 Profil: {st.session_state.user}")
-    if st.sidebar.button("Güvenli Çıkış"):
-        st.session_state.user = None
-        st.rerun()
-
+    
     @st.cache_data
     def load_data():
         df = pd.read_csv("players_export.csv", sep=None, engine='python')
-        df.columns = ['ID','Oyuncu','Yaş','CA','PA','Ülke','Kulüp','Değer','Mevki','Rat','Pot_Rat'][:len(df.columns)]
-        df['Ülke'] = df['Ülke'].fillna('Bilinmiyor').astype(str)
-        df['Mevki'] = df['Mevki'].fillna('-').astype(str)
-        df['PA'] = pd.to_numeric(df['PA'], errors='coerce').fillna(0).astype(int)
-        df['Yaş'] = pd.to_numeric(df['Yaş'], errors='coerce').fillna(0).astype(int)
+        # Sütun isimlerini garantiye alalım
+        df.columns = [c.strip() for c in df.columns]
+        # Kritik sütunları sayıya çevir
+        for col in ['PA', 'Yaş', 'CA']:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
+        # Metin sütunlarını temizle
+        for col in ['Oyuncu', 'Ülke', 'Mevki', 'Kulüp']:
+            if col in df.columns:
+                df[col] = df[col].fillna('Unknown').astype(str).str.strip()
         return df.sort_values(by='PA', ascending=False)
 
     df = load_data()
@@ -62,61 +51,44 @@ else:
     with tabs[0]: 
         st.markdown("<div class='filter-box'>", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
-        f_mevki = col1.multiselect("⚽ Mevki:", ["Kaleci", "Stoper", "Sağ Bek", "Sol Bek", "Ön Libero", "Merkez Orta Saha", "Sağ Kanat", "Sol Kanat", "On Numara", "Forvet"])
-        f_bolge = col1.multiselect("🌎 Bölge/Kıta Seç:", list(bolge_gruplari.keys()))
-        f_yas = col2.slider("🎂 Yaş:", 14, 45, (14, 45))
-        f_pa = col2.slider("🔥 PA:", 0, 200, (0, 200))
+        
+        # DÜZELTME 1: Mevkileri ve Ülkeleri direkt DOSYADAN çekiyoruz (Hata payı 0)
+        mevki_listesi = sorted(df['Mevki'].unique().tolist())
+        ulke_listesi = sorted(df['Ülke'].unique().tolist())
+        
+        f_mevki = col1.multiselect("⚽ Mevki (Dosyadaki gibi):", mevki_listesi)
+        f_ulke = col1.multiselect("🌎 Ülke Seç:", ulke_listesi)
+        
+        f_yas = col2.slider("🎂 Yaş:", int(df['Yaş'].min()), int(df['Yaş'].max()), (14, 45))
+        f_pa = col2.slider("🔥 PA:", int(df['PA'].min()), int(df['PA'].max()), (0, 200))
         search = st.text_input("🔍 İsim veya Kulüp Ara:")
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # Filtreleme İşlemi
+        # Filtreleme
         f_df = df.copy()
+        if f_mevki: f_df = f_df[f_df['Mevki'].isin(f_mevki)]
+        if f_ulke: f_df = f_df[f_df['Ülke'].isin(f_ulke)]
         
-        # Bölge Filtresi (DÜZELTİLDİ ✅)
-        if f_bolge:
-            secilen_ulkeler = []
-            for b in f_bolge: secilen_ulkeler.extend(bolge_gruplari[b])
-            f_df = f_df[f_df['Ülke'].isin(secilen_ulkeler)]
+        f_df = f_df[
+            ((f_df['Oyuncu'].str.contains(search, case=False)) | (f_df['Kulüp'].str.contains(search, case=False))) &
+            (f_df['Yaş'] >= f_yas[0]) & (f_df['Yaş'] <= f_yas[1]) &
+            (f_df['PA'] >= f_pa[0]) & (f_df['PA'] <= f_pa[1])
+        ]
 
-        # Diğer Filtreler
-        f_df = f_df[(f_df['Oyuncu'].str.contains(search, case=False)) | (f_df['Kulüp'].str.contains(search, case=False))]
-        f_df = f_df[(f_df['Yaş'] >= f_yas[0]) & (f_df['Yaş'] <= f_yas[1]) & (f_df['PA'] >= f_pa[0]) & (f_df['PA'] <= f_pa[1])]
-
-        # Mevki Filtresi (Hatasız Regex ✅)
-        mevki_map = {"Kaleci":"GK", "Stoper":"D (C)", "Sağ Bek":"D (R)", "Sol Bek":"D (L)", "Ön Libero":"DM", "Merkez Orta Saha":"M (C)", "Sağ Kanat":"(R)", "Sol Kanat":"(L)", "On Numara":"AM (C)", "Forvet":"S (C)"}
-        if f_mevki:
-            karsiliklar = [mevki_map[m] for m in f_mevki]
-            f_df = f_df[f_df['Mevki'].apply(lambda x: any(re.search(re.escape(k), x, re.IGNORECASE) for k in karsiliklar))]
-
-        st.subheader(f"✅ {len(f_df)} Oyuncu Listelendi")
+        st.subheader(f"✅ {len(f_df)} Oyuncu Bulundu")
         
-        # Hızlı Favoriye Ekleme Listesi
+        # Favori Ekleme ve Tablo
         for idx, row in f_df.head(10).iterrows():
             c1, c2 = st.columns([5, 1])
-            c1.write(f"**{row['Oyuncu']}** ({row['Yaş']}) - {row['Kulüp']} | PA: {row['PA']}")
+            c1.write(f"**{row['Oyuncu']}** - {row['Kulüp']} | PA: {row['PA']} | {row['Mevki']}")
             if c2.button("⭐", key=f"btn_{idx}"):
                 supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": row['Oyuncu']}).execute()
-                st.toast(f"{row['Oyuncu']} kaydedildi!")
+                st.toast(f"{row['Oyuncu']} eklendi!")
 
-        st.dataframe(f_df[['Oyuncu', 'Yaş', 'PA', 'Mevki', 'Ülke', 'Kulüp', 'Değer']], use_container_width=True)
+        st.dataframe(f_df, use_container_width=True)
 
     with tabs[1]:
-        st.markdown("### ⭐ Transfer Listem")
         res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", st.session_state.user).execute()
         if res.data:
             favs = [item['oyuncu_adi'] for item in res.data]
-            st.dataframe(df[df['Oyuncu'].isin(favs)][['Oyuncu', 'Yaş', 'PA', 'Kulüp', 'Değer']], use_container_width=True)
-            if st.button("Listeyi Temizle"):
-                supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).execute()
-                st.rerun()
-        else: st.info("Henüz favori oyuncun yok.")
-
-    with tabs[2]:
-        p_list = ["Seçiniz..."] + sorted(df['Oyuncu'].unique().tolist())
-        c1, c2 = st.columns(2)
-        sel1 = c1.selectbox("1. Oyuncu:", p_list, key="s1")
-        sel2 = c2.selectbox("2. Oyuncu:", p_list, key="s2")
-        if sel1 != "Seçiniz..." and sel2 != "Seçiniz...":
-            d1, d2 = df[df['Oyuncu'] == sel1].iloc[0], df[df['Oyuncu'] == sel2].iloc[0]
-            st.metric(sel1, f"PA: {d1['PA']}", f"Yaş: {d1['Yaş']}")
-            st.metric(sel2, f"PA: {d2['PA']}", f"Yaş: {d2['Yaş']}")
+            st.dataframe(df[df['Oyuncu'].isin(favs)], use_container_width=True)
