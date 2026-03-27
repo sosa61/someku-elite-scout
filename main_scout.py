@@ -12,16 +12,11 @@ supabase: Client = create_client(URL, KEY)
 
 st.set_page_config(page_title="SOMEKU ELITE SCOUT", layout="wide")
 
-# Şifreleme Fonksiyonu (Güvenlik için)
-def make_hashes(password):
-    return hashlib.sha256(str.encode(password)).hexdigest()
+# Şifreleme Fonksiyonları
+def make_hashes(password): return hashlib.sha256(str.encode(password)).hexdigest()
+def check_hashes(password, hashed_text): return hashed_text if make_hashes(password) == hashed_text else False
 
-def check_hashes(password, hashed_text):
-    if make_hashes(password) == hashed_text:
-        return hashed_text
-    return False
-
-# Tema Ayarları
+# Tema (Bozmadım!)
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: white; background-image: linear-gradient(rgba(14,23,23,0.9), rgba(14,23,23,0.95)), url('https://images2.imgbox.com/3f/82/XG4mOqZ1_o.png'); background-size: cover; background-attachment: fixed; }
@@ -32,79 +27,63 @@ st.markdown("""
 
 if 'user' not in st.session_state: st.session_state.user = None
 
-# --- GİRİŞ VE KAYIT EKRANI ---
+# --- GİRİŞ / KAYIT ---
 if st.session_state.user is None:
     st.markdown("<h1>🔐 SOMEKU SCOUT GÜVENLİK</h1>", unsafe_allow_html=True)
-    
     auth_mode = st.radio("İşlem Seçin:", ["Giriş Yap", "Kayıt Ol"], horizontal=True)
-    
     with st.container():
         st.markdown("<div class='auth-box'>", unsafe_allow_html=True)
-        user = st.text_input("Kullanıcı Adı:")
+        user = st.text_input("Kullanıcı Adı:").strip()
         password = st.text_input("Şifre:", type="password")
-        
         if auth_mode == "Kayıt Ol":
             if st.button("Hesap Oluştur"):
-                # Kullanıcı var mı kontrol et
                 check = supabase.table("kullanicilar").select("*").eq("username", user).execute()
-                if len(check.data) > 0:
-                    st.error("Bu kullanıcı adı zaten alınmış!")
+                if len(check.data) > 0: st.error("Bu kullanıcı adı dolu!")
                 else:
-                    hashed_pw = make_hashes(password)
-                    supabase.table("kullanicilar").insert({"username": user, "password": hashed_pw}).execute()
-                    st.success("Kayıt başarılı! Şimdi Giriş Yap diyerek bağlanabilirsin.")
-        
-        else: # Giriş Yap modu
+                    supabase.table("kullanicilar").insert({"username": user, "password": make_hashes(password)}).execute()
+                    st.success("Kayıt başarılı! Giriş yapabilirsiniz.")
+        else:
             if st.button("Giriş"):
                 res = supabase.table("kullanicilar").select("*").eq("username", user).execute()
-                if res.data:
-                    if check_hashes(password, res.data[0]['password']):
-                        st.session_state.user = user
-                        st.success(f"Hoş geldin {user}!")
-                        st.rerun()
-                    else:
-                        st.error("Hatalı şifre!")
-                else:
-                    st.error("Kullanıcı bulunamadı!")
+                if res.data and check_hashes(password, res.data[0]['password']):
+                    st.session_state.user = user
+                    st.rerun()
+                else: st.error("Hatalı kullanıcı veya şifre!")
         st.markdown("</div>", unsafe_allow_html=True)
-
 else:
-    # --- ANA PROGRAM (ÖNCEKİ KODUN DEVAMI) ---
-    st.markdown(f"<h1>🌪️ SOMEKU ELITE SCOUT</h1>", unsafe_allow_html=True)
-    st.sidebar.success(f"👤 Oturum: {st.session_state.user}")
-    
+    # --- VERİ YÜKLEME (HATAYI ÇÖZEN YER) ---
     @st.cache_data
     def load_data():
+        if not os.path.exists("players_export.csv"): return None
         df = pd.read_csv("players_export.csv", sep=None, engine='python')
+        # Sütun isimlerini zorla temizle ve yeniden adlandır
         df.columns = [c.strip() for c in df.columns]
-        for col in ['PA', 'Yaş']:
-            if col in df.columns: df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
-        return df.sort_values(by='PA', ascending=False)
+        
+        # Eğer senin dosyanda 'PA' ismi farklıysa, onu otomatik 'PA' yapalım
+        mapping = {'PA': 'PA', 'Potansiyel': 'PA', 'Pot': 'PA'} # FM diline göre esnetebiliriz
+        for old, new in mapping.items():
+            if old in df.columns: df = df.rename(columns={old: new})
+        
+        if 'PA' in df.columns:
+            df['PA'] = pd.to_numeric(df['PA'], errors='coerce').fillna(0).astype(int)
+            return df.sort_values(by='PA', ascending=False)
+        return df
 
     df = load_data()
-    
-    tab_list = ["🔍 Scouting", "⭐ Transfer Listem", "⚔️ Karşılaştır"]
-    if st.session_state.user.lower() in ["ömer", "someku", "ramazan"]:
-        tab_list.append("🛠️ Admin")
-    
-    tabs = st.tabs(tab_list)
+    st.markdown("<h1>🌪️ SOMEKU ELITE SCOUT</h1>", unsafe_allow_html=True)
+    st.sidebar.success(f"👤 Oturum: {st.session_state.user}")
 
-    with tabs[0]: # SCOUTING
-        search = st.text_input("🔍 Oyuncu Ara:")
-        f_df = df[df['Oyuncu'].str.contains(search, case=False, na=False)].head(15)
-        for idx, row in f_df.iterrows():
-            c1, c2 = st.columns([5, 1])
-            c1.write(f"**{row['Oyuncu']}** - PA: {row['PA']}")
-            if c2.button("⭐", key=f"f_{idx}"):
-                supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": row['Oyuncu']}).execute()
-                st.toast("Eklendi!")
+    if df is not None:
+        tab_list = ["🔍 Scouting", "⭐ Transfer Listem", "⚔️ Karşılaştır"]
+        if st.session_state.user.lower() in ["someku", "ömer", "ramazan"]: tab_list.append("🛠️ Admin")
+        tabs = st.tabs(tab_list)
 
-    with tabs[1]: # TRANSFER LİSTEM
-        res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", st.session_state.user).execute()
-        if res.data:
-            favs = [item['oyuncu_adi'] for item in res.data]
-            st.dataframe(df[df['Oyuncu'].isin(favs)], use_container_width=True)
-        else: st.write("Listeniz boş.")
+        with tabs[0]:
+            search = st.text_input("🔍 Oyuncu Ara:")
+            f_df = df[df['Oyuncu'].str.contains(search, case=False, na=False)].head(15) if 'Oyuncu' in df.columns else df.head(15)
+            st.dataframe(f_df, use_container_width=True)
+    else:
+        st.error("Veri dosyası (players_export.csv) okunamadı veya sütunlar hatalı!")
 
     if st.sidebar.button("Güvenli Çıkış"):
         st.session_state.user = None
