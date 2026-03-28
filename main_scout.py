@@ -61,29 +61,30 @@ else:
         df['PA'] = pd.to_numeric(df['PA'], errors='coerce').fillna(0).astype(int)
         df['CA'] = pd.to_numeric(df['CA'], errors='coerce').fillna(0).astype(int)
         df['Yaş'] = pd.to_numeric(df['Yaş'], errors='coerce').fillna(0).astype(int)
-        # Çift Ülke Temizliği (Turkey/Germany -> Turkey) ✅
+        # Ülke Temizliği (Sadece ilk ismi al)
         df['Ulke_Temiz'] = df['Ülke'].apply(lambda x: str(x).split('/')[0].strip())
         return df
 
     df = load_data()
     tabs = st.tabs(["🔍 SCOUT", "🔥 POPÜLER", "⭐ LİSTEM", "⚔️ KIYAS", "⚽ KADROM", "🛠️ ADMIN"])
 
-    with tabs[0]: # SCOUT (TEK ÜLKE & CA GÖRÜNÜMÜ ✅)
+    with tabs[0]: # SCOUT (YAŞ FİLTRESİ GERİ GELDİ ✅)
         st.subheader("Gelişmiş Scout")
         c1, c2 = st.columns(2)
-        f_name = c1.text_input("İsim:")
-        f_country = c2.multiselect("Ülke (Tekli):", sorted(df['Ulke_Temiz'].unique()))
+        f_name = c1.text_input("İsim Ara:")
+        f_country = c2.multiselect("Ülke Seç (Tekli):", sorted(df['Ulke_Temiz'].unique()))
         
         c3, c4 = st.columns(2)
-        f_pa = c3.slider("Min Potansiyel (PA):", 0, 200, 100)
-        f_pos = c4.multiselect("Pozisyon:", list(pozisyon_map.keys()), format_func=lambda x: pozisyon_map[x])
+        f_pa = c3.slider("Min PA:", 0, 200, 100)
+        f_age = c4.slider("Yaş Aralığı:", 15, 45, (15, 45)) # Yaş filtresi eklendi ✅
         
-        f_df = df[df['PA'] >= f_pa]
+        f_pos = st.multiselect("Pozisyon:", list(pozisyon_map.keys()), format_func=lambda x: pozisyon_map[x])
+        
+        f_df = df[(df['PA'] >= f_pa) & (df['Yaş'] >= f_age[0]) & (df['Yaş'] <= f_age[1])]
         if f_name: f_df = f_df[f_df['Oyuncu'].str.contains(f_name, case=False)]
         
         if f_country:
-            # Kenan Yıldız Havuzu ✅
-            milli = ["Kenan Yıldız", "Can Uzun", "Ferdi Kadıoğlu", "Arda Güler"]
+            milli = ["Kenan Yıldız", "Can Uzun", "Ferdi Kadıoğlu"]
             if 'Turkey' in f_country:
                 f_df = f_df[(f_df['Ulke_Temiz'].isin(f_country)) | (f_df['Oyuncu'].isin(milli))]
             else:
@@ -93,30 +94,32 @@ else:
         
         for _, r in f_df.head(20).iterrows():
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(r['Oyuncu'])}"
-            st.markdown(f"""
-            <div class="player-card">
-                <b>{r['Oyuncu']}</b> ({r['Yaş']}) | {r['Kulüp']}<br>
-                <small>Mevki: {r['Mevki']} | <b>CA: {r['CA']}</b> | PA: {r['PA']} | 🌎 {r['Ülke']}</small><br>
-                <a href="{tm_url}" target="_blank" class="tm-button">🔍 Transfermarkt Kariyer</a>
-            </div>
-            """, unsafe_allow_html=True)
-            if st.button(f"⭐ Ekle", key=f"add_{r['Oyuncu']}"):
+            st.markdown(f"""<div class="player-card"><b>{r['Oyuncu']}</b> ({r['Yaş']}) | {r['Kulüp']}<br><small>CA: {r['CA']} | PA: {r['PA']} | {r['Mevki']}</small><br><a href="{tm_url}" target="_blank" class="tm-button">🔍 Transfermarkt</a></div>""", unsafe_allow_html=True)
+            if st.button(f"⭐ Ekle", key=f"s_{r['Oyuncu']}"):
                 supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": r['Oyuncu']}).execute()
-                st.toast(f"{r['Oyuncu']} Listeye Eklendi!")
+                st.toast("Eklendi!")
+
+    with tabs[1]: # POPÜLER (TAMİR EDİLDİ ✅)
+        st.subheader("En Çok Takip Edilenler")
+        p_res = supabase.table("favoriler").select("oyuncu_adi").execute()
+        if p_res.data:
+            counts = pd.DataFrame(p_res.data)['oyuncu_adi'].value_counts().reset_index()
+            counts.columns = ['Oyuncu', 'Takip']
+            st.table(counts.head(10))
 
     with tabs[2]: # LİSTEM (TAMİR EDİLDİ ✅)
-        st.subheader("Favori Oyuncuların")
-        res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", st.session_state.user).execute()
-        if res.data:
-            fav_names = [x['oyuncu_adi'] for x in res.data if "KADRO:" not in x['oyuncu_adi']]
-            st.dataframe(df[df['Oyuncu'].isin(fav_names)][['Oyuncu','Yaş','CA','PA','Mevki','Kulüp']])
-        else: st.info("Listen henüz boş.")
+        st.subheader("Favorilerim")
+        m_res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", st.session_state.user).execute()
+        if m_res.data:
+            f_names = [x['oyuncu_adi'] for x in m_res.data if "KADRO:" not in x['oyuncu_adi']]
+            st.dataframe(df[df['Oyuncu'].isin(f_names)][['Oyuncu','Yaş','CA','PA','Mevki']])
+        else: st.info("Liste boş.")
 
     with tabs[3]: # KIYAS (TAMİR EDİLDİ ✅)
-        st.subheader("Oyuncu Karşılaştırma")
-        all_names = sorted(df['Oyuncu'].tolist())
-        p1 = st.selectbox("1. Oyuncu", ["Seç"] + all_names, key="k1")
-        p2 = st.selectbox("2. Oyuncu", ["Seç"] + all_names, key="k2")
+        st.subheader("Kıyasla")
+        o_list = sorted(df['Oyuncu'].tolist())
+        p1 = st.selectbox("1. Oyuncu", ["Seç"] + o_list, key="k1")
+        p2 = st.selectbox("2. Oyuncu", ["Seç"] + o_list, key="k2")
         if p1 != "Seç" and p2 != "Seç":
             st.table(df[df['Oyuncu'].isin([p1, p2])].set_index('Oyuncu')[['CA','PA','Yaş','Mevki','Değer']])
 
@@ -134,12 +137,11 @@ else:
         if st.button("💾 Kadroyu Kaydet"):
             k_data = f"KADRO:{k_adi}|{json.dumps([lw, stp, rw, m1, dm, m2, lb, cb1, cb2, rb, gk])}"
             supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": k_data}).execute()
-            st.success("Kaydedildi!")
+            st.success("Kadro Kaydedildi!")
 
     with tabs[5]: # ADMIN (TAMİR EDİLDİ ✅)
-        if any(x in st.session_state.user.lower() for x in ["someku", "omer", "ramazan"]):
+        if any(x in st.session_state.user.lower() for x in ["someku", "omer"]):
             adm = supabase.table("favoriler").select("*").execute()
             st.dataframe(pd.DataFrame(adm.data))
-        else: st.error("Yetkiniz yok.")
 
     if st.sidebar.button("Çıkış"): st.session_state.user = None; st.rerun()
