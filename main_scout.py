@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import os
 import hashlib
+import random
+import urllib.parse
 from supabase import create_client, Client
 
 # --- SUPABASE BAĞLANTISI ---
@@ -17,17 +19,19 @@ ana_mevkiler = {"GK": "Kaleci", "D C": "Stoper", "D L": "Sol Bek", "D R": "Sağ 
 @st.cache_resource
 def get_hash(password): return hashlib.sha256(str.encode(password)).hexdigest()
 
-# --- TASARIM ---
+# --- TASARIM VE BUTON STİLLERİ ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: white; background-image: linear-gradient(rgba(14,23,23,0.96), rgba(14,23,23,0.96)), url('https://images2.imgbox.com/3f/82/XG4mOqZ1_o.png'); background-size: cover; background-attachment: fixed; }
-    .barrow-panel { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 12px; border: 1px solid #00D2FF; margin-bottom: 25px; }
+    .barrow-panel { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 12px; border: 1px solid #00D2FF; margin-bottom: 15px; }
     .player-card { background: rgba(255, 255, 255, 0.05); border: 1px solid #00D2FF; border-radius: 10px; padding: 15px; margin-bottom: 15px; }
-    .progress-fill { height: 8px; border-radius: 5px; transition: 0.5s; }
+    .tm-button { display: inline-block; padding: 5px 10px; background-color: #1a3151; color: #ffffff !important; text-decoration: none; border-radius: 5px; font-size: 12px; border: 1px solid #d2ad5c; margin-top: 10px; font-weight: bold; }
+    .tm-button:hover { background-color: #24416b; }
     </style>
     """, unsafe_allow_html=True)
 
 if 'user' not in st.session_state: st.session_state.user = None
+if 'seed' not in st.session_state: st.session_state.seed = 42
 
 # --- GİRİŞ ---
 if st.session_state.user is None:
@@ -51,77 +55,60 @@ else:
             try: return float(str(x).replace('£', '').replace('€', '').replace('M', '000000').replace('K', '000').replace('.', '').replace(',', '').strip())
             except: return 0
         df['ValNum'] = df['Değer'].apply(clean_val)
+        for col in ['Oyuncu', 'Ülke', 'Kulüp', 'Mevki']: df[col] = df[col].fillna('-').astype(str).str.strip()
         return df
 
     df = load_data()
     st.markdown("<h1>🌪️ SOMEKU ELITE SCOUT</h1>", unsafe_allow_html=True)
 
-    # --- 🕵️‍♂️ BARROW AI V35: KESİN FİLTRELEME ✅ ---
+    # --- 🕵️‍♂️ BARROW AI V38: KARIŞTIR & TRANSFERMARKT ✅ ---
     with st.container():
-        st.markdown(f'<div class="barrow-panel"><h3>🕵️‍♂️ Barrow AI</h3>{st.session_state.user}, ne arıyoruz? (Örn: "19 yaşında forvet", "İtalyan stoper", "Türk wonderkid")</div>', unsafe_allow_html=True)
-        q = st.text_input("", placeholder="Komutunu buraya yaz...", label_visibility="collapsed").lower()
+        st.markdown(f'<div class="barrow-panel"><h3>🕵️‍♂️ Barrow AI</h3>{st.session_state.user}, transfer hedefini belirle! (Örn: "20 yaş stoper", "Alman kanat")</div>', unsafe_allow_html=True)
+        q = st.text_input("", placeholder="Barrow'a talimat ver...", key="barrow_q", label_visibility="collapsed").lower()
         
         if q:
             ai_df = df.copy()
-            # Yaş Tespiti (Sayı yakalama)
             import re
             age_match = re.search(r'(\d+)\s*yaş', q)
-            if age_match:
-                target_age = int(age_match.group(1))
-                ai_df = ai_df[ai_df['Yaş'] == target_age] # Takılı kalmaz, direkt o yaşı getirir ✅
+            if age_match: ai_df = ai_df[ai_df['Yaş'] == int(age_match.group(1))]
             
-            # Millet Tespiti
-            milletler = {"türk": "Tur", "italyan": "Ita", "alman": "Ger", "fransız": "Fra", "ispanyol": "Spa", "brezilya": "Bra", "arjantin": "Arg", "afrika": "Afr"}
+            milletler = {"türk": "Tur", "italyan": "Ita", "alman": "Ger", "fransız": "Fra", "ispanyol": "Spa", "brezilya": "Bra"}
             for k, v in milletler.items():
                 if k in q: ai_df = ai_df[ai_df['Ülke'].str.contains(v, na=False)]
             
-            # Pozisyon Tespiti
             if "forvet" in q: ai_df = ai_df[ai_df['Mevki'].str.contains("ST", na=False)]
             if "stoper" in q: ai_df = ai_df[ai_df['Mevki'].str.contains("D C", na=False)]
-            if "kanat" in q: ai_df = ai_df[ai_df['Mevki'].str.contains("AM L|AM R", na=False)]
 
-            ai_df = ai_df.sort_values(by="PA", ascending=False)
-            st.write(f"✨ **Barrow Raporu:** {len(ai_df)} oyuncu bulundu.")
+            if st.button("🔄 Başka Oyuncular Öner"):
+                st.session_state.seed = random.randint(0, 1000)
+
+            top_candidates = ai_df.sort_values(by="PA", ascending=False).head(30)
+            final_df = top_candidates.sample(min(len(top_candidates), 3), random_state=st.session_state.seed)
+
+            st.write(f"✨ **Barrow'un Scout Raporu:**")
             cols = st.columns(3)
-            for i, (idx, r) in enumerate(ai_df.head(3).iterrows()):
+            for i, (idx, r) in enumerate(final_df.iterrows()):
                 tr_m = ", ".join([ana_mevkiler.get(m.strip(), m.strip()) for m in r['Mevki'].split(",")])
-                cols[i].info(f"**{r['Oyuncu']}**\n\n🛡️ {r['Kulüp']}\n⚽ {tr_m}\n🎂 Yaş: {r['Yaş']} | PA: {r['PA']}")
+                # Transfermarkt Linki Oluşturma
+                search_query = urllib.parse.quote(f"{r['Oyuncu']} {r['Kulüp']}")
+                tm_link = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={search_query}"
+                
+                with cols[i]:
+                    st.info(f"**{r['Oyuncu']}**\n\n🛡️ {r['Kulüp']}\n⚽ {tr_m}\n🎂 Yaş: {r['Yaş']} | PA: {r['PA']}")
+                    st.markdown(f'<a href="{tm_link}" target="_blank" class="tm-button">🔍 Transfer Geçmişi (TM)</a>', unsafe_allow_html=True)
 
-    tabs = st.tabs(["🔍 Scout", "🔥 Popüler", "⭐ Liste", "⚔️ Kıyas", "⚽ Kadrom", "🛠️ Admin"])
+    # --- SEKMELER ---
+    tabs = st.tabs(["🔍 Scout", "🔥 Popüler", "⭐ Liste", "⚔️ Kıyas", "🛠️ Admin"])
 
-    with tabs[0]: # SCOUT (DİNAMİK ÇUBUKLAR)
-        c1, c2 = st.columns(2); search = c1.text_input("🔍 Ara:"); f_pa = c2.slider("Min PA:", 0, 200, 130)
-        col_f = st.columns(3)
-        f_mevki = col_f[0].multiselect("Pozisyon:", list(ana_mevkiler.keys()))
-        f_ulke = col_f[1].multiselect("Ülke:", sorted(df['Ülke'].unique()))
-        f_yas = col_f[2].slider("Yaş:", 14, 45, (14, 45))
-
-        res_df = df[(df['PA'] >= f_pa) & (df['Yaş'] >= f_yas[0]) & (df['Yaş'] <= f_yas[1])]
+    with tabs[0]: # SCOUT
+        c1, c2 = st.columns(2); search = c1.text_input("🔍 Oyuncu Ara:"); f_pa = c2.slider("Min PA:", 0, 200, 130)
+        res_df = df[df['PA'] >= f_pa]
         if search: res_df = res_df[res_df['Oyuncu'].str.contains(search, case=False)]
-        if f_mevki: res_df = res_df[res_df['Mevki'].apply(lambda x: any(m in x for m in f_mevki))]
-        if f_ulke: res_df = res_df[res_df['Ülke'].isin(f_ulke)]
 
         for idx, row in res_df.head(10).iterrows():
-            p = (row['CA']/row['PA']*100) if row['PA']>0 else 0
-            color = "#FF4B4B" if p < 45 else "#00FFC2"
-            st.markdown(f"""<div class="player-card"><b>{row['Oyuncu']}</b> ({row['Yaş']})<br><small>{row['Kulüp']} | {row['Mevki']}</small><div style="background:rgba(255,255,255,0.1);height:8px;border-radius:5px;margin:10px 0;"><div class="progress-fill" style="width:{p}%; background:{color};"></div></div><small>PA: {row['PA']} | CA: {row['CA']} | 💰 {row['Değer']}</small>""", unsafe_allow_html=True)
-            if st.button(f"⭐ Ekle", key=f"add_{idx}"):
+            st.markdown(f'<div class="player-card"><b>{row["Oyuncu"]}</b> ({row["Yaş"]}) - {row["Kulüp"]}<br><small>PA: {row["PA"]} | {row["Mevki"]}</small></div>', unsafe_allow_html=True)
+            if st.button(f"⭐ Ekle", key=f"s_{idx}"):
                 supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": row['Oyuncu']}).execute()
                 st.toast("Eklendi!")
 
-    with tabs[2]: # LİSTE (TAMİR EDİLDİ ✅)
-        st.subheader("⭐ Favorilerim")
-        my = supabase.table("favoriler").select("*").eq("kullanici_adi", st.session_state.user).execute()
-        if my.data: st.dataframe(df[df['Oyuncu'].isin([i['oyuncu_adi'] for i in my.data])])
-
-    with tabs[3]: # KIYAS (TAMİR EDİLDİ ✅)
-        pl = sorted(df['Oyuncu'].tolist())
-        p1 = st.selectbox("1. Oyuncu", ["-"]+pl, key="k1"); p2 = st.selectbox("2. Oyuncu", ["-"]+pl, key="k2")
-        if p1 != "-" and p2 != "-": st.table(df[df['Oyuncu'].isin([p1, p2])].set_index('Oyuncu')[['PA','CA','Yaş','Değer']])
-
-    with tabs[5]: # ADMİN (TAMİR EDİLDİ ✅)
-        st.subheader("🛠️ Panel")
-        logs = supabase.table("favoriler").select("*").execute()
-        if logs.data: st.dataframe(pd.DataFrame(logs.data).tail(30))
-
-    if st.sidebar.button("Çıkış"): st.session_state.user = None; st.rerun()
+    if st.sidebar.button("Güvenli Çıkış"): st.session_state.user = None; st.rerun()
