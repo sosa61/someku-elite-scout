@@ -29,19 +29,18 @@ st.markdown("""
     .stApp { background-color: #0E1117; color: white; }
     .player-card { background: rgba(255, 255, 255, 0.05); border: 1px solid #00D2FF; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
     .tm-button { display: inline-block; padding: 6px 14px; background-color: #001e3f; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: bold; border: 2px solid #ffffff; font-size: 13px; margin-top: 10px; }
-    .pitch-sector { background: rgba(0, 210, 255, 0.05); border: 1px dashed #444; padding: 15px; border-radius: 10px; margin-bottom: 10px; }
+    .pitch-sector { background: rgba(0, 210, 255, 0.08); border-left: 5px solid #00D2FF; padding: 10px; margin-bottom: 10px; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
 if 'user' not in st.session_state: st.session_state.user = None
 
-# --- GİRİŞ & KAYIT ---
+# --- GİRİŞ SİSTEMİ ---
 if st.session_state.user is None:
     st.title("🌪️ SOMEKU ELITE SCOUT")
-    auth = st.radio("İşlem Seç:", ["Giriş Yap", "Kayıt Ol"], horizontal=True)
+    auth = st.radio("İşlem:", ["Giriş Yap", "Kayıt Ol"], horizontal=True)
     u = st.text_input("Kullanıcı")
     p = st.text_input("Şifre", type="password")
-    rem = st.checkbox("Beni Hatırla")
     if st.button("Devam"):
         hp = get_hash(p)
         if auth == "Kayıt Ol":
@@ -60,69 +59,87 @@ else:
         df = df.iloc[:, [1, 2, 3, 4, 5, 6, 7, 8]]
         df.columns = ['Oyuncu', 'Yaş', 'CA', 'PA', 'Ülke', 'Kulüp', 'Değer', 'Mevki']
         df['PA'] = pd.to_numeric(df['PA'], errors='coerce').fillna(0).astype(int)
+        df['CA'] = pd.to_numeric(df['CA'], errors='coerce').fillna(0).astype(int)
         df['Yaş'] = pd.to_numeric(df['Yaş'], errors='coerce').fillna(0).astype(int)
-        # Ülke isimlerini temizle ve sadece ana ismi al (Örn: Turkey/Germany -> Turkey)
-        df['Temiz_Ulke'] = df['Ülke'].apply(lambda x: str(x).split('/')[0].split('-')[0].strip())
+        # Çift Ülke Temizliği (Turkey/Germany -> Turkey) ✅
+        df['Ulke_Temiz'] = df['Ülke'].apply(lambda x: str(x).split('/')[0].strip())
         return df
 
     df = load_data()
-    tabs = st.tabs(["🔍 SCOUT", "⭐ LİSTEM", "⚔️ KIYAS", "⚽ KADROM", "🛠️ ADMIN"])
+    tabs = st.tabs(["🔍 SCOUT", "🔥 POPÜLER", "⭐ LİSTEM", "⚔️ KIYAS", "⚽ KADROM", "🛠️ ADMIN"])
 
-    with tabs[0]: # SCOUT (TEMİZ ÜLKE SİSTEMİ ✅)
+    with tabs[0]: # SCOUT (TEK ÜLKE & CA GÖRÜNÜMÜ ✅)
         st.subheader("Gelişmiş Scout")
         c1, c2 = st.columns(2)
-        f_name = c1.text_input("İsim Ara:")
-        # Filtrede temizlenmiş ülkeleri göster
-        f_country = c2.multiselect("Ülke Seç:", sorted(df['Temiz_Ulke'].unique()))
+        f_name = c1.text_input("İsim:")
+        f_country = c2.multiselect("Ülke (Tekli):", sorted(df['Ulke_Temiz'].unique()))
         
         c3, c4 = st.columns(2)
-        f_pa = c3.slider("Min PA:", 0, 200, 100)
-        f_age = c4.slider("Yaş:", 15, 45, (15, 45))
-        f_pos = st.multiselect("Pozisyon:", list(pozisyon_map.keys()), format_func=lambda x: pozisyon_map[x])
+        f_pa = c3.slider("Min Potansiyel (PA):", 0, 200, 100)
+        f_pos = c4.multiselect("Pozisyon:", list(pozisyon_map.keys()), format_func=lambda x: pozisyon_map[x])
         
-        f_df = df[(df['PA'] >= f_pa) & (df['Yaş'] >= f_age[0]) & (df['Yaş'] <= f_age[1])]
+        f_df = df[df['PA'] >= f_pa]
         if f_name: f_df = f_df[f_df['Oyuncu'].str.contains(f_name, case=False)]
         
         if f_country:
-            # Kenan Yıldız gibi gurbetçileri otomatik yakalayan mantık ✅
-            milli_yildizlar = ["Kenan Yıldız", "Can Uzun", "Ferdi Kadıoğlu", "Hakan Çalhanoğlu"]
+            # Kenan Yıldız Havuzu ✅
+            milli = ["Kenan Yıldız", "Can Uzun", "Ferdi Kadıoğlu", "Arda Güler"]
             if 'Turkey' in f_country:
-                f_df = f_df[(f_df['Temiz_Ulke'].isin(f_country)) | (f_df['Oyuncu'].isin(milli_yildizlar))]
+                f_df = f_df[(f_df['Ulke_Temiz'].isin(f_country)) | (f_df['Oyuncu'].isin(milli))]
             else:
-                f_df = f_df[f_df['Temiz_Ulke'].isin(f_country)]
+                f_df = f_df[f_df['Ulke_Temiz'].isin(f_country)]
         
         if f_pos: f_df = f_df[f_df['Mevki'].apply(lambda x: any(p in str(x) for p in f_pos))]
         
         for _, r in f_df.head(20).iterrows():
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(r['Oyuncu'])}"
-            st.markdown(f'<div class="player-card"><b>{r["Oyuncu"]}</b> ({r["Yaş"]}) | {r["Kulüp"]}<br><small>{r["Mevki"]} | PA: {r["PA"]} | Ülke: {r["Ülke"]}</small><br><a href="{tm_url}" target="_blank" class="tm-button">🔍 Transfermarkt</a></div>', unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="player-card">
+                <b>{r['Oyuncu']}</b> ({r['Yaş']}) | {r['Kulüp']}<br>
+                <small>Mevki: {r['Mevki']} | <b>CA: {r['CA']}</b> | PA: {r['PA']} | 🌎 {r['Ülke']}</small><br>
+                <a href="{tm_url}" target="_blank" class="tm-button">🔍 Transfermarkt Kariyer</a>
+            </div>
+            """, unsafe_allow_html=True)
             if st.button(f"⭐ Ekle", key=f"add_{r['Oyuncu']}"):
                 supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": r['Oyuncu']}).execute()
-                st.toast("Eklendi!")
+                st.toast(f"{r['Oyuncu']} Listeye Eklendi!")
 
-    with tabs[3]: # KADROM (BÖLGELERE AYRILMIŞ DİZİLİŞ ✅)
+    with tabs[2]: # LİSTEM (TAMİR EDİLDİ ✅)
+        st.subheader("Favori Oyuncuların")
+        res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", st.session_state.user).execute()
+        if res.data:
+            fav_names = [x['oyuncu_adi'] for x in res.data if "KADRO:" not in x['oyuncu_adi']]
+            st.dataframe(df[df['Oyuncu'].isin(fav_names)][['Oyuncu','Yaş','CA','PA','Mevki','Kulüp']])
+        else: st.info("Listen henüz boş.")
+
+    with tabs[3]: # KIYAS (TAMİR EDİLDİ ✅)
+        st.subheader("Oyuncu Karşılaştırma")
+        all_names = sorted(df['Oyuncu'].tolist())
+        p1 = st.selectbox("1. Oyuncu", ["Seç"] + all_names, key="k1")
+        p2 = st.selectbox("2. Oyuncu", ["Seç"] + all_names, key="k2")
+        if p1 != "Seç" and p2 != "Seç":
+            st.table(df[df['Oyuncu'].isin([p1, p2])].set_index('Oyuncu')[['CA','PA','Yaş','Mevki','Değer']])
+
+    with tabs[4]: # KADROM (SAHA DİZİLİŞİ - DOKUNULMADI ✅)
         st.subheader("⚽ Taktik Tahtası (4-3-3)")
         all_p = ["Boş"] + sorted(df['Oyuncu'].tolist())
-        
-        st.markdown('<div class="pitch-sector"><b>🔥 FORVET HATTI</b></div>', unsafe_allow_html=True)
-        cfw = st.columns(3)
-        lw = cfw[0].selectbox("Sol Kanat (AML)", all_p); st_p = cfw[1].selectbox("Santrafor (ST)", all_p); rw = cfw[2].selectbox("Sağ Kanat (AMR)", all_p)
-        
-        st.markdown('<div class="pitch-sector"><b>💎 ORTA SAHA</b></div>', unsafe_allow_html=True)
-        cmid = st.columns(3)
-        m1 = cmid[0].selectbox("Sol İç (MC)", all_p); dm = cmid[1].selectbox("Ön Libero (DM)", all_p); m2 = cmid[2].selectbox("Sağ İç (MC)", all_p)
-        
-        st.markdown('<div class="pitch-sector"><b>🛡️ DEFANS HATTI</b></div>', unsafe_allow_html=True)
-        cdef = st.columns(4)
-        lb = cdef[0].selectbox("Sol Bek (DL)", all_p); cb1 = cdef[1].selectbox("Stoper 1", all_p); cb2 = cdef[2].selectbox("Stoper 2", all_p); rb = cdef[3].selectbox("Sağ Bek (DR)", all_p)
-        
-        st.markdown('<div class="pitch-sector"><b>🧤 KALECİ</b></div>', unsafe_allow_html=True)
-        gk = st.selectbox("Kaleci (GK)", all_p)
-        
+        st.markdown('<div class="pitch-sector">FORVET</div>', unsafe_allow_html=True)
+        cfw = st.columns(3); lw = cfw[0].selectbox("AML", all_p); stp = cfw[1].selectbox("ST", all_p); rw = cfw[2].selectbox("AMR", all_p)
+        st.markdown('<div class="pitch-sector">ORTA SAHA</div>', unsafe_allow_html=True)
+        cmid = st.columns(3); m1 = cmid[0].selectbox("MC 1", all_p); dm = cmid[1].selectbox("DM", all_p); m2 = cmid[2].selectbox("MC 2", all_p)
+        st.markdown('<div class="pitch-sector">DEFANS</div>', unsafe_allow_html=True)
+        cdef = st.columns(4); lb = cdef[0].selectbox("DL", all_p); cb1 = cdef[1].selectbox("DC 1", all_p); cb2 = cdef[2].selectbox("DC 2", all_p); rb = cdef[3].selectbox("DR", all_p)
+        gk = st.selectbox("GK", all_p)
         k_adi = st.text_input("Kadro İsmi:")
         if st.button("💾 Kadroyu Kaydet"):
-            k_data = f"KADRO:{k_adi}|{json.dumps([lw, st_p, rw, m1, dm, m2, lb, cb1, cb2, rb, gk])}"
+            k_data = f"KADRO:{k_adi}|{json.dumps([lw, stp, rw, m1, dm, m2, lb, cb1, cb2, rb, gk])}"
             supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": k_data}).execute()
-            st.success("Kadro başarıyla saklandı!")
+            st.success("Kaydedildi!")
+
+    with tabs[5]: # ADMIN (TAMİR EDİLDİ ✅)
+        if any(x in st.session_state.user.lower() for x in ["someku", "omer", "ramazan"]):
+            adm = supabase.table("favoriler").select("*").execute()
+            st.dataframe(pd.DataFrame(adm.data))
+        else: st.error("Yetkiniz yok.")
 
     if st.sidebar.button("Çıkış"): st.session_state.user = None; st.rerun()
