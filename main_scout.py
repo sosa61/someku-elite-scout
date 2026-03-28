@@ -19,6 +19,12 @@ if 'announcements' not in st.session_state:
 if 'page' not in st.session_state: st.session_state.page = 0
 
 # --- TANIMLAMALAR ---
+REGIONS = {
+    "Hepsi": [], "Avrupa": ["Almanya", "Fransa", "İngiltere", "İtalya", "İspanya"],
+    "Kuzey Avrupa": ["Norveç", "İsveç", "Danimarka"], "Afrika": ["Nijerya", "Senegal", "Mısır"],
+    "Güney Amerika": ["Brezilya", "Arjantin"], "Asya/Okyanusya": ["Japonya", "Güney Kore"]
+}
+
 POS_TR = {
     "Hepsi": "Hepsi", "GK": "Kaleci", "D C": "Stoper", "D L": "Sol Bek", "D R": "Sağ Bek",
     "DM": "Ön Libero", "M C": "Merkez Orta Saha", "AM L": "Sol Kanat", "AM R": "Sağ Kanat",
@@ -30,11 +36,11 @@ st.markdown("""
     <style>
     .stApp { background-color: #0d1117; color: white; }
     .welcome-banner { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 30px; border-radius: 15px; text-align: center; border: 1px solid #3b82f6; margin-bottom: 20px; }
-    .player-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; margin-bottom: 15px; transition: 0.3s; border-left: 5px solid #3b82f6; }
+    .player-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 18px; margin-bottom: 12px; transition: 0.3s; border-left: 5px solid #3b82f6; }
     .fav-active { border-left: 5px solid #f2cc60 !important; box-shadow: 0 0 10px rgba(242,204,96,0.2); }
     .pa-badge { background: #238636; color: white; padding: 4px 12px; border-radius: 8px; font-weight: bold; float: right; font-size: 1.1rem; }
     .section-header { background: #21262d; padding: 10px; border-radius: 8px; margin: 20px 0 10px 0; border-left: 5px solid #58a6ff; font-weight: bold; }
-    .ann-box { background: #1c2128; border: 1px solid #30363d; padding: 15px; border-radius: 10px; color: #58a6ff; font-weight: 500; text-align: center; margin-bottom: 20px; }
+    .ann-box { background: #1c2128; border: 1px solid #30363d; padding: 15px; border-radius: 10px; color: #58a6ff; font-weight: 500; text-align: center; margin-bottom: 20px; border-bottom: 3px solid #3b82f6; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -54,15 +60,15 @@ if st.session_state.user is None:
                 res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
                 if res.data: st.session_state.user = res.data[0]['username']; st.rerun()
                 else: st.error("Hatalı Giriş!")
-            except: st.error("Bağlantı Hatası!")
+            except: st.error("Sadece Patron Girişi Aktiftir!")
     if col_b2.button("Kayıt Ol", use_container_width=True):
         try:
             supabase.table("users").insert({"username": u_id, "password": u_pw}).execute()
             st.success("Kayıt Başarılı!")
-        except: st.error("Hata!")
+        except: st.error("Kayıt Tablosu Bulunamadı.")
     st.stop()
 
-# --- ÜST PANEL & ÇIKIŞ ---
+# --- DUYURU VE ÇIKIŞ ---
 st.markdown(f'<div class="ann-box">{st.session_state.announcements}</div>', unsafe_allow_html=True)
 with st.sidebar:
     st.title("👤 Profil")
@@ -75,16 +81,22 @@ tabs = st.tabs(["🔍 SCOUT", "⚖️ KIYASLA", "📋 11 KUR", "⭐ FAVORİLER",
 
 # --- 1. SCOUT ---
 with tabs[0]:
-    f1, f2, f3 = st.columns([2, 1, 1])
-    with f1: f_name = st.text_input("🔍 Oyuncu veya Takım Ara:")
-    with f2: f_pos = st.selectbox("👟 Mevki:", list(POS_TR.keys()))
-    with f3: f_pa = st.slider("📊 Minimum PA:", 0, 200, 140)
+    f1, f2, f3, f4 = st.columns(4)
+    with f1: f_name = st.text_input("Oyuncu Adı:"); f_team = st.text_input("Takım/Kulüp:")
+    with f2: f_region = st.selectbox("Bölge:", list(REGIONS.keys())); f_pos = st.selectbox("Mevki:", list(POS_TR.keys()))
+    with f3: f_age = st.slider("Yaş:", 14, 50, (15, 25)); f_pa = st.slider("PA:", 0, 200, (140, 200))
+    with f4: 
+        sort_by = st.selectbox("Sıralama:", ["pa", "ca", "yas"])
+        if st.button("🔍 UYGULA", use_container_width=True): st.session_state.page = 0
+
+    limit = 12
+    query = supabase.table("oyuncular").select("*").gte("yas", f_age[0]).lte("yas", f_age[1]).gte("pa", f_pa[0]).lte("pa", f_pa[1])
+    if f_name: query = query.ilike("oyuncu_adi", f"%{f_name}%")
+    if f_team: query = query.ilike("kulup", f"%{f_team}%")
+    if f_region != "Hepsi": query = query.in_("ulke", REGIONS[f_region])
+    if f_pos != "Hepsi": query = query.ilike("mevki", f"%{POS_TR[f_pos]}%")
     
-    query = supabase.table("oyuncular").select("*").gte("pa", f_pa)
-    if f_name: query = query.or_(f"oyuncu_adi.ilike.%{f_name}%,kulup.ilike.%{f_name}%")
-    if f_pos != "Hepsi": query = query.ilike("mevki", f"%{f_pos}%")
-    
-    res = query.order("pa", desc=True).range(st.session_state.page*12, (st.session_state.page*12)+11).execute()
+    res = query.order(sort_by, desc=True).range(st.session_state.page*limit, (st.session_state.page*limit)+limit-1).execute()
     
     if res.data:
         cols = st.columns(2)
@@ -100,34 +112,33 @@ with tabs[0]:
                         <p style="font-size:0.9rem;"><b>CA:</b> {p["ca"]} | <b>Yaş:</b> {p["yas"]} | <b>Değer:</b> {p["deger"]}</p>
                     </div>
                 ''', unsafe_allow_html=True)
-                if st.button(f"{'⭐ Çıkar' if is_fav else '⭐ Ekle'}", key=f"btn_{p['oyuncu_adi']}_{i}"):
+                if st.button(f"{'⭐ Çıkar' if is_fav else '⭐ Ekle'}", key=f"sc_{p['oyuncu_adi']}_{i}"):
                     if is_fav: st.session_state.favs = [f for f in st.session_state.favs if f['oyuncu_adi'] != p['oyuncu_adi']]
                     else: st.session_state.favs.append(p)
                     st.rerun()
         
-        c_p1, c_p2 = st.columns(2)
-        if c_p1.button("⬅️ Geri"): st.session_state.page -= 1; st.rerun()
-        if c_p2.button("İleri ➡️"): st.session_state.page += 1; st.rerun()
+        st.markdown(f'<p style="text-align:center;">Sayfa {st.session_state.page + 1}</p>', unsafe_allow_html=True)
+        cp1, cp2 = st.columns(2)
+        if cp1.button("⬅️ Geri") and st.session_state.page > 0: st.session_state.page -= 1; st.rerun()
+        if cp2.button("İleri ➡️"): st.session_state.page += 1; st.rerun()
 
 # --- 2. KIYASLA ---
 with tabs[1]:
     st.subheader("⚖️ Akıllı Kıyaslama")
-    col1, col2 = st.columns(2)
-    p1_in = col1.text_input("1. Oyuncu:")
-    p2_in = col2.text_input("2. Oyuncu:")
-    if st.button("Verileri Getir"):
-        r1 = supabase.table("oyuncular").select("*").ilike("oyuncu_adi", f"%{p1_in}%").limit(1).execute()
-        r2 = supabase.table("oyuncular").select("*").ilike("oyuncu_adi", f"%{p2_in}%").limit(1).execute()
-        if r1.data and r2.data:
-            st.table(pd.DataFrame([r1.data[0], r2.data[0]]).set_index("oyuncu_adi"))
+    col_c1, col_c2 = st.columns(2)
+    p1_in = col_c1.text_input("1. Oyuncu:"); p2_in = col_c2.text_input("2. Oyuncu:")
+    if st.button("KIYASLA"):
+        d1 = supabase.table("oyuncular").select("*").ilike("oyuncu_adi", f"%{p1_in}%").limit(1).execute()
+        d2 = supabase.table("oyuncular").select("*").ilike("oyuncu_adi", f"%{p2_in}%").limit(1).execute()
+        if d1.data and d2.data: st.table(pd.DataFrame([d1.data[0], d2.data[0]]).set_index("oyuncu_adi"))
 
 # --- 3. 11 KUR (BOLCA DİZİLİŞ) ---
 with tabs[2]:
     st.subheader("📋 Taktik Tahtası")
-    formasyon = st.selectbox("Formasyon Seçin:", ["4-3-3", "4-4-2", "3-5-2", "4-2-3-1", "5-3-2", "4-1-2-1-2"])
+    formasyon = st.selectbox("Diziliş:", ["4-3-3", "4-4-2", "3-5-2", "4-2-3-1", "5-3-2", "4-1-2-1-2"])
     f_list = [f['oyuncu_adi'] for f in st.session_state.favs] if st.session_state.favs else ["Favori Listesi Boş"]
     
-    st.markdown('<div class="section-header">🛡️ DEFANS HATTI</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">🛡️ DEFANS</div>', unsafe_allow_html=True)
     d_cols = st.columns(5)
     gk = d_cols[0].selectbox("GK", f_list); dl = d_cols[1].selectbox("DL", f_list); dr = d_cols[4].selectbox("DR", f_list)
     dc1 = d_cols[2].selectbox("DC1", f_list); dc2 = d_cols[3].selectbox("DC2", f_list)
@@ -135,46 +146,66 @@ with tabs[2]:
     st.markdown('<div class="section-header">⚙️ ORTA SAHA</div>', unsafe_allow_html=True)
     m_cols = st.columns(4)
     mc1 = m_cols[0].selectbox("MC1", f_list); mc2 = m_cols[1].selectbox("MC2", f_list)
-    aml = m_cols[2].selectbox("Kanat/AML", f_list); amr = m_cols[3].selectbox("Kanat/AMR", f_list)
+    aml = m_cols[2].selectbox("AML", f_list); amr = m_cols[3].selectbox("AMR", f_list)
     
     st.markdown('<div class="section-header">🎯 FORVET</div>', unsafe_allow_html=True)
     s_cols = st.columns(2)
-    st1 = s_cols[0].selectbox("Forvet 1", f_list); st2 = s_cols[1].selectbox("Forvet 2 / AMC", f_list)
+    st1 = s_cols[0].selectbox("ST 1", f_list); st2 = s_cols[1].selectbox("ST 2 / AMC", f_list)
     
-    if st.button("Kadroyu Kaydet"): st.success(f"{formasyon} düzenindeki kadronuz kaydedildi!")
+    if st.button("Kadroyu Kaydet"): st.success("Kadro Başarıyla Kaydedildi!")
 
-# --- 4. FAVORİLER (FIXED) ---
+# --- 4. FAVORİLER (FIXED & SİLME) ---
 with tabs[3]:
-    st.subheader("⭐ Favori Oyuncularınız")
+    st.subheader("⭐ Favori Listeniz")
     if st.session_state.favs:
         for f in st.session_state.favs:
             with st.container():
                 c1, c2 = st.columns([5, 1])
-                c1.markdown(f"**{f['oyuncu_adi']}** ({f['kulup']}) - PA: {f['pa']}")
+                c1.markdown(f'''
+                    <div class="player-card fav-active" style="padding:10px; margin-bottom:5px;">
+                        <b>{f['oyuncu_adi']}</b> - {f['kulup']} | PA: {f['pa']} | CA: {f['ca']}
+                    </div>
+                ''', unsafe_allow_html=True)
                 if c2.button("🗑️ Sil", key=f"del_{f['oyuncu_adi']}"):
                     st.session_state.favs = [p for p in st.session_state.favs if p['oyuncu_adi'] != f['oyuncu_adi']]
                     st.rerun()
     else:
-        st.info("Henüz favori eklenmedi. Scout sekmesinden yıldızları seçin!")
+        st.info("Henüz favori eklemediniz.")
+
+# --- 5. ÖNERİLER ---
+with tabs[4]:
+    st.subheader("💡 Öneri & Bildirim")
+    with st.form("suggestion"):
+        u_type = st.selectbox("Konu:", ["Veri Hatası", "Yeni Özellik", "Hata Bildirimi"])
+        u_msg = st.text_area("Mesajınız:")
+        if st.form_submit_button("Gönder"):
+            supabase.table("oneriler").insert({"ad": st.session_state.user, "konu": u_type, "mesaj": u_msg}).execute()
+            st.success("İletildi!")
 
 # --- 6. ADMIN ---
 with tabs[5]:
     if st.session_state.user == "someku":
-        st.subheader("🛠️ Admin Paneli")
-        t1, t2 = st.tabs(["✏️ Veri Düzenle", "📢 Duyuru Ayarları"])
-        with t1:
-            e_name = st.text_input("Oyuncu Ara:")
-            if e_name:
-                e_res = supabase.table("oyuncular").select("*").ilike("oyuncu_adi", f"%{e_name}%").limit(1).execute()
-                if e_res.data:
-                    curr = e_res.data[0]
-                    st.info(f"Düzenlenen: {curr['oyuncu_adi']} ({curr['kulup']})")
+        st.subheader("🛠️ Admin")
+        p_c = supabase.table("oyuncular").select("id", count="exact").execute().count
+        u_c = supabase.table("users").select("id", count="exact").execute().count
+        st.metric("Toplam Oyuncu", p_c); st.metric("Toplam Kullanıcı", u_c)
+        
+        at1, at2 = st.tabs(["✏️ Veri Düzenle", "📢 Duyuru Paneli"])
+        with at1:
+            e_n = st.text_input("Oyuncu Ara:")
+            if e_n:
+                e_r = supabase.table("oyuncular").select("*").ilike("oyuncu_adi", f"%{e_n}%").limit(1).execute()
+                if e_r.data:
+                    curr = e_r.data[0]
+                    st.markdown(f'<div class="player-card"><b>{curr["oyuncu_adi"]}</b> - PA: {curr["pa"]}</div>', unsafe_allow_html=True)
                     n_pa = st.number_input("Yeni PA:", value=int(curr['pa']))
-                    if st.button("Güncelle"):
+                    if st.button("PA Güncelle"):
                         supabase.table("oyuncular").update({"pa": n_pa}).eq("oyuncu_adi", curr['oyuncu_adi']).execute()
-                        st.success("PA Güncellendi!")
-        with t2:
-            new_msg = st.text_area("Yeni Duyuru Metni:", value=st.session_state.announcements)
-            if st.button("Duyuruyu Yayınla"):
-                st.session_state.announcements = new_msg
+                        st.success("Güncellendi!")
+        with at2:
+            new_ann = st.text_area("Duyuru Metni:", value=st.session_state.announcements)
+            if st.button("Duyuruyu Güncelle"):
+                st.session_state.announcements = new_ann
                 st.rerun()
+    else:
+        st.error("Admin Yetkisi Gerekli.")
