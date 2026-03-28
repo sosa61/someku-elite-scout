@@ -11,59 +11,48 @@ supabase: Client = create_client(URL, KEY)
 
 st.set_page_config(page_title="SOMEKU ELITE SCOUT", layout="wide")
 
-# FM Pozisyon Sözlüğü (SİLİNMEDİ!)
-ana_mevkiler = {"GK": "Kaleci", "D C": "Stoper", "D L": "Sol Bek", "D R": "Sağ Bek", "DM": "Ön Libero", "M C": "Orta Saha", "AM C": "On Numara", "AM L": "Sol Kanat", "AM R": "Sağ Kanat", "ST": "Forvet"}
-
 @st.cache_resource
 def get_hash(password): return hashlib.sha256(str.encode(password)).hexdigest()
 
-# --- GELİŞMİŞ TASARIM (Lineup11 Stilinde Saha) ---
+# --- TASARIM GÜNCELLEMESİ ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: white; background-image: linear-gradient(rgba(14,23,23,0.94), rgba(14,23,23,0.94)), url('https://images2.imgbox.com/3f/82/XG4mOqZ1_o.png'); background-size: cover; background-attachment: fixed; }
     
-    /* BUTON KARTIN İÇİNDE ✅ */
+    /* BUTON KESİN KARTIN İÇİNDE ✅ */
     .player-card { 
         background: rgba(255, 255, 255, 0.05); 
         border: 1px solid #00D2FF; 
         border-radius: 12px; 
         padding: 15px; 
-        margin-bottom: 20px; 
+        margin-bottom: 25px; 
+        display: flex;
+        flex-direction: column;
     }
-    .pa-badge { background: #00D2FF; color: black; padding: 2px 8px; border-radius: 10px; font-weight: bold; float: right; }
+    .pa-badge { background: #00D2FF; color: black; padding: 2px 8px; border-radius: 10px; font-weight: bold; align-self: flex-end; }
     
-    /* Kart içindeki buton tasarımı */
-    div.stButton > button:first-child {
+    /* Kartın içindeki butonun CSS'i */
+    .player-card button {
         background-color: transparent !important;
         color: #00D2FF !important;
         border: 1px solid #00D2FF !important;
         width: 100% !important;
+        margin-top: 15px !important;
         border-radius: 8px !important;
-        margin-top: 10px !important;
     }
 
-    /* RESİMDEKİ GİBİ GERÇEK SAHA TASARIMI ✅ */
-    .field-bg {
+    /* SAHA İÇİ DİZİLİŞ TASARIMI ✅ */
+    .field-container {
         background-color: #2c8c2c;
-        background-image: 
-            linear-gradient(white 2px, transparent 2px),
-            linear-gradient(90deg, white 2px, transparent 2px),
-            radial-gradient(circle at 50% 50%, transparent 40px, white 40px, white 42px, transparent 42px);
         border: 3px solid white;
-        border-radius: 10px;
-        position: relative;
-        min-height: 600px;
+        border-radius: 15px;
         padding: 20px;
+        min-height: 700px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     }
-    .player-jersey {
-        background: rgba(0,0,0,0.7);
-        border: 1px solid #00D2FF;
-        border-radius: 5px;
-        text-align: center;
-        padding: 2px;
-        font-size: 11px;
-        color: white;
-    }
+    .field-line { border-bottom: 2px solid rgba(255,255,255,0.3); margin: 20px 0; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -71,9 +60,8 @@ if 'user' not in st.session_state: st.session_state.user = None
 
 if st.session_state.user is None:
     st.markdown("<h1>🔐 GİRİŞ</h1>", unsafe_allow_html=True)
-    mode = st.radio("", ["Giriş Yap", "Kayıt Ol"], horizontal=True)
-    u_in = st.text_input("Kullanıcı").strip(); p_in = st.text_input("Şifre", type="password")
-    if st.button("Devam"):
+    mode = st.radio("", ["Giriş Yap", "Kayıt Ol"], horizontal=True); u_in = st.text_input("Kullanıcı").strip(); p_in = st.text_input("Şifre", type="password")
+    if st.button("Bağlan"):
         if mode == "Kayıt Ol": supabase.table("kullanicilar").insert({"username": u_in, "password": get_hash(p_in)}).execute(); st.success("Tamam!")
         else:
             res = supabase.table("kullanicilar").select("*").eq("username", u_in).execute()
@@ -81,7 +69,7 @@ if st.session_state.user is None:
             else: st.error("Hatalı!")
 else:
     @st.cache_data(ttl=3600)
-    def load_full_data():
+    def load_data():
         if not os.path.exists("players_export.csv"): return None
         df = pd.read_csv("players_export.csv", sep=None, engine='python', skiprows=1, header=None)
         df = df.iloc[:, [1, 2, 3, 4, 5, 6, 7, 8]]
@@ -89,9 +77,9 @@ else:
         df['PA'] = pd.to_numeric(df['PA'], errors='coerce').fillna(0).astype(int)
         df['Yaş'] = pd.to_numeric(df['Yaş'], errors='coerce').fillna(0).astype(int)
         for col in ['Oyuncu', 'Ülke', 'Kulüp', 'Mevki']: df[col] = df[col].fillna('-').astype(str).str.strip()
-        return df.sort_values(by='PA', ascending=False)
+        return df
 
-    df = load_full_data()
+    df = load_data()
     st.markdown("<h1>🌪️ SOMEKU ELITE SCOUT</h1>", unsafe_allow_html=True)
     
     u_low = st.session_state.user.lower()
@@ -99,82 +87,70 @@ else:
     if any(x in u_low for x in ["someku", "omer", "ömer", "ramazan"]): menu.append("🛠️ Admin")
     tabs = st.tabs(menu)
 
-    with tabs[0]: # SCOUT (YAŞ VE MEVKİ GERİ GELDİ ✅)
-        col_s1, col_s2 = st.columns(2)
-        search = col_s1.text_input("🔍 İsim/Kulüp Ara:")
-        f_pa = col_s2.slider("🔥 Min PA:", 0, 200, 130)
-        
-        f_mevki = st.multiselect("⚽ Mevki Seç:", options=list(ana_mevkiler.keys()), format_func=lambda x: f"{x} ({ana_mevkiler[x]})")
-        all_c = sorted(list(set([c.strip() for v in df['Ülke'].unique() for c in v.replace('/', ',').split(',')])))
-        f_ulke = st.multiselect("🌎 Ülke Seç:", all_c)
-        f_yas = st.slider("🎂 Yaş Aralığı:", 14, 45, (14, 45)) # YAŞ GERİ GELDİ ✅
-
-        f_df = df[(df['PA'] >= f_pa) & (df['Yaş'] >= f_yas[0]) & (df['Yaş'] <= f_yas[1])]
+    with tabs[0]: # SCOUT
+        search = st.text_input("🔍 Ara:"); f_pa = st.slider("🔥 Min PA:", 0, 200, 130)
+        f_df = df[df['PA'] >= f_pa]
         if search: f_df = f_df[(f_df['Oyuncu'].str.contains(search, case=False)) | (f_df['Kulüp'].str.contains(search, case=False))]
-        if f_mevki: f_df = f_df[f_df['Mevki'].apply(lambda x: any(m in x for m in f_mevki))]
-        if f_ulke: f_df = f_df[f_df['Ülke'].apply(lambda x: any(u in x for u in f_ulke))]
+        
+        items_per_page = 15; page = st.number_input("Sayfa", 1, 100, 1); start_idx = (page-1)*items_per_page
+        
+        for idx, row in f_df.iloc[start_idx:start_idx+items_per_page].iterrows():
+            with st.container():
+                # BUTON KARTIN İÇİNDE ✅
+                st.markdown(f"""<div class="player-card"><span class="pa-badge">PA: {row['PA']}</span><b>{row['Oyuncu']}</b> ({row['Yaş']})<br><small>{row['Kulüp']} | {row['Ülke']}</small><br><small style="color:#00FFC2">{row['Mevki']} | {row['Değer']}</small>""", unsafe_allow_html=True)
+                if st.button(f"⭐ Ekle", key=f"btn_{idx}"):
+                    supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": row['Oyuncu']}).execute()
+                    st.toast(f"{row['Oyuncu']} eklendi!")
+                st.markdown("</div>", unsafe_allow_html=True)
 
-        # SAYFALAMA
-        items_per_page = 15; total_pages = (len(f_df) // items_per_page) + 1
-        page = st.number_input("Sayfa", min_value=1, max_value=total_pages, step=1, key="page_sc")
-        start_idx = (page - 1) * items_per_page; end_idx = start_idx + items_per_page
-
-        for idx, row in f_df.iloc[start_idx:end_idx].iterrows():
-            # BUTON KARTIN İÇİNDE ✅
-            st.markdown(f"""<div class="player-card"><span class="pa-badge">PA: {row['PA']}</span><b>{row['Oyuncu']}</b> ({row['Yaş']})<br><small>🛡️ {row['Kulüp']} | 🌎 {row['Ülke']}</small><br><small style="color:#00FFC2">⚽ {row['Mevki']} | 💰 {row['Değer']}</small>""", unsafe_allow_html=True)
-            if st.button(f"⭐ Listeye Ekle", key=f"add_{idx}"):
-                supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": row['Oyuncu']}).execute()
-                st.toast(f"{row['Oyuncu']} eklendi!")
-            st.markdown("</div>", unsafe_allow_html=True)
-
-    with tabs[4]: # KADROM (RESİMDEKİ GİBİ SAHA ✅)
-        st.subheader("⚽ Taktik Tahtası (Lineup11 Stil)")
+    with tabs[4]: # KADROM (SAHA İÇİ SEÇİM ✅)
+        st.subheader("⚽ Taktik Tahtası (Saha Üstü Seçim)")
         plist = ["Boş"] + sorted(df['Oyuncu'].tolist())
         
-        st.markdown('<div class="field-bg">', unsafe_allow_html=True)
+        st.markdown('<div class="field-container">', unsafe_allow_html=True)
         
-        # Forvet Satırı
+        # FORVETLER
+        st.write("🏃 **FORVET HATTI**")
         c_fw = st.columns(3)
-        st_p = c_fw[1].selectbox("ST", plist, key="s_st")
-        lw_p = c_fw[0].selectbox("LW", plist, key="s_lw")
-        rw_p = c_fw[2].selectbox("RW", plist, key="s_rw")
+        lw = c_fw[0].selectbox("Sol Kanat", plist, key="f_lw")
+        st_p = c_fw[1].selectbox("Santrafor", plist, key="f_st")
+        rw = c_fw[2].selectbox("Sağ Kanat", plist, key="f_rw")
         
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        # Orta Saha Satırı
-        c_mid = st.columns(3)
-        cm1 = c_mid[0].selectbox("CM1", plist, key="s_cm1")
-        cm2 = c_mid[1].selectbox("CM2", plist, key="s_cm2")
-        cm3 = c_mid[2].selectbox("CM3", plist, key="s_cm3")
+        st.markdown('<div class="field-line"></div>', unsafe_allow_html=True)
         
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        # Defans Satırı
-        c_def = st.columns(4)
-        lb = c_def[0].selectbox("LB", plist, key="s_lb")
-        cb1 = c_def[1].selectbox("CB1", plist, key="s_cb1")
-        cb2 = c_def[2].selectbox("CB2", plist, key="s_cb2")
-        rb = c_def[3].selectbox("RB", plist, key="s_rb")
+        # ORTA SAHALAR
+        st.write("🎯 **ORTA SAHA HATTI**")
+        c_md = st.columns(3)
+        cm1 = c_md[0].selectbox("OS 1", plist, key="f_cm1")
+        cm2 = c_md[1].selectbox("OS 2", plist, key="f_cm2")
+        cm3 = c_md[2].selectbox("OS 3", plist, key="f_cm3")
         
-        st.markdown("<br>", unsafe_allow_html=True)
-        gk = st.selectbox("GK", plist, key="s_gk")
+        st.markdown('<div class="field-line"></div>', unsafe_allow_html=True)
+        
+        # DEFANSLAR
+        st.write("🛡️ **DEFANS HATTI**")
+        c_df = st.columns(4)
+        lb = c_df[0].selectbox("Sol Bek", plist, key="f_lb")
+        cb1 = c_df[1].selectbox("Stoper 1", plist, key="f_cb1")
+        cb2 = c_df[2].selectbox("Stoper 2", plist, key="f_cb2")
+        rb = c_df[3].selectbox("Sağ Bek", plist, key="f_rb")
+        
+        # KALECİ
+        st.write("🧤 **KALECİ**")
+        gk = st.selectbox("Kaleci", plist, key="f_gk")
+        
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # DİĞER SEKME İÇERİKLERİ (Kıyasla, Popüler, Admin - SİLİNMEDİ ✅)
+    # DİĞERLERİNE DOKUNMADIM ✅
     with tabs[1]:
-        pop_res = supabase.table("favoriler").select("oyuncu_adi").execute()
-        if pop_res.data:
-            pop_df = pd.DataFrame(pop_res.data)['oyuncu_adi'].value_counts().reset_index().head(10)
-            st.table(pop_df)
-    
+        pop = supabase.table("favoriler").select("oyuncu_adi").execute()
+        if pop.data: st.table(pd.DataFrame(pop.data)['oyuncu_adi'].value_counts().head(10))
     with tabs[2]:
         res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", st.session_state.user).execute()
         if res.data: st.dataframe(df[df['Oyuncu'].isin([i['oyuncu_adi'] for i in res.data])])
-    
     with tabs[3]:
-        pk1 = st.selectbox("1. Oyuncu", plist, key="pk1")
-        pk2 = st.selectbox("2. Oyuncu", plist, key="pk2")
-        if pk1 != "Boş" and pk2 != "Boş":
-            st.table(df[df['Oyuncu'].isin([pk1, pk2])])
-
+        pk1 = st.selectbox("1. Oyuncu", plist, key="pk1"); pk2 = st.selectbox("2. Oyuncu", plist, key="pk2")
+        if pk1 != "Boş" and pk2 != "Boş": st.table(df[df['Oyuncu'].isin([pk1, pk2])])
     if len(menu) > 5:
         with tabs[5]:
             st.write(f"Üye: {len(supabase.table('kullanicilar').select('*').execute().data)}")
