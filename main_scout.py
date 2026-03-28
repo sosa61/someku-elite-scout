@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import hashlib
 import json
+import urllib.parse
 from supabase import create_client, Client
 
 # --- SUPABASE BAĞLANTISI ---
@@ -12,7 +13,6 @@ supabase: Client = create_client(URL, KEY)
 
 st.set_page_config(page_title="SOMEKU ELITE SCOUT", layout="wide")
 
-# Pozisyonlar
 ana_mevkiler = ["GK", "D C", "D L", "D R", "DM", "M C", "AM C", "AM L", "AM R", "ST"]
 
 @st.cache_resource
@@ -22,34 +22,31 @@ def get_hash(password): return hashlib.sha256(str.encode(password)).hexdigest()
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: white; }
-    .player-card { background: rgba(255, 255, 255, 0.05); border: 1px solid #00D2FF; border-radius: 10px; padding: 15px; margin-bottom: 10px; }
-    .save-box { background: rgba(0, 210, 255, 0.1); padding: 20px; border-radius: 10px; border: 1px dashed #00D2FF; margin-top: 20px; }
+    .player-card { background: rgba(255, 255, 255, 0.05); border: 1px solid #00D2FF; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+    .tm-button { display: inline-block; padding: 6px 12px; background-color: #1a3151; color: gold !important; text-decoration: none; border-radius: 6px; font-weight: bold; border: 1px solid gold; font-size: 12px; margin-top: 8px; }
+    .tm-button:hover { background-color: #24416b; }
     </style>
     """, unsafe_allow_html=True)
 
 if 'user' not in st.session_state: st.session_state.user = None
 
-# --- GİRİŞ & KAYIT SİSTEMİ ✅ ---
+# --- AUTH SİSTEMİ ---
 if st.session_state.user is None:
     st.title("🌪️ SOMEKU SCOUT")
-    auth_tab = st.radio("İşlem Seçin:", ["Giriş Yap", "Kayıt Ol"], horizontal=True)
-    u = st.text_input("Kullanıcı Adı")
+    auth_tab = st.radio("Seçim:", ["Giriş Yap", "Kayıt Ol"], horizontal=True)
+    u = st.text_input("Kullanıcı")
     p = st.text_input("Şifre", type="password")
-    
-    if st.button("Devam Et"):
+    if st.button("Devam"):
         hp = get_hash(p)
         if auth_tab == "Kayıt Ol":
-            check = supabase.table("kullanicilar").select("*").eq("username", u).execute()
-            if check.data: st.error("Bu kullanıcı adı zaten alınmış!")
-            else:
-                supabase.table("kullanicilar").insert({"username": u, "password": hp}).execute()
-                st.success("Kayıt başarılı! Şimdi giriş yapabilirsiniz.")
+            supabase.table("kullanicilar").insert({"username": u, "password": hp}).execute()
+            st.success("Kayıt Başarılı!")
         else:
             res = supabase.table("kullanicilar").select("*").eq("username", u).execute()
             if res.data and res.data[0]['password'] == hp:
                 st.session_state.user = u
                 st.rerun()
-            else: st.error("Hatalı kullanıcı adı veya şifre!")
+            else: st.error("Hatalı!")
 else:
     @st.cache_data
     def load_data():
@@ -58,64 +55,52 @@ else:
         df = df.iloc[:, [1, 2, 3, 4, 5, 6, 7, 8]]
         df.columns = ['Oyuncu', 'Yaş', 'CA', 'PA', 'Ülke', 'Kulüp', 'Değer', 'Mevki']
         df['PA'] = pd.to_numeric(df['PA'], errors='coerce').fillna(0).astype(int)
-        def clean_val(x):
-            try: return float(str(x).replace('£','').replace('€','').replace('M','000000').replace('K','000').replace('.','').replace(',','').strip())
-            except: return 0
-        df['ValNum'] = df['Değer'].apply(clean_val)
+        for col in ['Oyuncu', 'Kulüp', 'Mevki', 'Ülke']: df[col] = df[col].astype(str).str.strip()
         return df
 
     df = load_data()
-    tabs = st.tabs(["🔍 SCOUT", "🔥 POPÜLER", "⭐ LİSTEM", "⚔️ KIYAS", "⚽ KADROM", "🛠️ ADMIN"])
+    tabs = st.tabs(["🔍 SCOUT", "⭐ LİSTEM", "⚔️ KIYAS", "⚽ KADROM", "🛠️ ADMIN"])
 
-    with tabs[0]: # SCOUT
-        st.subheader("Oyuncu Arama")
-        col1, col2 = st.columns(2)
-        n_search = col1.text_input("İsim:")
-        p_filter = col2.multiselect("Mevki:", ana_mevkiler)
+    with tabs[0]: # SCOUT (TRANSFERMARKT ENTEGRASYONU ✅)
+        st.subheader("Oyuncu Arama & Scout")
+        c1, c2 = st.columns(2)
+        n_search = c1.text_input("İsim Ara:")
+        m_filter = c2.multiselect("Pozisyon:", ana_mevkiler)
         
-        res = df.copy()
-        if n_search: res = res[res['Oyuncu'].str.contains(n_search, case=False)]
-        if p_filter: res = res[res['Mevki'].apply(lambda x: any(m in str(x) for m in p_filter))]
+        f_df = df.copy()
+        if n_search: f_df = f_df[f_df['Oyuncu'].str.contains(n_search, case=False)]
+        if m_filter: f_df = f_df[f_df['Mevki'].apply(lambda x: any(m in str(x) for m in m_filter))]
         
-        for _, r in res.head(10).iterrows():
-            st.markdown(f'<div class="player-card"><b>{r["Oyuncu"]}</b> ({r["Mevki"]}) - {r["Kulüp"]} | PA: {r["PA"]}</div>', unsafe_allow_html=True)
-            if st.button(f"⭐ Ekle", key=f"add_{r['Oyuncu']}"):
-                supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": r['Oyuncu']}).execute()
-                st.toast("Eklendi!")
+        for _, r in f_df.head(15).iterrows():
+            # TM Linki oluştur
+            tm_q = urllib.parse.quote(f"{r['Oyuncu']} {r['Kulüp']}")
+            tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={tm_q}"
+            
+            with st.container():
+                st.markdown(f"""
+                <div class="player-card">
+                    <b>{r['Oyuncu']}</b> ({r['Yaş']}) | {r['Kulüp']}<br>
+                    <small>{r['Mevki']} | PA: {r['PA']} | 🌎 {r['Ülke']}</small><br>
+                    <a href="{tm_url}" target="_blank" class="tm-button">🔍 Transfermarkt Kariyer</a>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button(f"⭐ Ekle", key=f"fav_{r['Oyuncu']}"):
+                    supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": r['Oyuncu']}).execute()
+                    st.toast("Eklendi!")
 
-    with tabs[4]: # KADROM (KAYDETME ÖZELLİĞİ ✅)
-        st.subheader("⚽ Kadro Kur ve Kaydet")
-        p_list = ["Boş"] + sorted(df['Oyuncu'].tolist())
+    with tabs[3]: # KADROM (KAYDETME ✅)
+        st.subheader("Kadro Planla ve Kaydet")
+        p_opt = ["Boş"] + sorted(df['Oyuncu'].tolist())
+        c = st.columns(3)
+        st_p = c[1].selectbox("Forvet", p_opt)
+        lw_p = c[0].selectbox("Sol Kanat", p_opt)
+        rw_p = c[2].selectbox("Sağ Kanat", p_opt)
         
-        c_k = st.columns(3)
-        lw = c_k[0].selectbox("Sol Kanat", p_list); st_p = c_k[1].selectbox("Forvet", p_list); rw = c_k[2].selectbox("Sağ Kanat", p_list)
-        
-        c_m = st.columns(3)
-        m1 = c_m[0].selectbox("OS 1", p_list); m2 = c_m[1].selectbox("OS 2", p_list); m3 = c_m[2].selectbox("OS 3", p_list)
-        
-        c_d = st.columns(4)
-        lb = c_d[0].selectbox("Sol Bek", p_list); cb1 = c_d[1].selectbox("Stoper 1", p_list); cb2 = c_d[2].selectbox("Stoper 2", p_list); rb = c_d[3].selectbox("Sağ Bek", p_list)
-        gk = st.selectbox("Kaleci", p_list)
-
-        kadro_adi = st.text_input("Kadroya Bir İsim Ver:", placeholder="Örn: 2026 Şampiyon Kadro")
-        if st.button("💾 Kadroyu Veritabanına Kaydet"):
-            kadro_data = {
-                "owner": st.session_state.user,
-                "name": kadro_adi if kadro_adi else "İsimsiz Kadro",
-                "players": [lw, st_p, rw, m1, m2, m3, lb, cb1, cb2, rb, gk]
-            }
-            # Favoriler tablosunu veya yeni bir tabloyu kullanabiliriz, şimdilik favoriler üzerinden 'Kadro:' ön ekiyle kaydedelim
-            supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": f"KADRO:{kadro_adi}|{json.dumps(kadro_data['players'])}"}).execute()
-            st.success("Kadro başarıyla kaydedildi!")
-
-        st.divider()
-        st.subheader("📂 Kayıtlı Kadrolarım")
-        saved = supabase.table("favoriler").select("*").eq("kullanici_adi", st.session_state.user).like("oyuncu_adi", "KADRO:%").execute()
-        if saved.data:
-            for k in saved.data:
-                raw = k['oyuncu_adi'].replace("KADRO:", "").split("|")
-                st.expander(f"📋 {raw[0]}").write(", ".join(json.loads(raw[1])))
-        else: st.info("Henüz kayıtlı bir kadronuz yok.")
+        k_adi = st.text_input("Kadro İsmi:")
+        if st.button("💾 Kaydet"):
+            k_data = f"KADRO:{k_adi}|{json.dumps([lw_p, st_p, rw_p])}"
+            supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": k_data}).execute()
+            st.success("Kaydedildi!")
 
     if st.sidebar.button("Çıkış"):
         st.session_state.user = None
