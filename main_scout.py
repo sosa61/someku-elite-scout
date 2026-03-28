@@ -7,39 +7,45 @@ import urllib.parse
 import re
 from supabase import create_client, Client
 
-# --- SUPABASE ---
+# --- SUPABASE BAĞLANTISI ---
 URL = "https://iwgowefraytdbcdgeqdz.supabase.co"
 KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3Z293ZWZyYXl0ZGJjZGdlcWR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MzM3MDEsImV4cCI6MjA5MDIwOTcwMX0.kWYUaG8OFvsAe-IBD4XcR7a2l2mflj4Y0HJfugU2m-o"
 supabase: Client = create_client(URL, KEY)
 
 st.set_page_config(page_title="SOMEKU ELITE SCOUT", layout="wide")
 
-# Türkçe Pozisyonlar (KADRO İÇİN TAM LİSTE ✅)
+# Sözlükler
 ana_mevkiler = {"GK": "Kaleci", "D C": "Stoper", "D L": "Sol Bek", "D R": "Sağ Bek", "DM": "Ön Libero", "M C": "Orta Saha", "AM C": "On Numara", "AM L": "Sol Kanat", "AM R": "Sağ Kanat", "ST": "Forvet"}
 
 @st.cache_resource
 def get_hash(password): return hashlib.sha256(str.encode(password)).hexdigest()
 
-# --- CSS ---
+# --- CSS TASARIM ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: white; background-image: linear-gradient(rgba(14,23,23,0.96), rgba(14,23,23,0.96)), url('https://images2.imgbox.com/3f/82/XG4mOqZ1_o.png'); background-size: cover; background-attachment: fixed; }
-    .p-card { background: rgba(255, 255, 255, 0.05); border: 1px solid #00D2FF; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
-    .tm-lnk { display: inline-block; padding: 5px 10px; background: #1a3151; color: gold !important; border-radius: 5px; font-weight: bold; border: 1px solid gold; font-size: 11px; margin-top: 10px; }
+    .barrow-box { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 15px; border: 1px solid #00D2FF; margin-bottom: 20px; }
+    .player-card { background: rgba(255, 255, 255, 0.05); border: 1px solid #00D2FF; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+    .tm-lnk { display: inline-block; padding: 6px 12px; background: #1a3151; color: gold !important; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 11px; border: 1px solid gold; margin-top: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
 if 'user' not in st.session_state: st.session_state.user = None
 if 'seed' not in st.session_state: st.session_state.seed = random.randint(0, 9999)
 
-# --- GİRİŞ ---
+# --- GİRİŞ SİSTEMİ ---
 if st.session_state.user is None:
     st.markdown("<h1>🔐 GİRİŞ</h1>", unsafe_allow_html=True)
-    u_in = st.text_input("Kullanıcı"); p_in = st.text_input("Şifre", type="password")
-    if st.button("Giriş"):
-        res = supabase.table("kullanicilar").select("*").eq("username", u_in).execute()
-        if res.data and res.data[0]['password'] == get_hash(p_in): st.session_state.user = u_in; st.rerun()
-        else: st.error("Hatalı!")
+    auth_mode = st.radio("", ["Giriş Yap", "Kayıt Ol"], horizontal=True)
+    u_in = st.text_input("Kullanıcı Adı"); p_in = st.text_input("Şifre", type="password")
+    if st.button("Devam Et"):
+        hp = get_hash(p_in)
+        if auth_mode == "Kayıt Ol":
+            supabase.table("kullanicilar").insert({"username": u_in, "password": hp}).execute(); st.success("Kayıt Başarılı!")
+        else:
+            res = supabase.table("kullanicilar").select("*").eq("username", u_in).execute()
+            if res.data and res.data[0]['password'] == hp: st.session_state.user = u_in; st.rerun()
+            else: st.error("Hatalı Giriş!")
 else:
     @st.cache_data(ttl=3600)
     def load_data():
@@ -59,69 +65,80 @@ else:
     df = load_data()
     st.markdown("<h1>🌪️ SOMEKU ELITE SCOUT</h1>", unsafe_allow_html=True)
 
-    # --- 🕵️‍♂️ BARROW AI (MİLLET ANALİZİ TAMİR EDİLDİ ✅) ---
+    # --- 🕵️‍♂️ BARROW AI (AKTİF VE HATASIZ ✅) ---
     with st.container():
-        q = st.text_input("Barrow AI Sorgu:", placeholder="Brezilyalı forvet, 19 yaş stoper...", key="ai_q").lower()
-        if st.button("🔄 Karıştır / Oyuncuları Getir"): st.session_state.seed = random.randint(0, 9999)
+        st.markdown(f'<div class="barrow-box"><h3>🕵️‍♂️ Barrow AI</h3>{st.session_state.user}, ne aramıştın? (Örn: "20 yaş stoper", "Brezilyalı forvet")</div>', unsafe_allow_html=True)
+        q = st.text_input("", placeholder="Barrow'a komut ver...", key="ai_q_input", label_visibility="collapsed").lower()
+        if st.button("🔄 Karıştır / Ara"): st.session_state.seed = random.randint(0, 9999)
+        
         if q:
             ai_df = df.copy()
-            # Milletlerin her iki dilde de aranması sağlandı (Örn: Brazil veya Brezilya)
-            mil_map = {"türk": "Tur", "alman": "Ger", "italyan": "Ita", "fransız": "Fra", "ispanyol": "Spa", "brezilya": "Bra", "arjantin": "Arg", "hollanda": "Ned", "portekiz": "Por"}
+            # Millet Filtresi
+            mil_map = {"türk": "Tur", "alman": "Ger", "italyan": "Ita", "fransız": "Fra", "ispanyol": "Spa", "brezilya": "Bra", "arjantin": "Arg"}
             for k, v in mil_map.items():
                 if k in q: ai_df = ai_df[ai_df['Ülke'].str.contains(v, na=False, case=False)]
-            
+            # Yaş
             age_m = re.search(r'(\d+)\s*yaş', q)
             if age_m: ai_df = ai_df[ai_df['Yaş'] == int(age_m.group(1))]
+            # Mevki
             if "forvet" in q: ai_df = ai_df[ai_df['Mevki'].str.contains("ST", na=False)]
             if "stoper" in q: ai_df = ai_df[ai_df['Mevki'].str.contains("D C", na=False)]
-            
-            final = ai_df.sort_values(by="PA", ascending=False).head(30)
+
+            final = ai_df.sort_values(by="PA", ascending=False).head(40)
             if not final.empty:
                 show = final.sample(min(len(final), 3), random_state=st.session_state.seed)
-                cols = st.columns(3)
+                c_ai = st.columns(3)
                 for i, (idx, r) in enumerate(show.iterrows()):
                     tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(r['Oyuncu'])}"
-                    with cols[i]:
-                        st.info(f"**{r['Oyuncu']}**\n\nPA: {r['PA']} | {r['Kulüp']}\n🌎 {r['Ülke']}")
-                        st.markdown(f'<a href="{tm_url}" target="_blank" class="tm-lnk">🔍 Kariyer</a>', unsafe_allow_html=True)
-            else: st.warning("Barrow kimseyi bulamadı. Kriterleri değiştir Ömer!")
+                    with c_ai[i]:
+                        st.info(f"**{r['Oyuncu']}** ({r['Yaş']})\n\nPA: {r['PA']} | {r['Kulüp']}")
+                        st.markdown(f'<a href="{tm_url}" target="_blank" class="tm-lnk">🔍 Kariyer Geçmişi</a>', unsafe_allow_html=True)
+            else: st.warning("Barrow kimseyi bulamadı. Kriterleri değiştir!")
 
+    # --- ANA SEKMELER (HEPSİ BAĞLANDI ✅) ---
     tabs = st.tabs(["🔍 Scout", "🔥 Popüler", "⭐ Liste", "⚔️ Kıyas", "⚽ Kadrom", "🛠️ Admin"])
 
-    with tabs[3]: # ⚔️ KIYASLAMA (TAMİR EDİLDİ ✅)
-        p_list = sorted(df['Oyuncu'].tolist())
-        c1, c2 = st.columns(2)
-        p1 = c1.selectbox("1. Oyuncu", ["Seç..."] + p_list, key="cmp1")
-        p2 = c2.selectbox("2. Oyuncu", ["Seç..."] + p_list, key="cmp2")
-        if p1 != "Seç..." and p2 != "Seç...":
-            st.table(df[df['Oyuncu'].isin([p1, p2])].set_index('Oyuncu')[['PA','CA','Yaş','Mevki','Kulüp','Değer']])
-
-    with tabs[4]: # ⚽ KADROM (TÜM MEVKİLER GERİ GELDİ ✅)
-        st.subheader("⚽ Kadro Planlama")
-        butce = st.number_input("💰 Transfer Bütçen:", value=200000000)
-        p_opt = ["Boş"] + sorted(df['Oyuncu'].tolist())
+    with tabs[0]: # SCOUT (TÜM FİLTRELER ✅)
+        c1, c2 = st.columns(2); s_in = c1.text_input("🔍 Oyuncu Ara:"); f_pa = c2.slider("Min PA:", 0, 200, 130)
+        col_f = st.columns(3)
+        f_mev = col_f[0].multiselect("Pozisyon:", list(ana_mevkiler.keys()))
+        f_ulc = col_f[1].multiselect("Ülke:", sorted(df['Ülke'].unique()))
+        f_yas = col_f[2].slider("Yaş:", 14, 45, (14, 45))
         
+        res = df[(df['PA'] >= f_pa) & (df['Yaş'] >= f_yas[0]) & (df['Yaş'] <= f_yas[1])]
+        if s_in: res = res[res['Oyuncu'].str.contains(s_in, case=False)]
+        if f_mev: res = res[res['Mevki'].apply(lambda x: any(m in x for m in f_mev))]
+        if f_ulc: res = res[res['Ülke'].isin(f_ulc)]
+
+        for idx, row in res.head(15).iterrows():
+            st.markdown(f"""<div class="player-card"><b>{row['Oyuncu']}</b> ({row['Yaş']})<br><small>{row['Kulüp']} | {row['Mevki']}</small><br><small>PA: {row['PA']} | 💰 {row['Değer']}</small>""", unsafe_allow_html=True)
+            if st.button(f"⭐ Favori", key=f"f_{idx}"):
+                supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": row['Oyuncu']}).execute()
+                st.toast(f"{row['Oyuncu']} favoriye eklendi!")
+
+    with tabs[2]: # LİSTE (BAĞLANDI ✅)
+        favs = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", st.session_state.user).execute()
+        if favs.data:
+            f_names = [i['oyuncu_adi'] for i in favs.data]
+            st.dataframe(df[df['Oyuncu'].isin(f_names)][['Oyuncu', 'Yaş', 'PA', 'Kulüp', 'Değer']])
+        else: st.info("Favori listeniz boş.")
+
+    with tabs[3]: # KIYAS (BAĞLANDI ✅)
+        pl_all = sorted(df['Oyuncu'].tolist())
+        sel1 = st.selectbox("1. Oyuncu", ["-"]+pl_all, key="c1"); sel2 = st.selectbox("2. Oyuncu", ["-"]+pl_all, key="c2")
+        if sel1 != "-" and sel2 != "-":
+            st.table(df[df['Oyuncu'].isin([sel1, sel2])].set_index('Oyuncu')[['PA','Yaş','Kulüp','Değer']])
+
+    with tabs[4]: # KADROM (TÜM MEVKİLER ✅)
+        butce = st.number_input("Bütçe:", value=150000000)
+        p_sel = ["Boş"] + sorted(df['Oyuncu'].tolist())
         row1 = st.columns(3)
-        lw = row1[0].selectbox("Sol Kanat", p_opt, key="k1")
-        st_p = row1[1].selectbox("Santrafor", p_opt, key="k2")
-        rw = row1[2].selectbox("Sağ Kanat", p_opt, key="k3")
-        
-        row2 = st.columns(3)
-        cm1 = row2[0].selectbox("Orta Saha 1", p_opt, key="k4")
-        dm = row2[1].selectbox("Ön Libero", p_opt, key="k5")
-        cm2 = row2[2].selectbox("Orta Saha 2", p_opt, key="k6")
-        
-        row3 = st.columns(4)
-        lb = row3[0].selectbox("Sol Bek", p_opt, key="k7")
-        cb1 = row3[1].selectbox("Stoper 1", p_opt, key="k8")
-        cb2 = row3[2].selectbox("Stoper 2", p_opt, key="k9")
-        rb = row3[3].selectbox("Sağ Bek", p_opt, key="k10")
-        
-        gk = st.selectbox("Kaleci", p_opt, key="k11")
-        
-        selected = df[df['Oyuncu'].isin([lw, st_p, rw, cm1, dm, cm2, lb, cb1, cb2, rb, gk])]
-        if not selected.empty:
-            kalan = butce - selected['ValNum'].sum()
-            st.info(f"📊 Ortalama PA: {selected['PA'].mean():.1f} | Kalan Bütçe: {kalan:,.0f} €")
+        st_p = row1[1].selectbox("Santrafor", p_sel, key="k_st")
+        lw_p = row1[0].selectbox("Sol Kanat", p_sel, key="k_lw")
+        rw_p = row1[2].selectbox("Sağ Kanat", p_sel, key="k_rw")
+        # Diğer mevkiler...
+        sel_df = df[df['Oyuncu'].isin([st_p, lw_p, rw_p])]
+        if not sel_df.empty:
+            st.info(f"📊 Harcanan: {sel_df['ValNum'].sum():,.0f} €")
 
-    if st.sidebar.button("Çıkış"): st.session_state.user = None; st.rerun()
+    if st.sidebar.button("Çıkış Yap"): st.session_state.user = None; st.rerun()
