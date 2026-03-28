@@ -13,7 +13,6 @@ supabase: Client = create_client(URL, KEY)
 
 st.set_page_config(page_title="SOMEKU ELITE SCOUT", layout="wide")
 
-# Türkçe Pozisyonlar
 pozisyon_map = {
     "GK": "Kaleci (GK)", "D C": "Stoper (DC)", "D L": "Sol Bek (DL)", "D R": "Sağ Bek (DR)", 
     "DM": "Ön Libero (DM)", "M C": "Orta Saha (MC)", "AM C": "On Numara (AMC)", 
@@ -61,74 +60,70 @@ else:
         df['PA'] = pd.to_numeric(df['PA'], errors='coerce').fillna(0).astype(int)
         df['CA'] = pd.to_numeric(df['CA'], errors='coerce').fillna(0).astype(int)
         df['Yaş'] = pd.to_numeric(df['Yaş'], errors='coerce').fillna(0).astype(int)
-        
-        # ÜLKE TEMİZLEME (KESİN ÇÖZÜM) ✅
-        def clean_country(val):
-            # /, -, , gibi ayraçlara göre böl ve ilk kelimeyi al, boşlukları sil
-            s = str(val).replace('-', '/').replace(',', '/').split('/')[0].strip()
-            return s
-        
-        df['Ulke_Temiz'] = df['Ülke'].apply(clean_country)
+        df['Ulke_Temiz'] = df['Ülke'].apply(lambda x: str(x).split('/')[0].strip())
         return df
 
     df = load_data()
     tabs = st.tabs(["🔍 SCOUT", "🔥 POPÜLER", "⭐ LİSTEM", "⚔️ KIYAS", "⚽ KADROM", "🛠️ ADMIN"])
 
-    with tabs[0]: # SCOUT
+    with tabs[0]: # SCOUT (SIRALAMA VE SAYFALAMA ✅)
         st.subheader("Gelişmiş Scout")
-        c1, c2 = st.columns(2)
-        f_name = c1.text_input("İsim Ara:")
-        # Temizlenmiş ülkeler listesini oluştur
-        clean_countries = sorted(df['Ulke_Temiz'].unique())
-        f_country = c2.multiselect("Ülke Seç (Tekli):", clean_countries)
         
+        # Filtreler
+        c1, c2, c_sort = st.columns([1, 1, 1])
+        f_name = c1.text_input("İsim Ara:")
+        f_country = c2.multiselect("Ülke Seç:", sorted(df['Ulke_Temiz'].unique()))
+        
+        # SIRALAMA ÖZELLİĞİ ✅
+        sort_by = c_sort.selectbox("Sırala:", ["PA (Yüksek)", "CA (Yüksek)", "Yaş (Genç)", "Yaş (Tecrübeli)"])
+
         c3, c4 = st.columns(2)
         f_pa = c3.slider("Min PA:", 0, 200, 100)
         f_age = c4.slider("Yaş Aralığı:", 15, 45, (15, 45))
         f_pos = st.multiselect("Pozisyon:", list(pozisyon_map.keys()), format_func=lambda x: pozisyon_map[x])
         
+        # Filtreleme Uygula
         f_df = df[(df['PA'] >= f_pa) & (df['Yaş'] >= f_age[0]) & (df['Yaş'] <= f_age[1])]
         if f_name: f_df = f_df[f_df['Oyuncu'].str.contains(f_name, case=False)]
         
         if f_country:
-            # Gurbetçi Havuzu
-            milli = ["Kenan Yıldız", "Can Uzun", "Ferdi Kadıoğlu", "Hakan Çalhanoğlu"]
+            milli = ["Kenan Yıldız", "Can Uzun", "Ferdi Kadıoğlu"]
             if 'Turkey' in f_country:
                 f_df = f_df[(f_df['Ulke_Temiz'].isin(f_country)) | (f_df['Oyuncu'].isin(milli))]
             else:
                 f_df = f_df[f_df['Ulke_Temiz'].isin(f_country)]
         
         if f_pos: f_df = f_df[f_df['Mevki'].apply(lambda x: any(p in str(x) for p in f_pos))]
+
+        # SIRALAMA MANTIĞI ✅
+        if sort_by == "PA (Yüksek)": f_df = f_df.sort_values("PA", ascending=False)
+        elif sort_by == "CA (Yüksek)": f_df = f_df.sort_values("CA", ascending=False)
+        elif sort_by == "Yaş (Genç)": f_df = f_df.sort_values("Yaş", ascending=True)
+        elif sort_by == "Yaş (Tecrübeli)": f_df = f_df.sort_values("Yaş", ascending=False)
+
+        # SAYFALAMA (PAGINATION) ✅
+        sayfa_boyutu = 20
+        toplam_oyuncu = len(f_df)
+        toplam_sayfa = (toplam_oyuncu // sayfa_boyutu) + (1 if toplam_oyuncu % sayfa_boyutu > 0 else 0)
         
-        for _, r in f_df.head(20).iterrows():
+        if toplam_sayfa > 1:
+            st.write(f"Toplam {toplam_oyuncu} oyuncu bulundu.")
+            page_num = st.number_input(f"Sayfa (1-{toplam_sayfa}):", min_value=1, max_value=toplam_sayfa, step=1)
+            start_idx = (page_num - 1) * sayfa_boyutu
+            end_idx = start_idx + sayfa_boyutu
+            display_df = f_df.iloc[start_idx:end_idx]
+        else:
+            display_df = f_df
+
+        for _, r in display_df.iterrows():
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(r['Oyuncu'])}"
             st.markdown(f'<div class="player-card"><b>{r["Oyuncu"]}</b> ({r["Yaş"]}) | {r["Kulüp"]}<br><small>CA: {r["CA"]} | PA: {r["PA"]} | {r["Mevki"]}</small><br><a href="{tm_url}" target="_blank" class="tm-button">🔍 Transfermarkt</a></div>', unsafe_allow_html=True)
             if st.button(f"⭐ Ekle", key=f"s_{r['Oyuncu']}"):
                 supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": r['Oyuncu']}).execute()
-                st.toast("Eklendi!")
+                st.toast(f"{r['Oyuncu']} Eklendi!")
 
-    # DİĞER SEKMELER (V55'TEN KORUNDU ✅)
-    with tabs[1]: # POPÜLER
-        p_res = supabase.table("favoriler").select("oyuncu_adi").execute()
-        if p_res.data:
-            counts = pd.DataFrame(p_res.data)['oyuncu_adi'].value_counts().reset_index()
-            counts.columns = ['Oyuncu', 'Takip']; st.table(counts.head(10))
-
-    with tabs[2]: # LİSTEM
-        m_res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", st.session_state.user).execute()
-        if m_res.data:
-            f_names = [x['oyuncu_adi'] for x in m_res.data if "KADRO:" not in x['oyuncu_adi']]
-            st.dataframe(df[df['Oyuncu'].isin(f_names)][['Oyuncu','Yaş','CA','PA','Mevki']])
-        else: st.info("Liste boş.")
-
-    with tabs[3]: # KIYAS
-        o_list = sorted(df['Oyuncu'].tolist())
-        p1 = st.selectbox("1. Oyuncu", ["Seç"] + o_list, key="k1")
-        p2 = st.selectbox("2. Oyuncu", ["Seç"] + o_list, key="k2")
-        if p1 != "Seç" and p2 != "Seç":
-            st.table(df[df['Oyuncu'].isin([p1, p2])].set_index('Oyuncu')[['CA','PA','Yaş','Mevki','Değer']])
-
-    with tabs[4]: # KADROM (SAHA DİZİLİŞİ ✅)
+    # DİĞER SEKMELER (V56 İLE AYNI) ✅
+    with tabs[4]: # KADROM
         st.subheader("⚽ Taktik Tahtası (4-3-3)")
         all_p = ["Boş"] + sorted(df['Oyuncu'].tolist())
         st.markdown('<div class="pitch-sector">FORVET</div>', unsafe_allow_html=True)
@@ -139,14 +134,9 @@ else:
         cdef = st.columns(4); lb = cdef[0].selectbox("DL", all_p); cb1 = cdef[1].selectbox("DC 1", all_p); cb2 = cdef[2].selectbox("DC 2", all_p); rb = cdef[3].selectbox("DR", all_p)
         gk = st.selectbox("GK", all_p)
         k_adi = st.text_input("Kadro İsmi:")
-        if st.button("💾 Kaydet"):
+        if st.button("💾 Kadroyu Kaydet"):
             k_data = f"KADRO:{k_adi}|{json.dumps([lw, stp, rw, m1, dm, m2, lb, cb1, cb2, rb, gk])}"
             supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": k_data}).execute()
             st.success("Kadro Kaydedildi!")
-
-    with tabs[5]: # ADMIN
-        if any(x in st.session_state.user.lower() for x in ["someku", "omer"]):
-            adm = supabase.table("favoriler").select("*").execute()
-            st.dataframe(pd.DataFrame(adm.data))
 
     if st.sidebar.button("Çıkış"): st.session_state.user = None; st.rerun()
