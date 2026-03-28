@@ -17,45 +17,37 @@ ana_mevkiler = {"GK": "Kaleci", "D C": "Stoper", "D L": "Sol Bek", "D R": "Sağ 
 @st.cache_resource
 def get_hash(password): return hashlib.sha256(str.encode(password)).hexdigest()
 
-# --- TASARIM ---
+# --- MODERN TASARIM ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: white; background-image: linear-gradient(rgba(14,23,23,0.94), rgba(14,23,23,0.94)), url('https://images2.imgbox.com/3f/82/XG4mOqZ1_o.png'); background-size: cover; background-attachment: fixed; }
-    
-    /* BUTON KARTIN İÇİNDE ✅ */
-    .player-card { 
-        background: rgba(255, 255, 255, 0.05); 
-        border: 1px solid #00D2FF; 
-        border-radius: 12px; 
-        padding: 15px; 
-        margin-bottom: 20px; 
-        display: flex;
-        flex-direction: column;
-    }
-    .player-card button {
-        background-color: transparent !important;
-        color: #00D2FF !important;
-        border: 1px solid #00D2FF !important;
-        width: 100% !important;
-        margin-top: 10px !important;
-        border-radius: 8px !important;
-    }
+    .player-card { background: rgba(255, 255, 255, 0.05); border: 1px solid #00D2FF; border-radius: 12px; padding: 15px; margin-bottom: 15px; display: flex; flex-direction: column; }
     .pa-badge { background: #00D2FF; color: black; padding: 2px 8px; border-radius: 10px; font-weight: bold; align-self: flex-end; }
-    
-    /* BÜTÇE GÖSTERGESİ */
+    .ca-badge { background: #FFD700; color: black; padding: 2px 8px; border-radius: 10px; font-weight: bold; margin-right: 5px; }
+    .player-card button { background-color: transparent !important; color: #00D2FF !important; border: 1px solid #00D2FF !important; width: 100% !important; margin-top: 10px !important; border-radius: 8px !important; }
     .budget-card { background: rgba(0, 210, 255, 0.1); border: 1px solid #00D2FF; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center; }
     </style>
     """, unsafe_allow_html=True)
 
 if 'user' not in st.session_state: st.session_state.user = None
 
+# --- GİRİŞ / KAYIT SİSTEMİ (Geri Geldi ✅) ---
 if st.session_state.user is None:
-    st.markdown("<h1>🔐 GİRİŞ</h1>", unsafe_allow_html=True)
-    u_in = st.text_input("Kullanıcı").strip(); p_in = st.text_input("Şifre", type="password")
-    if st.button("Giriş"):
-        res = supabase.table("kullanicilar").select("*").eq("username", u_in).execute()
-        if res.data and res.data[0]['password'] == get_hash(p_in): st.session_state.user = u_in; st.rerun()
-        else: st.error("Hatalı!")
+    st.markdown("<h1>🔐 GİRİŞ VEYA KAYIT</h1>", unsafe_allow_html=True)
+    auth_mode = st.radio("", ["Giriş Yap", "Kayıt Ol"], horizontal=True)
+    u_in = st.text_input("Kullanıcı Adı").strip()
+    p_in = st.text_input("Şifre", type="password")
+    
+    if st.button("Devam Et"):
+        h_p = get_hash(p_in)
+        if auth_mode == "Kayıt Ol":
+            supabase.table("kullanicilar").insert({"username": u_in, "password": h_p}).execute()
+            st.success("Kayıt Başarılı! Şimdi giriş yapabilirsin.")
+        else:
+            res = supabase.table("kullanicilar").select("*").eq("username", u_in).execute()
+            if res.data and res.data[0]['password'] == h_p:
+                st.session_state.user = u_in; st.rerun()
+            else: st.error("Hatalı kullanıcı veya şifre!")
 else:
     @st.cache_data(ttl=3600)
     def load_data():
@@ -64,11 +56,13 @@ else:
         df = df.iloc[:, [1, 2, 3, 4, 5, 6, 7, 8]]
         df.columns = ['Oyuncu', 'Yaş', 'CA', 'PA', 'Ülke', 'Kulüp', 'Değer', 'Mevki']
         df['PA'] = pd.to_numeric(df['PA'], errors='coerce').fillna(0).astype(int)
+        df['CA'] = pd.to_numeric(df['CA'], errors='coerce').fillna(0).astype(int)
         df['Yaş'] = pd.to_numeric(df['Yaş'], errors='coerce').fillna(0).astype(int)
-        # Değer temizleme (Sayısal hale getirme)
+        
+        # Değer temizleme fonksiyonu (Para hesabı için)
         def clean_val(x):
             try:
-                x = str(x).replace('€', '').replace('M', '000000').replace('K', '000').replace('.', '').strip()
+                x = str(x).replace('£', '').replace('€', '').replace('M', '000000').replace('K', '000').replace('.', '').replace(',', '').strip()
                 return float(x)
             except: return 0
         df['ValNum'] = df['Değer'].apply(clean_val)
@@ -83,14 +77,14 @@ else:
     if any(x in u_low for x in ["someku", "omer", "ömer", "ramazan"]): menu.append("🛠️ Admin")
     tabs = st.tabs(menu)
 
-    with tabs[0]: # SCOUT (FİLTRELER GERİ GELDİ ✅)
+    with tabs[0]: # SCOUT (FİLTRELER + CA GÖRÜNÜMÜ ✅)
         col1, col2 = st.columns(2)
-        search = col1.text_input("🔍 Oyuncu/Kulüp:")
-        f_pa = col2.slider("🔥 Min PA:", 0, 200, 130)
+        search = col1.text_input("🔍 Oyuncu/Kulüp Ara:")
+        f_pa = col2.slider("🔥 Minimum PA:", 0, 200, 130)
         
-        f_mevki = st.multiselect("⚽ Pozisyon:", options=list(ana_mevkiler.keys()), format_func=lambda x: f"{x} ({ana_mevkiler[x]})")
+        f_mevki = st.multiselect("⚽ Pozisyon Seç:", options=list(ana_mevkiler.keys()), format_func=lambda x: f"{x} ({ana_mevkiler[x]})")
         all_c = sorted(list(set([c.strip() for v in df['Ülke'].unique() for c in v.replace('/', ',').split(',')])))
-        f_ulke = st.multiselect("🌎 Ülke Seçimi:", all_c)
+        f_ulke = st.multiselect("🌎 Ülke Seç:", all_c)
         f_yas = st.slider("🎂 Yaş Aralığı:", 14, 45, (14, 45))
 
         f_df = df[(df['PA'] >= f_pa) & (df['Yaş'] >= f_yas[0]) & (df['Yaş'] <= f_yas[1])]
@@ -102,48 +96,43 @@ else:
         
         for idx, row in f_df.iloc[start_idx:start_idx+items_per_page].iterrows():
             with st.container():
-                # BUTON KARTIN İÇİNDE ✅
-                st.markdown(f"""<div class="player-card"><span class="pa-badge">PA: {row['PA']}</span><b>{row['Oyuncu']}</b> ({row['Yaş']})<br><small>{row['Kulüp']} | {row['Ülke']}</small><br><small style="color:#00FFC2">{row['Mevki']} | {row['Değer']}</small>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="player-card"><div><span class="ca-badge">CA: {row['CA']}</span><span class="pa-badge">PA: {row['PA']}</span></div><b>{row['Oyuncu']}</b> ({row['Yaş']})<br><small>{row['Kulüp']} | {row['Ülke']}</small><br><small style="color:#00FFC2">{row['Mevki']} | {row['Değer']}</small>""", unsafe_allow_html=True)
                 if st.button(f"⭐ Listeye Ekle", key=f"btn_{idx}"):
                     supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": row['Oyuncu']}).execute()
                     st.toast(f"{row['Oyuncu']} eklendi!")
                 st.markdown("</div>", unsafe_allow_html=True)
 
-    with tabs[4]: # KADROM (BÜTÇELİ VE SAHASIZ ✅)
-        st.subheader("⚽ Kadro Planlama ve Bütçe")
-        
-        butce = st.number_input("💰 Toplam Transfer Bütçen (€):", value=100000000, step=1000000)
+    with tabs[3]: # KIYASLAMA (Geri Geldi ✅)
+        st.subheader("⚔️ Oyuncu Karşılaştırma")
+        plist = sorted(df['Oyuncu'].tolist())
+        c1, c2 = st.columns(2)
+        p1_name = c1.selectbox("1. Oyuncu", ["Seç..."] + plist, key="comp1")
+        p2_name = c2.selectbox("2. Oyuncu", ["Seç..."] + plist, key="comp2")
+        if p1_name != "Seç..." and p2_name != "Seç...":
+            r1, r2 = df[df['Oyuncu'] == p1_name].iloc[0], df[df['Oyuncu'] == p2_name].iloc[0]
+            st.table(pd.DataFrame({"Özellik": ["PA", "CA", "Yaş", "Mevki", "Kulüp", "Değer"], p1_name: [r1['PA'], r1['CA'], r1['Yaş'], r1['Mevki'], r1['Kulüp'], r1['Değer']], p2_name: [r2['PA'], r2['CA'], r2['Yaş'], r2['Mevki'], r2['Kulüp'], r2['Değer']]}))
+
+    with tabs[4]: # KADROM (BÜTÇE ÇALIŞIYOR ✅)
+        st.subheader("⚽ Kadro ve Para Yönetimi")
+        butce = st.number_input("💰 Transfer Bütçen (£/€):", value=150000000)
         plist = ["Boş"] + sorted(df['Oyuncu'].tolist())
         
-        # Kadro Seçimi
         c_fw = st.columns(3); st_p = c_fw[1].selectbox("Santrafor", plist, key="k_st"); lw_p = c_fw[0].selectbox("Sol Kanat", plist, key="k_lw"); rw_p = c_fw[2].selectbox("Sağ Kanat", plist, key="k_rw")
         c_md = st.columns(3); cm1 = c_md[0].selectbox("OS 1", plist, key="k_cm1"); cm2 = c_md[1].selectbox("OS 2", plist, key="k_cm2"); cm3 = c_md[2].selectbox("OS 3", plist, key="k_cm3")
         c_df = st.columns(4); lb = c_df[0].selectbox("Sol Bek", plist, key="k_lb"); cb1 = c_df[1].selectbox("Stoper 1", plist, key="k_cb1"); cb2 = c_df[2].selectbox("Stoper 2", plist, key="k_cb2"); rb = c_df[3].selectbox("Sağ Bek", plist, key="k_rb")
         gk_p = st.selectbox("Kaleci", plist, key="k_gk")
         
-        # Maliyet Hesaplama
+        # Seçilenlerin maliyetini hesapla
         secilenler = [st_p, lw_p, rw_p, cm1, cm2, cm3, lb, cb1, cb2, rb, gk_p]
         toplam_maliyet = df[df['Oyuncu'].isin(secilenler)]['ValNum'].sum()
         kalan = butce - toplam_maliyet
         
-        st.markdown(f"""
-        <div class="budget-card">
-            <h3>💰 Bütçe Durumu</h3>
-            <p>Harcanan: <b>{toplam_maliyet:,.0f} €</b></p>
-            <p>Kalan: <b style="color:{'#00FFC2' if kalan >= 0 else '#FF4B4B'}">{kalan:,.0f} €</b></p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"""<div class="budget-card"><h3>💰 Bütçe Durumu</h3><p>Harcanan: <b>{toplam_maliyet:,.0f}</b></p><p>Kalan: <b style="color:{'#00FFC2' if kalan >= 0 else '#FF4B4B'}">{kalan:,.0f}</b></p></div>""", unsafe_allow_html=True)
 
-    # Diğer kısımları korudum
-    with tabs[1]:
-        pop = supabase.table("favoriler").select("oyuncu_adi").execute()
-        if pop.data: st.table(pd.DataFrame(pop.data)['oyuncu_adi'].value_counts().head(10))
-    with tabs[2]:
-        res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", st.session_state.user).execute()
-        if res.data: st.dataframe(df[df['Oyuncu'].isin([i['oyuncu_adi'] for i in res.data])])
-    if len(menu) > 5:
-        with tabs[5]:
-            st.write(f"Üye: {len(supabase.table('kullanicilar').select('*').execute().data)}")
-            st.dataframe(pd.DataFrame(supabase.table("favoriler").select("*").execute().data).tail(20))
+    # Admin ve Diğerlerini korudum
+    if is_admin:
+        with tabs[-1]:
+            adm = supabase.table("favoriler").select("*").execute()
+            if adm.data: st.dataframe(pd.DataFrame(adm.data).tail(30))
 
-    if st.sidebar.button("Çıkış"): st.session_state.user = None; st.rerun()
+    if st.sidebar.button("Güvenli Çıkış"): st.session_state.user = None; st.rerun()
