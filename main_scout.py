@@ -195,3 +195,4 @@ else:
             if adm_res.data: st.dataframe(pd.DataFrame(adm_res.data).tail(30))
 
     if st.sidebar.button("Çıkış"): st.session_state.user = None; st.rerun()
+
