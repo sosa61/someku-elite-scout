@@ -13,8 +13,10 @@ supabase: Client = create_client(URL, KEY)
 
 st.set_page_config(page_title="SOMEKU ELITE SCOUT", layout="wide")
 
-# --- TASARIM ---
-st.markdown("""<style>.stApp { background-color: #0E1117; color: white; }.player-card { background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(0,210,255,0.05) 100%); border: 1px solid #00D2FF; border-radius: 12px; padding: 18px; margin-bottom: 15px; }.stat-box { background: rgba(0, 210, 255, 0.1); border: 1px solid #00D2FF; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 13px; margin-right: 8px; }.duyuru-bandi { background: #FF4B4B; color: white; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 20px; border: 2px solid white; }.admin-stat { background: rgba(0, 210, 255, 0.1); border: 1px solid #00D2FF; padding: 15px; border-radius: 10px; text-align: center; }</style>""", unsafe_allow_html=True)
+# --- TÜRKÇE MEVKİ VE TASARIM ---
+pozisyon_map = {"GK": "Kaleci (GK)", "D C": "Stoper (DC)", "D L": "Sol Bek (DL)", "D R": "Sağ Bek (DR)", "DM": "Ön Libero (DM)", "M C": "Orta Saha (MC)", "AM C": "On Numara (AMC)", "AM L": "Sol Kanat (AML)", "AM R": "Sağ Kanat (AMR)", "ST": "Forvet (ST)"}
+
+st.markdown("""<style>.stApp { background-color: #0E1117; color: white; }.player-card { background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(0,210,255,0.05) 100%); border: 1px solid #00D2FF; border-radius: 12px; padding: 18px; margin-bottom: 15px; }.stat-box { background: rgba(0, 210, 255, 0.1); border: 1px solid #00D2FF; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 13px; margin-right: 8px; }.pa-box { background: #FFD700; color: black; padding: 4px 10px; border-radius: 6px; font-weight: bold; }.tm-button { display: inline-block; padding: 8px 15px; background-color: transparent; color: #00D2FF !important; text-decoration: none; border-radius: 8px; font-weight: bold; border: 1.5px solid #00D2FF; font-size: 13px; margin-top: 15px; }.duyuru-bandi { background: #FF4B4B; color: white; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 20px; border: 2px solid white; }.pitch-sector { background: rgba(0, 210, 255, 0.08); border-left: 5px solid #00D2FF; padding: 10px; margin-bottom: 10px; font-weight: bold; }.admin-stat { background: rgba(0, 210, 255, 0.1); border: 1px solid #00D2FF; padding: 15px; border-radius: 10px; text-align: center; }</style>""", unsafe_allow_html=True)
 
 @st.cache_resource
 def get_hash(password): return hashlib.sha256(str.encode(password)).hexdigest()
@@ -22,7 +24,7 @@ def get_hash(password): return hashlib.sha256(str.encode(password)).hexdigest()
 def get_announcement():
     try:
         res = supabase.table("ayarlar").select("duyuru").eq("id", 1).execute()
-        return res.data[0]['duyuru'] if res.data else "Sistem Aktif!"
+        return res.data[0]['duyuru'] if res.data else "Sistem Hazır!"
     except: return "Elite Scout!"
 
 if 'user' not in st.session_state: st.session_state.user = None
@@ -49,66 +51,88 @@ else:
         df = df.iloc[:, [1, 2, 3, 4, 5, 6, 7, 8]]
         df.columns = ['Oyuncu', 'Yaş', 'CA', 'PA', 'Ülke', 'Kulüp', 'Değer', 'Mevki']
         for col in ['PA', 'CA', 'Yaş']: df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
+        df['Pasaportlar'] = df['Ülke'].apply(lambda x: [c.strip() for c in str(x).replace('-', '/').replace(',', '/').split('/') if c.strip()])
         return df
 
     df = load_data()
+    f_res = supabase.table("favoriler").select("*").eq("kullanici_adi", st.session_state.user).execute()
+    user_favs = [x['oyuncu_adi'] for x in f_res.data] if f_res.data else []
+
     tabs = st.tabs(["🔍 SCOUT", "🔥 POPÜLER", "⭐ LİSTEM", "⚔️ KIYAS", "⚽ KADROM", "💡 ÖNERİ", "🛠️ ADMIN"])
 
-    # --- 🔥 POPÜLER TAMİR EDİLDİ ---
-    with tabs[1]:
-        st.subheader("🔥 En Çok Favoriye Eklenenler")
+    with tabs[0]: # SCOUT + TRANSFERMARKT BUTONU ✅
+        c1, c2, c3 = st.columns(3)
+        f_name = c1.text_input("İsim Ara:"); all_c = sorted(list(set([c for sublist in df['Pasaportlar'] for c in sublist])))
+        f_country = c2.multiselect("Ülke:", all_c); f_club = c3.text_input("Takım Ara:")
+        sc1, sc2, sc3 = st.columns(3)
+        f_pa = sc1.slider("Min PA:", 0, 200, 100); f_age = sc2.slider("Yaş:", 15, 45, (15, 45))
+        sort_by = sc3.selectbox("Sırala:", ["PA (Yüksek)", "CA (Yüksek)", "Yaş (Genç)"])
+        f_pos = st.multiselect("Mevki:", list(pozisyon_map.keys()), format_func=lambda x: pozisyon_map[x])
+        
+        f_df = df[(df['PA'] >= f_pa) & (df['Yaş'] >= f_age[0]) & (df['Yaş'] <= f_age[1])]
+        if f_name: f_df = f_df[f_df['Oyuncu'].str.contains(f_name, case=False)]
+        if f_club: f_df = f_df[f_df['Kulüp'].fillna("").str.contains(f_club, case=False)]
+        if f_country: f_df = f_df[f_df['Pasaportlar'].apply(lambda x: any(c in x for c in f_country))]
+        if f_pos: f_df = f_df[f_df['Mevki'].apply(lambda x: any(p in str(x) for p in f_pos))]
+        if sort_by == "PA (Yüksek)": f_df = f_df.sort_values("PA", ascending=False)
+        elif sort_by == "CA (Yüksek)": f_df = f_df.sort_values("CA", ascending=False)
+        else: f_df = f_df.sort_values("Yaş", ascending=True)
+
+        for _, r in f_df.head(15).iterrows():
+            is_fav = r['Oyuncu'] in user_favs
+            tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(r['Oyuncu'])}"
+            st.markdown(f'<div class="player-card"><div style="display:flex;justify-content:space-between;align-items:center;"><b>{r["Oyuncu"]} {"✅" if is_fav else ""}</b><span class="pa-box">PA: {r["PA"]}</span></div><div style="margin-top:5px;color:#aaa;font-size:14px;">{r["Kulüp"]} | {r["Yaş"]} Yaş</div><div style="margin-top:10px;"><span class="stat-box">CA: {r["CA"]}</span><span class="stat-box">{r["Mevki"]}</span></div><a href="{tm_url}" target="_blank" class="tm-button">TRANSFERMARKT PROFİLİ</a></div>', unsafe_allow_html=True)
+            if not is_fav:
+                if st.button(f"⭐ Listeye Ekle", key=f"s_{r['Oyuncu']}"):
+                    supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": r['Oyuncu']}).execute(); st.rerun()
+
+    with tabs[1]: # 🔥 POPÜLER
         try:
             p_res = supabase.table("favoriler").select("oyuncu_adi").execute()
             if p_res.data:
-                fav_df = pd.DataFrame(p_res.data)
-                # KADRO: verilerini listeden çıkarıyoruz sadece oyuncuları sayıyoruz
-                pop_counts = fav_df[~fav_df['oyuncu_adi'].str.contains("KADRO:", na=False)]['oyuncu_adi'].value_counts().reset_index()
-                pop_counts.columns = ['Oyuncu', 'Favori Sayısı']
-                st.table(pop_counts.head(10))
-            else: st.info("Henüz popüler oyuncu yok.")
-        except: st.error("Veri çekilemedi.")
+                pop_df = pd.DataFrame(p_res.data)
+                pop_counts = pop_df[~pop_df['oyuncu_adi'].str.contains("KADRO:", na=False)]['oyuncu_adi'].value_counts().reset_index().head(10)
+                st.table(pop_counts)
+        except: st.error("Hata!")
 
-    # --- ⚔️ KIYAS TAMİR EDİLDİ ---
-    with tabs[3]:
-        st.subheader("⚔️ Oyuncu Kıyaslama")
-        p_list = sorted(df['Oyuncu'].tolist())
-        sel_players = st.multiselect("Kıyaslanacak 2 Oyuncu Seç:", p_list, max_selections=2)
-        if len(sel_players) == 2:
-            compare_df = df[df['Oyuncu'].isin(sel_players)].set_index('Oyuncu')
-            st.table(compare_df[['CA', 'PA', 'Yaş', 'Kulüp', 'Mevki', 'Değer']])
+    with tabs[2]: # ⭐ LİSTEM
+        if user_favs:
+            for fav in [x for x in user_favs if "KADRO:" not in x]:
+                c1, c2 = st.columns([4, 1])
+                c1.write(f"📍 {fav}")
+                if c2.button("Sil", key=f"del_{fav}"):
+                    supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", fav).execute(); st.rerun()
 
-    # --- 💡 ÖNERİ TAMİR EDİLDİ ---
-    with tabs[5]:
-        st.subheader("💡 Öneri ve Geri Bildirim")
-        oneri_metni = st.text_area("Sistem hakkında önerini yaz Someku'ya gitsin:")
-        if st.button("Öneriyi Gönder"):
-            if oneri_metni:
-                try:
-                    supabase.table("oneriler").insert({"kullanici": st.session_state.user, "mesaj": oneri_metni}).execute()
-                    st.success("Önerin başarıyla gönderildi!")
-                except Exception as e: st.error(f"Hata oluştu: {e}")
-            else: st.warning("Lütfen bir mesaj yazın.")
+    with tabs[3]: # ⚔️ KIYAS
+        sel = st.multiselect("2 Oyuncu:", df['Oyuncu'].tolist(), max_selections=2)
+        if len(sel) == 2: st.table(df[df['Oyuncu'].isin(sel)].set_index('Oyuncu')[['CA','PA','Yaş','Kulüp']])
 
-    # --- 🛠️ ADMIN PANELİ (ÖNERİLER BURAYA DÜŞER) ---
-    with tabs[6]:
+    with tabs[4]: # ⚽ KADROM
+        all_p = ["Boş"] + sorted(df['Oyuncu'].tolist())
+        st.markdown('<div class="pitch-sector">FORVET</div>', unsafe_allow_html=True); c_f = st.columns(3); lw = c_f[0].selectbox("AML", all_p); stp = c_f[1].selectbox("ST", all_p); rw = c_f[2].selectbox("AMR", all_p)
+        st.markdown('<div class="pitch-sector">ORTA SAHA</div>', unsafe_allow_html=True); c_m = st.columns(3); m1 = c_m[0].selectbox("MC 1", all_p); dm = c_m[1].selectbox("DM", all_p); m2 = c_m[2].selectbox("MC 2", all_p)
+        st.markdown('<div class="pitch-sector">DEFANS</div>', unsafe_allow_html=True); c_d = st.columns(4); lb = c_d[0].selectbox("DL", all_p); cb1 = c_d[1].selectbox("DC 1", all_p); cb2 = c_d[2].selectbox("DC 2", all_p); rb = c_d[3].selectbox("DR", all_p)
+        gk = st.selectbox("GK", all_p)
+        if st.button("💾 Kadroyu Kaydet"):
+            k_data = f"KADRO:{json.dumps([lw, stp, rw, m1, dm, m2, lb, cb1, cb2, rb, gk])}"
+            supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": k_data}).execute(); st.success("Kaydedildi!")
+
+    with tabs[5]: # 💡 ÖNERİ
+        oneri = st.text_area("Önerin:"); 
+        if st.button("Gönder"):
+            supabase.table("oneriler").insert({"kullanici": st.session_state.user, "mesaj": oneri}).execute(); st.success("Gitti!")
+
+    with tabs[6]: # 🛠️ ADMIN
         if any(a in st.session_state.user.lower() for a in ["someku", "omer", "admin"]):
-            st.title("🛠️ Admin Paneli")
-            
-            # Gelen Önerileri Göster
-            st.subheader("📩 Gelen Öneriler")
-            try:
-                onr_data = supabase.table("oneriler").select("*").order("tarih", desc=True).execute()
-                if onr_data.data:
-                    st.dataframe(pd.DataFrame(onr_data.data), use_container_width=True)
-                else: st.info("Henüz gelen bir öneri yok.")
-            except: st.error("Öneriler tablosu bulunamadı.")
-
-            # Üye Sayısı ve Listesi
-            st.write("---")
             u_data = supabase.table("kullanicilar").select("username").execute()
-            st.markdown(f'<div class="admin-stat"><h3>Kayıtlı Üye Sayısı</h3><h2>{len(u_data.data)}</h2></div>', unsafe_allow_html=True)
-            st.dataframe(pd.DataFrame(u_data.data), use_container_width=True)
-        else:
-            st.error("Admin yetkiniz yok.")
+            onr_data = supabase.table("oneriler").select("*").execute()
+            ac1, ac2 = st.columns(2)
+            ac1.markdown(f'<div class="admin-stat"><h3>Üyeler</h3><h2>{len(u_data.data)}</h2></div>', unsafe_allow_html=True)
+            ac2.markdown(f'<div class="admin-stat"><h3>Gelen Öneri</h3><h2>{len(onr_data.data)}</h2></div>', unsafe_allow_html=True)
+            st.subheader("Üye Listesi"); st.dataframe(pd.DataFrame(u_data.data))
+            st.subheader("Gelen Öneriler"); st.dataframe(pd.DataFrame(onr_data.data))
+            new_d = st.text_input("Duyuru Güncelle:", get_announcement())
+            if st.button("Yayınla"):
+                supabase.table("ayarlar").update({"duyuru": new_d}).eq("id", 1).execute(); st.success("Yayında!")
 
     if st.sidebar.button("Çıkış"): st.session_state.user = None; st.rerun()
