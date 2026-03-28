@@ -53,7 +53,7 @@ if st.session_state.user is None:
     u_pw = c2.text_input("Şifre:", type="password")
     col_b1, col_b2 = st.columns(2)
     if col_b1.button("Giriş Yap", use_container_width=True):
-        if u_id == "someku" and u_pw == "2861628Ok":
+        if u_id == "someku" and u_pw == "28616128Ok":
             st.session_state.user = "someku"
             st.rerun()
         else:
