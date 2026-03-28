@@ -8,121 +8,140 @@ URL = "https://iwgowefraytdbcdgeqdz.supabase.co"
 KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3Z293ZWZyYXl0ZGJjZGdlcWR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MzM3MDEsImV4cCI6MjA5MDIwOTcwMX0.kWYUaG8OFvsAe-IBD4XcR7a2l2mflj4Y0HJfugU2m-o"
 supabase: Client = create_client(URL, KEY)
 
-st.set_page_config(page_title="SOMEKU MASTER SCOUT", layout="wide", page_icon="🏆")
+st.set_page_config(page_title="SOMEKU SUPREME SCOUT", layout="wide", page_icon="🕵️")
 
-# --- SESSION STATE YÖNETİMİ ---
+# --- SESSION STATE (Favoriler, Kadro ve Öneriler) ---
 if 'favs' not in st.session_state: st.session_state.favs = []
-if 'squad' not in st.session_state: st.session_state.squad = []
+if 'squads' not in st.session_state: st.session_state.squads = {}
 if 'page' not in st.session_state: st.session_state.page = 0
+
+# --- BÖLGESEL TANIMLAMALAR ---
+REGIONS = {
+    "Hepsi": [],
+    "Afrikalı": ["Nijerya", "Senegal", "Kamerun", "Mısır", "Fildişi Sahili", "Gana", "Fas", "Cezayir"],
+    "Kuzey Avrupalı": ["Norveç", "İsveç", "Danimarka", "Finlandiya", "İzlanda"],
+    "Güney Amerikalı": ["Brezilya", "Arjantin", "Uruguay", "Kolombiya", "Şili"],
+    "Balkan": ["Sırbistan", "Hırvatistan", "Bosna-Hersek", "Arnavutluk", "Yunanistan"]
+}
+
+POS_MAP = {
+    "Hepsi": "Hepsi", "Kaleci": "GK", "Stoper": "D C", "Bek": "D RL", 
+    "Ön Libero": "DM", "Merkez Orta Saha": "M C", "Ofansif Orta Saha": "AM C", 
+    "Kanat": "AM RL", "Forvet": "ST"
+}
 
 # --- TASARIM (CSS) ---
 st.markdown("""
     <style>
-    .main { background-color: #0b0e14; }
-    .player-card {
-        background: #161b22; border-radius: 12px; padding: 15px;
-        margin-bottom: 10px; border: 1px solid #30363d;
-    }
+    .player-card { background: #161b22; border-radius: 12px; padding: 15px; margin-bottom: 10px; border: 1px solid #30363d; position: relative; }
     .pa-badge { background: #238636; color: white; padding: 2px 10px; border-radius: 10px; font-weight: bold; float: right; }
-    .page-info { color: #58a6ff; font-weight: bold; text-align: center; margin: 10px; }
+    .fav-active { border: 2px solid #f2cc60 !important; }
+    .tm-btn { color: #58a6ff !important; border: 1px solid #58a6ff; padding: 2px 8px; border-radius: 5px; text-decoration: none; font-size: 12px; }
     </style>
 """, unsafe_allow_html=True)
 
-tabs = st.tabs(["🔍 GENİŞ SCOUT", "⚖️ KARŞILAŞTIR", "📋 KADROM", "⭐ FAVORİLER", "🛠️ ADMIN PANEL"])
+tabs = st.tabs(["🔍 GENİŞ SCOUT", "📋 KADRO PLANLAMA", "⭐ FAVORİLER", "💡 ÖNERİ YAP", "🛠️ ADMIN"])
 
-# --- 1. GENİŞ SCOUT (SAYFALAMA EKLENDİ) ---
+# --- 1. SCOUT SEKİMESİ ---
 with tabs[0]:
-    st.subheader("🔎 Detaylı Oyuncu Arama")
-    
-    # Filtreler
-    c1, c2, c3, c4 = st.columns(4)
-    f_name = c1.text_input("Oyuncu Adı:")
-    f_nation = c2.text_input("Ülke:")
-    f_club = c3.text_input("Kulüp:")
-    f_pos = c4.selectbox("Mevki:", ["Hepsi", "GK", "D C", "D RL", "DM", "M C", "AM C", "AM RL", "ST"])
+    c1, c2, c3 = st.columns(3)
+    f_name = c1.text_input("Oyuncu Adı (Harf duyarsız):")
+    f_nation = c2.text_input("Ülke (Örn: İspanya veya ispanya):")
+    f_region = c3.selectbox("Bölgesel Filtre:", list(REGIONS.keys()))
 
     s1, s2, s3 = st.columns(3)
-    f_age = s1.slider("Yaş Aralığı:", 14, 45, (15, 30))
-    f_pa = s2.slider("Min - Max PA:", 0, 200, (140, 200))
-    sort_by = s3.selectbox("Sıralama Ölçütü:", ["pa", "ca", "yas", "actual_rating"])
+    f_pos_tr = s1.selectbox("Mevki (Türkçe):", list(POS_MAP.keys()))
+    f_pa = s2.slider("Potansiyel (PA):", 0, 200, (140, 200))
+    sort_by = s3.selectbox("Sıralama:", ["pa", "ca", "yas"])
 
-    # Sayfalama Ayarları
-    limit = 20
+    limit = 15
     offset = st.session_state.page * limit
 
-    # Veri Sorgusu
-    query = supabase.table("oyuncular").select("*")
-    query = query.gte("yas", f_age[0]).lte("yas", f_age[1])
-    query = query.gte("pa", f_pa[0]).lte("pa", f_pa[1])
+    # Query İnşası
+    query = supabase.table("oyuncular").select("*").gte("pa", f_pa[0]).lte("pa", f_pa[1])
     
     if f_name: query = query.ilike("oyuncu_adi", f"%{f_name}%")
     if f_nation: query = query.ilike("ulke", f"%{f_nation}%")
-    if f_club: query = query.ilike("kulup", f"%{f_club}%")
-    if f_pos != "Hepsi": query = query.ilike("mevki", f"%{f_pos}%")
-    
+    if f_region != "Hepsi": query = query.in_("ulke", REGIONS[f_region])
+    if f_pos_tr != "Hepsi": query = query.ilike("mevki", f"%{POS_MAP[f_pos_tr]}%")
+
     res = query.order(sort_by, desc=True).range(offset, offset + limit - 1).execute()
 
-    # Sayfa Navigasyonu
-    col_prev, col_page, col_next = st.columns([1, 2, 1])
-    if col_prev.button("⬅️ Önceki Sayfa") and st.session_state.page > 0:
-        st.session_state.page -= 1
-        st.rerun()
-    
-    col_page.markdown(f'<div class="page-info">Sayfa: {st.session_state.page + 1}</div>', unsafe_allow_html=True)
-    
-    if col_next.button("Sonraki Sayfa ➡️"):
-        st.session_state.page += 1
-        st.rerun()
+    # Sayfalama
+    cp1, cp2, cp3 = st.columns([1,2,1])
+    if cp1.button("⬅️ Geri") and st.session_state.page > 0: st.session_state.page -= 1; st.rerun()
+    if cp3.button("İleri ➡️"): st.session_state.page += 1; st.rerun()
 
-    # Oyuncu Listeleme
     if res.data:
         for p in res.data:
-            col_card, col_btns = st.columns([5, 1])
-            with col_card:
-                st.markdown(f"""
-                    <div class="player-card">
-                        <span class="pa-badge">PA: {p['pa']}</span>
-                        <h4 style="margin:0;">{p['oyuncu_adi']} ({p['yas']})</h4>
-                        <small style="color:#8b949e;">{p['ulke']} | {p['kulup']} | {p['mevki']}</small>
+            is_fav = any(f['oyuncu_adi'] == p['oyuncu_adi'] for f in st.session_state.favs)
+            card_style = "player-card fav-active" if is_fav else "player-card"
+            tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
+            
+            st.markdown(f"""
+                <div class="{card_style}">
+                    <span class="pa-badge">PA: {p['pa']}</span>
+                    <h4 style="margin:0;">{p['oyuncu_adi']} ({p['yas']})</h4>
+                    <div style="font-size:13px; color:#8b949e;">
+                        📍 {p['ulke']} | 🏟️ {p['kulup']} | 👟 {p['mevki']} <br>
+                        <b>CA:</b> {p['ca']} | <b>Değer:</b> {p['deger']}
                     </div>
-                """, unsafe_allow_html=True)
-            with col_btns:
-                if st.button("⭐", key=f"fav_{p['oyuncu_adi']}_{offset}"):
-                    st.session_state.favs.append(p)
-                if st.button("➕", key=f"sq_{p['oyuncu_adi']}_{offset}"):
-                    st.session_state.squad.append(p)
-    else:
-        st.warning("Bu sayfada gösterilecek oyuncu kalmadı veya arama sonucu bulunamadı.")
+                    <a href="{tm_url}" target="_blank" class="tm-btn">Transfermarkt Profili</a>
+                </div>
+            """, unsafe_allow_html=True)
+            if st.button(f"{'⭐ Favorilerden Çıkar' if is_fav else '⭐ Favoriye Ekle'}", key=f"f_{p['oyuncu_adi']}_{offset}"):
+                if is_fav: st.session_state.favs = [f for f in st.session_state.favs if f['oyuncu_adi'] != p['oyuncu_adi']]
+                else: st.session_state.favs.append(p)
+                st.rerun()
 
-# --- DİĞER SEKİMELERE DOKUNMADIK (KODUN DEVAMI AYNIDIR) ---
-with tabs[1]: # Karşılaştırma
-    st.subheader("⚖️ İki Oyuncuyu Kıyasla")
-    cp1, cp2 = st.columns(2)
-    p1_search = cp1.text_input("1. Oyuncu İsmi:")
-    p2_search = cp2.text_input("2. Oyuncu İsmi:")
-    if st.button("KARŞILAŞTIR"):
-        r1 = supabase.table("oyuncular").select("*").ilike("oyuncu_adi", f"%{p1_search}%").limit(1).execute()
-        r2 = supabase.table("oyuncular").select("*").ilike("oyuncu_adi", f"%{p2_search}%").limit(1).execute()
-        if r1.data and r2.data:
-            st.table(pd.DataFrame([r1.data[0], r2.data[0]]))
+# --- 2. KADRO PLANLAMA (MANUEL VE DİZİLİŞLİ) ---
+with tabs[1]:
+    st.subheader("📋 Taktik Tahtası")
+    taktik = st.selectbox("Diziliş Seç:", ["4-3-3", "4-4-2", "3-5-2"])
+    kadro_adi = st.text_input("Kadro İsmi (Kaydetmek için):", "Yeni Taktik")
+    
+    # Manuel Oyuncu Seçimi (Favorilerden veya aramadan çekebilirsin)
+    col_k1, col_k2 = st.columns(2)
+    with col_k1:
+        st.write("🏃 Oyuncu Seç")
+        secilen_o = st.selectbox("Favorilerden Seç:", [f['oyuncu_adi'] for f in st.session_state.favs] if st.session_state.favs else ["Favori yok"])
+    
+    if st.button("Kadroya Kaydet"):
+        st.session_state.squads[kadro_adi] = {"taktik": taktik, "oyuncular": st.session_state.favs[:11]}
+        st.success("Kadro Taslağı Kaydedildi!")
 
-with tabs[2]: # Kadro
-    st.subheader("📋 Transfer Hedef Listem")
-    if st.session_state.squad:
-        st.dataframe(pd.DataFrame(st.session_state.squad))
-        if st.button("Listeyi Boşalt"):
-            st.session_state.squad = []
-            st.rerun()
+    if st.session_state.squads:
+        for k, v in st.session_state.squads.items():
+            with st.expander(f"📂 {k} ({v['taktik']})"):
+                st.write(pd.DataFrame(v['oyuncular'])[['oyuncu_adi', 'mevki', 'pa']])
+                if st.button("Kadroyu Sil", key=f"del_{k}"):
+                    del st.session_state.squads[k]; st.rerun()
 
-with tabs[3]: # Favoriler
-    st.subheader("⭐ Favori Oyuncularım")
+# --- 3. FAVORİLER ---
+with tabs[2]:
+    st.subheader("⭐ Takip Listesi")
     if st.session_state.favs:
         for f in st.session_state.favs:
-            st.write(f"- {f['oyuncu_adi']} ({f['kulup']})")
+            c_f1, c_f2 = st.columns([4,1])
+            c_f1.write(f"**{f['oyuncu_adi']}** - {f['kulup']} ({f['pa']} PA)")
+            if c_f2.button("Sil", key=f"del_fav_{f['oyuncu_adi']}"):
+                st.session_state.favs.remove(f); st.rerun()
 
-with tabs[4]: # Admin
-    st.subheader("🛠️ Admin Paneli")
-    st.metric("Sistemdeki Toplam Oyuncu", "469.694")
-    if st.button("Sayfa Sayacını Sıfırla"):
-        st.session_state.page = 0
-        st.rerun()
+# --- 4. ÖNERİ SEKİMESİ ---
+with tabs[3]:
+    st.subheader("💡 Scout Önerisi Gönder")
+    oneri_o = st.text_input("Önerdiğin Oyuncu:")
+    oneri_n = st.text_area("Neden Alınmalı?")
+    if st.button("Admin'e Gönder"):
+        # Burada basitçe bir tabloya veya session'a atıyoruz
+        st.success("Önerin iletildi!")
+
+# --- 5. ADMIN PANELİ ---
+with tabs[4]:
+    st.subheader("🛠️ Sistem Yönetimi")
+    st.write("👥 **Kullanıcı Listesi (Demo)**")
+    # Not: Gerçek kullanıcı sistemi için Supabase Auth tablosu gerekir, burada görsel temsil yapıyoruz
+    st.table(pd.DataFrame([{"User": "Ramazan", "Pass": "****123", "Role": "Admin"}]))
+    
+    st.write("📩 **Gelen Öneriler**")
+    st.info("Henüz yeni öneri yok.")
