@@ -139,47 +139,88 @@ with tabs[3]:
     for f in get_user_favs(st.session_state.user):
         c1, c2 = st.columns([5, 1]); c1.markdown(f'<div class="player-card fav-active" style="padding:10px;"><b>{f}</b></div>', unsafe_allow_html=True)
         if c2.button("🗑️", key=f"del_{f}"): supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", f).execute(); st.rerun()
-
-# --- 5. BARROW AI ---
+            
+# --- 5. BARROW AI (GÜNCEL FİYAT VE MEVKİ FİLTRESİ) ---
 with tabs[4]:
     st.markdown('<div style="text-align:center;"><h1 style="color:#ef4444;">🤵 BARROW AI</h1></div>', unsafe_allow_html=True)
-    b_in = st.text_input("Emir ver (Örn: '5m stoper', 'Kaleci', 'Messi gibi golcü'):", key="b_in_v114")
+    b_in = st.text_input("Barrow'a emir ver (Örn: '3m defans', '17 yaş forvet'):", key="b_in_v116")
+    
     if st.button("BARROWA SOR"):
         if b_in:
             st.markdown(f'<div class="barrow-box"><p class="barrow-text">{random.choice(BARROW_INSULTS)}</p></div>', unsafe_allow_html=True)
+            
+            # Yazıdan tüm sayıları ayıkla
             nums = re.findall(r'\d+', b_in)
-            req_p = float(nums[0]) if nums and ("m" in b_in.lower() or "euro" in b_in.lower()) else None
+            req_p = float(nums[0]) if nums and ("m" in b_in.lower() or "euro" in b_in.lower() or "para" in b_in.lower()) else None
             
-            bq = supabase.table("oyuncular").select("*").lte("yas", 26).gte("pa", 135)
+            # PA 135+ olan tüm geniş havuzu çekiyoruz (Hep aynı adam gelmesin diye)
+            bq = supabase.table("oyuncular").select("*").gte("pa", 135)
             
-            # --- MEVKİ ANALİZİ ---
+            # --- GELİŞMİŞ MEVKİ ZEKA ANALİZİ ---
             t_m_list = []
+            # Kullanıcının yazdığı cümlede anahtar kelime ara
+            low_in = b_in.lower()
+            if "defans" in low_in or "stoper" in low_in or "bek" in low_in:
+                t_m_list.extend(["D C", "D L", "D R"])
+            elif "forvet" in low_in or "golcü" in low_in or "santrafor" in low_in:
+                t_m_list.append("ST")
+            elif "orta saha" in low_in or "merkez" in low_in:
+                t_m_list.extend(["M C", "DM", "AM C"])
+            elif "kanat" in low_in:
+                t_m_list.extend(["AM L", "AM R"])
+            elif "kaleci" in low_in:
+                t_m_list.append("GK")
+
+            # Eğer yukarıdaki kelimeler yoksa BARROW_KNOWLEDGE sözlüğüne bak
             for k, v in BARROW_KNOWLEDGE.items():
-                if k in b_in.lower(): t_m_list.extend(v)
+                if k in low_in:
+                    t_m_list.extend(v)
+            
             if t_m_list:
                 or_filters = ",".join([f'mevki.ilike.%{m}%' for m in set(t_m_list)])
                 bq = bq.or_(or_filters)
             
-            res_b = bq.order("pa", desc=True).limit(300).execute()
+            res_b = bq.order("pa", desc=True).limit(600).execute()
+            
             if res_b.data:
-                def get_v(x):
-                    d = str(x.get("deger","0")).replace("£","").replace("M","").replace(",","")
-                    v_nums = re.findall(r"[-+]?\d*\.\d+|\d+", d)
-                    return float(v_nums[0]) if v_nums else 999.0
+                # Kesin Fiyat Temizleme (Para birimi ne olursa olsun sadece rakamı alır)
+                def get_clean_value(x):
+                    val_str = str(x.get("deger", "0")).replace(",", ".")
+                    val_nums = re.findall(r"[-+]?\d*\.\d+|\d+", val_str)
+                    if val_nums:
+                        # Eğer değer 'K' (bin) ise 0.5M gibi düşün, 'M' (milyon) ise direkt al
+                        raw_val = float(val_nums[0])
+                        if "K" in val_str.upper(): return raw_val / 1000
+                        return raw_val
+                    return 9999.0
                 
-                final_b = [x for x in res_b.data if get_v(x) <= (req_p if req_p else 999)]
+                # Bütçeye göre filtrele
+                final_b = res_b.data
+                if req_p is not None:
+                    final_b = [x for x in res_b.data if get_clean_value(x) <= req_p]
+                
                 if final_b:
                     p_b = random.choice(final_b)
                     is_f = p_b['oyuncu_adi'] in st.session_state.get('fav_list', [])
                     tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p_b['oyuncu_adi'])}"
+                    
                     st.markdown(f'''<div class="player-card {"fav-active" if is_f else ""}" style="border-left-color:#ff0000; background:#000;">
                         <h3 style="color:#ff0000;">🔥 {p_b["oyuncu_adi"]}</h3>
                         <p style="font-family:'JetBrains Mono'; color:#00ff41;">🏟️ {p_b["kulup"]} | 👟 {p_b["mevki"]} | 📊 PA: {p_b["pa"]} | 🎂 YAŞ: {p_b["yas"]} | 💰 {p_b.get("deger","-")}</p>
                         <a href="{tm_url}" target="_blank" class="tm-link">Transfermarkt ➔</a></div>''', unsafe_allow_html=True)
-                    if st.button("⭐ Favorile", key=f"bf_v114_{p_b['oyuncu_adi']}"):
-                        supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": p_b['oyuncu_adi']}).execute(); st.rerun()
-                else: st.error("Bütçene göre adam yok hıyarto!")
-            else: st.warning("İstediğin kriterde oyuncu bulamadım.")
+                    
+                    if st.button(f"{'⭐ Listeden At' if is_f else '⭐ Listeye Al'}", key=f"bf_v116_{p_b['oyuncu_adi']}"):
+                        if is_f:
+                            supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", p_b['oyuncu_adi']).execute()
+                            st.session_state.fav_list.remove(p_b['oyuncu_adi'])
+                        else:
+                            supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": p_b['oyuncu_adi']}).execute()
+                            st.session_state.fav_list.append(p_b['oyuncu_adi'])
+                        st.rerun()
+                else:
+                    st.error(f"Barrow: '{req_p}M bütçeye defans mı olur hıyar? Git pazar gez belki bulursun. (Veya bütçeni artır!)'")
+            else:
+                st.warning("Barrow: 'O kriterlerde mermi gibi birini bulamadım.'")
 
 # --- 6. ADMIN ---
 with tabs[5]:
