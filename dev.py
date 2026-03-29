@@ -223,91 +223,103 @@ with tabs[1]:
     else:
         st.warning("Kriterlere uygun mermi bulunamadı. Filtreyi genişletmek için tekrar deneyin.")
 
-# --- 📋 İLK 11 (V127 - DİNAMİK DİZİLİŞ VE DİKEY SAHA) ---
+# --- 3. İLK 11 (V160 - DİKEY SAHA & FULL OYUNCU LİSTESİ) ---
 with tabs[2]:
-    st.subheader("📋 Stratejik İlk 11")
-    f_n = st.session_state.fav_list if st.session_state.fav_list else ["Boş"]
+    st.markdown('<h2 style="text-align:center;">📋 STRATEJİK İLK 11</h2>', unsafe_allow_html=True)
     
+    # --- VERİTABANINDAN OYUNCULARI ÇEK ---
+    try:
+        # PA 135+ tüm mermileri çekiyoruz
+        res_all = supabase.table("oyuncular").select("*").gte("pa", 135).order("pa", desc=True).execute()
+        # Seçim kutusu için sadece isimleri hazırlayalım
+        f_n = [f"{p['oyuncu_adi']} ({p['pa']})" for p in res_all.data] if res_all.data else ["Boş"]
+    except:
+        f_n = ["Bağlantı Hatası"]
+
     # 1. DİZİLİŞ SEÇİMİ
     tactic = st.selectbox("🏟️ Saha Dizilişi Seç:", ["4-4-2", "4-3-3"], key="tactic_sel")
     
     # 2. OYUNCU SEÇİMLERİ (Dizilişe Göre Dinamik)
-    st.markdown('<div class="section-header">🧤 KALECİ VE DEFANS</div>', unsafe_allow_html=True)
+    st.markdown('<div style="background:#161b22; padding:10px; border-radius:10px; margin-bottom:10px; border-left:4px solid #f2cc60; color:white; font-weight:bold;">🧤 KALECİ VE DEFANS</div>', unsafe_allow_html=True)
     c1, c2, c3, c4, c5 = st.columns(5)
-    gk = c1.selectbox("GK", f_n, key="sl_gk"); lb = c2.selectbox("LB", f_n, key="sl_lb")
-    cb1 = c3.selectbox("CB1", f_n, key="sl_cb1"); cb2 = c4.selectbox("CB2", f_n, key="sl_cb2"); rb = c5.selectbox("sl_rb", f_n)
+    gk = c1.selectbox("GK", f_n, key="sl_gk")
+    lb = c2.selectbox("LB", f_n, key="sl_lb")
+    cb1 = c3.selectbox("CB1", f_n, key="sl_cb1")
+    cb2 = c4.selectbox("CB2", f_n, key="sl_cb2")
+    rb = c5.selectbox("RB", f_n, key="sl_rb") # Buradaki key hatasını da düzelttim
 
-    st.markdown('<div class="section-header">⚙️ ORTA SAHA VE FORVET</div>', unsafe_allow_html=True)
+    st.markdown('<div style="background:#161b22; padding:10px; border-radius:10px; margin-bottom:10px; border-left:4px solid #58a6ff; color:white; font-weight:bold;">⚙️ ORTA SAHA VE FORVET</div>', unsafe_allow_html=True)
     if tactic == "4-4-2":
         m1, m2, m3, m4 = st.columns(4)
-        lm = m1.selectbox("LM", f_n, key="sl_lm"); cm1 = m2.selectbox("CM1", f_n, key="sl_cm1")
-        cm2 = m3.selectbox("CM2", f_n, key="sl_cm2"); rm = m4.selectbox("RM", f_n, key="sl_rm")
+        lm = m1.selectbox("LM", f_n, key="sl_lm")
+        cm1 = m2.selectbox("CM1", f_n, key="sl_cm1")
+        cm2 = m3.selectbox("CM2", f_n, key="sl_cm2")
+        rm = m4.selectbox("RM", f_n, key="sl_rm")
         f1, f2 = st.columns(2)
-        st1 = f1.selectbox("ST1", f_n, key="sl_st1"); st2 = f2.selectbox("ST2", f_n, key="sl_st2")
-    else: # 4-3-3
-        m1, m2, m3 = st.columns(3)
-        cm1 = m1.selectbox("LCM", f_n, key="sl_lcm"); cm2 = m2.selectbox("CM", f_n, key="sl_cmm"); cm3 = m3.selectbox("RCM", f_n, key="sl_rcm")
-        f1, f2, f3 = st.columns(3)
-        lw = f1.selectbox("LW", f_n, key="sl_lw"); st_p = f2.selectbox("ST", f_n, key="sl_st"); rw = f3.selectbox("RW", f_n, key="sl_rw")
-
-    # 3. GÖRSEL SAHA TASARIMI (DİKEY VE DAR)
-    # Oyuncu yerleşim koordinatları dizilişe göre değişir
-    players_html = ""
-    if tactic == "4-4-2":
+        st1 = f1.selectbox("ST1", f_n, key="sl_st1")
+        st2 = f2.selectbox("ST2", f_n, key="sl_st2")
+        
         players_html = f"""
-            <div class="player" style="top:85%; left:42%; border-color:#f2cc60;"><div class="pos">GK</div><div class="name">{gk}</div></div>
-            <div class="player" style="top:68%; left:5%;"><div class="pos">LB</div><div class="name">{lb}</div></div>
-            <div class="player" style="top:68%; left:30%;"><div class="pos">CB</div><div class="name">{cb1}</div></div>
-            <div class="player" style="top:68%; left:55%;"><div class="pos">CB</div><div class="name">{cb2}</div></div>
-            <div class="player" style="top:68%; left:80%;"><div class="pos">RB</div><div class="name">{rb}</div></div>
-            <div class="player" style="top:42%; left:5%;"><div class="pos">LM</div><div class="name">{lm}</div></div>
-            <div class="player" style="top:42%; left:30%;"><div class="pos">CM</div><div class="name">{cm1}</div></div>
-            <div class="player" style="top:42%; left:55%;"><div class="pos">CM</div><div class="name">{cm2}</div></div>
-            <div class="player" style="top:42%; left:80%;"><div class="pos">RM</div><div class="name">{rm}</div></div>
-            <div class="player" style="top:15%; left:30%;"><div class="pos">ST</div><div class="name">{st1}</div></div>
-            <div class="player" style="top:15%; left:55%;"><div class="pos">ST</div><div class="name">{st2}</div></div>
+            <div class="player" style="top:85%; left:40%; border-color:#f2cc60;"><div class="pos">GK</div><div class="name">{gk}</div></div>
+            <div class="player" style="top:68%; left:3%;"><div class="pos">LB</div><div class="name">{lb}</div></div>
+            <div class="player" style="top:68%; left:28%;"><div class="pos">CB</div><div class="name">{cb1}</div></div>
+            <div class="player" style="top:68%; left:53%;"><div class="pos">CB</div><div class="name">{cb2}</div></div>
+            <div class="player" style="top:68%; left:78%;"><div class="pos">RB</div><div class="name">{rb}</div></div>
+            <div class="player" style="top:42%; left:3%;"><div class="pos">LM</div><div class="name">{lm}</div></div>
+            <div class="player" style="top:42%; left:28%;"><div class="pos">CM</div><div class="name">{cm1}</div></div>
+            <div class="player" style="top:42%; left:53%;"><div class="pos">CM</div><div class="name">{cm2}</div></div>
+            <div class="player" style="top:42%; left:78%;"><div class="pos">RM</div><div class="name">{rm}</div></div>
+            <div class="player" style="top:15%; left:28%;"><div class="pos">ST</div><div class="name">{st1}</div></div>
+            <div class="player" style="top:15%; left:53%;"><div class="pos">ST</div><div class="name">{st2}</div></div>
         """
     else: # 4-3-3
+        m1, m2, m3 = st.columns(3)
+        cm1 = m1.selectbox("LCM", f_n, key="sl_lcm")
+        cm2 = m2.selectbox("CM", f_n, key="sl_cmm")
+        cm3 = m3.selectbox("RCM", f_n, key="sl_rcm")
+        f1, f2, f3 = st.columns(3)
+        lw = f1.selectbox("LW", f_n, key="sl_lw")
+        st_p = f2.selectbox("ST", f_n, key="sl_st")
+        rw = f3.selectbox("RW", f_n, key="sl_rw")
+        
         players_html = f"""
-            <div class="player" style="top:85%; left:42%; border-color:#f2cc60;"><div class="pos">GK</div><div class="name">{gk}</div></div>
-            <div class="player" style="top:68%; left:5%;"><div class="pos">LB</div><div class="name">{lb}</div></div>
-            <div class="player" style="top:68%; left:30%;"><div class="pos">CB</div><div class="name">{cb1}</div></div>
-            <div class="player" style="top:68%; left:55%;"><div class="pos">CB</div><div class="name">{cb2}</div></div>
-            <div class="player" style="top:68%; left:80%;"><div class="pos">RB</div><div class="name">{rb}</div></div>
-            <div class="player" style="top:45%; left:15%;"><div class="pos">CM</div><div class="name">{cm1}</div></div>
-            <div class="player" style="top:45%; left:42%;"><div class="pos">CM</div><div class="name">{cm2}</div></div>
-            <div class="player" style="top:45%; left:70%;"><div class="pos">CM</div><div class="name">{cm3}</div></div>
-            <div class="player" style="top:15%; left:10%;"><div class="pos">LW</div><div class="name">{lw}</div></div>
-            <div class="player" style="top:12%; left:42%;"><div class="pos">ST</div><div class="name">{st_p}</div></div>
-            <div class="player" style="top:15%; left:75%;"><div class="pos">RW</div><div class="name">{rw}</div></div>
+            <div class="player" style="top:85%; left:40%; border-color:#f2cc60;"><div class="pos">GK</div><div class="name">{gk}</div></div>
+            <div class="player" style="top:68%; left:3%;"><div class="pos">LB</div><div class="name">{lb}</div></div>
+            <div class="player" style="top:68%; left:28%;"><div class="pos">CB</div><div class="name">{cb1}</div></div>
+            <div class="player" style="top:68%; left:53%;"><div class="pos">CB</div><div class="name">{cb2}</div></div>
+            <div class="player" style="top:68%; left:78%;"><div class="pos">RB</div><div class="name">{rb}</div></div>
+            <div class="player" style="top:45%; left:12%;"><div class="pos">CM</div><div class="name">{cm1}</div></div>
+            <div class="player" style="top:45%; left:40%;"><div class="pos">CM</div><div class="name">{cm2}</div></div>
+            <div class="player" style="top:45%; left:68%;"><div class="pos">CM</div><div class="name">{cm3}</div></div>
+            <div class="player" style="top:15%; left:8%;"><div class="pos">LW</div><div class="name">{lw}</div></div>
+            <div class="player" style="top:12%; left:40%;"><div class="pos">ST</div><div class="name">{st_p}</div></div>
+            <div class="player" style="top:15%; left:73%;"><div class="pos">RW</div><div class="name">{rw}</div></div>
         """
 
     pitch_css = """
     <style>
         .pitch {
             position: relative; background-color: #238636;
-            background-image: radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px);
-            background-size: 20px 20px;
+            background-image: linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 40px 40px;
             border: 4px solid #ffffff; border-radius: 15px;
-            width: 380px; height: 550px; margin: auto; overflow: hidden;
+            width: 100%; max-width: 380px; height: 550px; margin: auto; overflow: hidden;
         }
         .mid-line { position: absolute; top: 50%; left: 0; width: 100%; border-top: 2px solid rgba(255,255,255,0.4); }
         .mid-circle { position: absolute; top: 41%; left: 30%; width: 40%; height: 18%; border: 2px solid rgba(255,255,255,0.4); border-radius: 50%; }
         .player {
-            position: absolute; background: rgba(13, 17, 23, 0.95);
-            border: 2px solid #58a6ff; border-radius: 6px; color: white;
-            width: 75px; padding: 3px; text-align: center; box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            position: absolute; background: rgba(13, 17, 23, 0.9);
+            border: 2px solid #58a6ff; border-radius: 8px; color: white;
+            width: 80px; padding: 4px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
-        .pos { font-size: 8px; color: #58a6ff; font-weight: bold; }
-        .name { font-size: 9px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .pos { font-size: 9px; color: #58a6ff; font-weight: bold; }
+        .name { font-size: 10px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     </style>
     """
     
     st.components.v1.html(f"{pitch_css}<div class='pitch'><div class='mid-line'></div><div class='mid-circle'></div>{players_html}</div>", height=570)
-    
-    # İndirme Metni
-    kadro_txt = f"Diziliş: {tactic}\nKadro: {gk}, {lb}, {cb1}, {cb2}, {rb}..."
-    st.download_button("📩 KADRO LİSTESİNİ İNDİR", kadro_txt, file_name="kadro.txt")
+    st.button("💾 BU KADROYU DİKKATE AL", use_container_width=True)
 
 # --- 4. FAVORİLER (V149 - GÜNCEL TABLO UYUMLU) ---
 with tabs[3]:
