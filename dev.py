@@ -2,17 +2,16 @@
 import streamlit as st
 from supabase import create_client, Client
 import urllib.parse
-import pandas as pd
 import random
 import time
 
-# --- BAĞLANTI AYARLARI ---
+# --- BAĞLANTI ---
 URL = "https://iwgowefraytdbcdgeqdz.supabase.co"
-KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3Z293ZWZyYXl0ZGJjZGdlcWR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MzM3MDEsImV4cCI6MjA5MDIwOTcwMX0.kWYUaG8OFvsAe-IBD4XcR7a2l2mflj4Y0HJfugU2m-o "
+KEY = "BURAYA_SUPABASE_KEY"
 supabase: Client = create_client(URL, KEY)
 
 # --- SAYFA ---
-st.set_page_config(page_title="SOMEKU SCOUT test", layout="wide", page_icon="🕵️")
+st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️")
 
 # --- CSS ---
 st.markdown("""
@@ -24,7 +23,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- DATA ---
+# --- FONKSİYON ---
 def get_user_favs(username):
     try:
         res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", username).execute()
@@ -35,11 +34,11 @@ def get_user_favs(username):
 # --- SESSION ---
 if 'user' not in st.session_state: st.session_state.user = None
 if 'fav_list' not in st.session_state: st.session_state.fav_list = []
-if 'page' not in st.session_state: st.session_state.page = 0
 if 'roulette_player' not in st.session_state: st.session_state.roulette_player = None
 
 # --- LOGIN ---
 if st.session_state.user is None:
+    st.title("🕵️ SOMEKU SCOUT")
     u = st.text_input("Kullanıcı")
     p = st.text_input("Şifre", type="password")
     if st.button("Giriş"):
@@ -48,19 +47,21 @@ if st.session_state.user is None:
             st.session_state.user = u
             st.session_state.fav_list = get_user_favs(u)
             st.rerun()
+        else:
+            st.error("Hatalı giriş")
     st.stop()
 
 # --- TABS ---
-tabs = st.tabs(["SCOUT","RULET","11","FAV","TAKIM","ÖNERİ","ADMIN"])
+tabs = st.tabs(["🔍 SCOUT","🎰 RULET","📋 11 KUR","⭐ FAVORİLER","🏟️ TAKIM","💡 ÖNERİ","🛠️ ADMIN"])
 
 # --- SCOUT ---
 with tabs[0]:
-    name = st.text_input("Oyuncu")
-    val_slider = st.slider("Max Değer", 1, 300, 300)
+    name = st.text_input("Oyuncu Ara")
+    max_val = st.slider("💰 Max Piyasa Değeri (M€)", 1, 300, 300)
 
-    sort_opt = st.selectbox("Sırala", ["PA","Yaş","Değer"])
+    sort_opt = st.selectbox("📊 Sırala", ["PA", "Yaş", "Değer"])
 
-    query = supabase.table("oyuncular").select("*").lte("piyasa_degeri", val_slider)
+    query = supabase.table("oyuncular").select("*").lte("piyasa_degeri", max_val)
 
     if name:
         query = query.ilike("oyuncu_adi", f"%{name}%")
@@ -74,39 +75,49 @@ with tabs[0]:
 
     res = query.execute()
 
-    for p in res.data:
-        is_fav = p['oyuncu_adi'] in st.session_state.fav_list
+    if res.data:
+        for p in res.data:
+            is_fav = p['oyuncu_adi'] in st.session_state.fav_list
 
-        st.markdown(f"""
-        <div class="player-card {'fav-active' if is_fav else ''}">
-        <span class="pa-badge">{p['pa']}</span>
-        <h3>{p['oyuncu_adi']}</h3>
-        <p>{p['kulup']} | {p['yas']} | 💰 {p.get('piyasa_degeri',0)}M</p>
-        </div>
-        """, unsafe_allow_html=True)
+            tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
 
-        if st.button(f"{'⭐' if is_fav else '☆'}", key=p['oyuncu_adi']):
-            if is_fav:
-                supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", p['oyuncu_adi']).execute()
-                st.session_state.fav_list.remove(p['oyuncu_adi'])
-            else:
-                supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": p['oyuncu_adi']}).execute()
-                st.session_state.fav_list.append(p['oyuncu_adi'])
-            st.rerun()
+            st.markdown(f"""
+            <div class="player-card {'fav-active' if is_fav else ''}">
+                <span class="pa-badge">PA: {p.get('pa','?')}</span>
+                <h3>{p['oyuncu_adi']}</h3>
+                <p>
+                📍 {p.get('ulke','')} |
+                🏟️ {p.get('kulup','')} |
+                🎂 {p.get('yas','?')} |
+                📊 CA: {p.get('ca','?')} |
+                💰 {p.get('piyasa_degeri','?')}M€
+                </p>
+                <a href="{tm_url}" target="_blank">Transfermarkt</a>
+            </div>
+            """, unsafe_allow_html=True)
+
+            if st.button(f"{'⭐ Favoriden Çıkar' if is_fav else '☆ Favori Ekle'}", key=p['oyuncu_adi']):
+                if is_fav:
+                    supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", p['oyuncu_adi']).execute()
+                    st.session_state.fav_list.remove(p['oyuncu_adi'])
+                else:
+                    supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": p['oyuncu_adi']}).execute()
+                    st.session_state.fav_list.append(p['oyuncu_adi'])
+                st.rerun()
 
 # --- RULET ---
 with tabs[1]:
-    if st.button("ÇEVİR"):
-        lucky = supabase.table("oyuncular").select("*").gte("pa",150).execute()
+    if st.button("🎰 ÇEVİR"):
+        lucky = supabase.table("oyuncular").select("*").gte("pa",150).lte("yas",21).execute()
         if lucky.data:
             st.session_state.roulette_player = random.choice(lucky.data)
 
     if st.session_state.roulette_player:
         p = st.session_state.roulette_player
-        st.write(p['oyuncu_adi'])
+        st.success(f"{p['oyuncu_adi']}")
 
         is_fav = p['oyuncu_adi'] in st.session_state.fav_list
-        if st.button("Favori"):
+        if st.button("⭐ Favori İşlemi"):
             if is_fav:
                 supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", p['oyuncu_adi']).execute()
                 st.session_state.fav_list.remove(p['oyuncu_adi'])
@@ -115,7 +126,7 @@ with tabs[1]:
                 st.session_state.fav_list.append(p['oyuncu_adi'])
             st.rerun()
 
-# --- 11 ---
+# --- 11 KUR ---
 with tabs[2]:
     f_names = st.session_state.fav_list if st.session_state.fav_list else ["Boş"]
 
@@ -136,21 +147,29 @@ with tabs[2]:
 # --- FAVORİLER ---
 with tabs[3]:
     favs = get_user_favs(st.session_state.user)
-    for f in favs:
-        st.write(f)
+    if favs:
+        for f in favs:
+            st.write(f)
+    else:
+        st.info("Favori yok")
 
-# --- TAKIM ---
+# --- TAKIM ÇARKI ---
 with tabs[4]:
-    teams = list(set([p["kulup"] for p in supabase.table("oyuncular").select("kulup").execute().data]))
-    if st.button("ÇARK"):
+    teams_data = supabase.table("oyuncular").select("kulup").execute().data
+    teams = list(set([t["kulup"] for t in teams_data if t["kulup"]]))
+
+    if st.button("🏟️ ÇARKI ÇEVİR"):
         st.success(random.choice(teams))
 
 # --- ÖNERİ ---
 with tabs[5]:
+    konu = st.selectbox("Konu", ["Hata","Öneri","Tasarım"])
     msg = st.text_area("Mesaj")
+
     if st.button("Gönder"):
         supabase.table("oneriler").insert({
             "kullanici_adi": st.session_state.user,
+            "konu": konu,
             "mesaj": msg
         }).execute()
         st.success("Gönderildi")
@@ -158,12 +177,17 @@ with tabs[5]:
 # --- ADMIN ---
 with tabs[6]:
     if st.session_state.user == "someku":
-        ad = st.text_input("Oyuncu")
+        st.subheader("Oyuncu Ekle")
+
+        ad = st.text_input("Oyuncu Adı")
         kulup = st.text_input("Kulüp")
+
         if st.button("Ekle"):
             supabase.table("oyuncular").insert({
                 "oyuncu_adi": ad,
                 "kulup": kulup
             }).execute()
             st.success("Eklendi")
+    else:
+        st.error("Yetki yok")
 ```
