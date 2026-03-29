@@ -5,6 +5,7 @@ import pandas as pd
 import random
 import time
 import re
+import streamlit.components.v1 as components
 
 # --- BAĞLANTI AYARLARI ---
 URL = "https://iwgowefraytdbcdgeqdz.supabase.co"
@@ -125,93 +126,113 @@ with tabs[1]:
             else: supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": p['oyuncu_adi']}).execute(); st.session_state.fav_list.append(p['oyuncu_adi'])
             st.rerun()
 
-# --- 📋 İLK 11 (V125 - GÖRSEL RENDER FİX) ---
+# Dosyanın en başına şunu ekle: import streamlit.components.v1 as components
+
+# --- 📋 İLK 11 (V126 - GÖRSEL YERLEŞİM VE SEÇİM) ---
 with tabs[2]:
     st.subheader("📋 Elite 11 Görsel Diziliş (4-4-2)")
+    
+    # Kullanıcının favori listesinden isimleri çek (Boşsa 'Boş' yaz)
     f_n = st.session_state.fav_list if st.session_state.fav_list else ["Boş"]
     
-    # Seçim Alanı
+    # --- OYUNCU SEÇİM ALANI ---
+    # Yukarıdaki Sporx görseli 4-4-2 olduğu için seçimleri de ona göre yapıyoruz
+    
+    st.markdown('<div class="section-header">🧤 KALE & DEFANS</div>', unsafe_allow_html=True)
     c1, c2, c3, c4, c5 = st.columns(5)
-    gk = c1.selectbox("GK", f_n, key="v_gk")
-    lb = c2.selectbox("LB", f_n, key="v_lb")
-    cb1 = c3.selectbox("CB1", f_n, key="v_cb1")
-    cb2 = c4.selectbox("CB2", f_n, key="v_cb2")
-    rb = c5.selectbox("RB", f_n, key="v_rb")
+    gk = c1.selectbox("GK:", f_n, key="vGK_s")
+    lb = c2.selectbox("LB:", f_n, key="vLB_s")
+    cb1 = c3.selectbox("CB1:", f_n, key="vCB1_s")
+    cb2 = c4.selectbox("CB2:", f_n, key="vCB2_s")
+    rb = c5.selectbox("RB:", f_n, key="vRB_s")
     
-    c1, c2, c3, c4 = st.columns(4)
-    lm = c1.selectbox("LM", f_n, key="v_lm")
-    cm1 = c2.selectbox("CM1", f_n, key="v_cm1")
-    cm2 = c3.selectbox("CM2", f_n, key="v_cm2")
-    rm = c4.selectbox("RM", f_n, key="v_rm")
+    st.markdown('<div class="section-header">⚙️ ORTA SAHA</div>', unsafe_allow_html=True)
+    m1, m2, m3, m4 = st.columns(4)
+    lm = m1.selectbox("LM:", f_n, key="vLM_s")
+    cm1 = m2.selectbox("CM1:", f_n, key="vCM1_s")
+    cm2 = m3.selectbox("CM2:", f_n, key="vCM2_s")
+    rm = m4.selectbox("RM:", f_n, key="vRM_s")
     
-    c1, c2 = st.columns(2)
-    st1 = c1.selectbox("ST1", f_n, key="v_st1")
-    st2 = c2.selectbox("ST2", f_n, key="v_st2")
+    st.markdown('<div class="section-header">🎯 FORVET</div>', unsafe_allow_html=True)
+    s1, s2 = st.columns(2)
+    st1 = s1.selectbox("ST1:", f_n, key="vST1_s")
+    st2 = s2.selectbox("ST2:", f_n, key="vST2_s")
 
-    # SAHA TASARIMI (CSS + HTML)
-    pitch_style = f"""
+    st.markdown("---")
+    st.markdown("### 🏟️ GÖRSEL SAHA (4-4-2)")
+
+    # --- SAHA GÖRSELLEŞTİRME (HTML/CSS) ---
+    # senin attığın görselin yapısını (koordinatlar, renkler, çizgiler) koda döktüm.
+    # st.components.v1.html kullanarak Streamlit'in render etmesini sağladım.
+    
+    pitch_html = f"""
     <style>
-        body {{ background-color: #0d1117; color: white; font-family: 'JetBrains Mono', monospace; }}
-        .pitch {{
+        body {{ background-color: #0d1117; margin: 0; padding: 0; overflow: hidden; }}
+        .football-pitch {{
             position: relative;
             background-color: #238636;
             background-image: radial-gradient(circle, rgba(255,255,255,0.2) 2px, transparent 2px);
             background-size: 30px 30px;
             border: 4px solid #ffffff;
             border-radius: 15px;
-            width: 95%;
-            height: 500px;
+            width: 100%;
+            height: 520px;
             margin: auto;
             overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
         }}
         .mid-line {{ position: absolute; top: 50%; left: 0; width: 100%; border-top: 2px solid rgba(255,255,255,0.3); }}
         .mid-circle {{ position: absolute; top: 40%; left: 40%; width: 20%; height: 20%; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; }}
-        .player {{
+        .penalty-box-top {{ position: absolute; top: -2px; left: 25%; width: 50%; height: 15%; border: 2px solid rgba(255,255,255,0.3); border-top: none; }}
+        .penalty-box-bot {{ position: absolute; bottom: -2px; left: 25%; width: 50%; height: 15%; border: 2px solid rgba(255,255,255,0.3); border-bottom: none; }}
+        
+        /* Oyuncu Kartı Tasarımı */
+        .player-card-on-pitch {{
             position: absolute;
             background: rgba(13, 17, 23, 0.95);
             border: 2px solid #58a6ff;
             border-radius: 6px;
             color: white;
-            width: 80px;
+            width: 85px;
             padding: 4px;
             text-align: center;
+            font-family: 'JetBrains Mono', monospace;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            z-index: 10;
         }}
-        .pos {{ font-size: 8px; color: #58a6ff; font-weight: bold; }}
-        .name {{ font-size: 10px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+        .pos-label {{ font-size: 8px; color: #58a6ff; font-weight: bold; text-transform: uppercase; }}
+        .player-name-pitch {{ font-size: 10px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
     </style>
-    <div class="pitch">
+    
+    <div class="football-pitch">
         <div class="mid-line"></div><div class="mid-circle"></div>
+        <div class="penalty-box-top"></div><div class="penalty-box-bot"></div>
         
-        <div class="player" style="top:10%; left:30%;"><div class="pos">ST</div><div class="name">{st1}</div></div>
-        <div class="player" style="top:10%; left:55%;"><div class="pos">ST</div><div class="name">{st2}</div></div>
+        <div class="player-card-on-pitch" style="top:85%; left:43%; border-color:#f2cc60;">
+            <div class="pos-label" style="color:#f2cc60;">GK</div><div class="player-name-pitch">{gk}</div>
+        </div>
         
-        <div class="player" style="top:35%; left:5%;"><div class="pos">LM</div><div class="name">{lm}</div></div>
-        <div class="player" style="top:35%; left:30%;"><div class="pos">CM</div><div class="name">{cm1}</div></div>
-        <div class="player" style="top:35%; left:55%;"><div class="pos">CM</div><div class="name">{cm2}</div></div>
-        <div class="player" style="top:35%; left:80%;"><div class="pos">RM</div><div class="name">{rm}</div></div>
+        <div class="player-card-on-pitch" style="top:68%; left:8%;"><div class="pos-label">LB</div><div class="player-name-pitch">{lb}</div></div>
+        <div class="player-card-on-pitch" style="top:68%; left:33%;"><div class="pos-label">CB</div><div class="player-name-pitch">{cb1}</div></div>
+        <div class="player-card-on-pitch" style="top:68%; left:57%;"><div class="pos-label">CB</div><div class="player-name-pitch">{cb2}</div></div>
+        <div class="player-card-on-pitch" style="top:68%; left:82%;"><div class="pos-label">RB</div><div class="player-name-pitch">{rb}</div></div>
         
-        <div class="player" style="top:65%; left:5%;"><div class="pos">LB</div><div class="name">{lb}</div></div>
-        <div class="player" style="top:65%; left:30%;"><div class="pos">CB</div><div class="name">{cb1}</div></div>
-        <div class="player" style="top:65%; left:55%;"><div class="pos">CB</div><div class="name">{cb2}</div></div>
-        <div class="player" style="top:65%; left:80%;"><div class="pos">RB</div><div class="name">{rb}</div></div>
+        <div class="player-card-on-pitch" style="top:42%; left:8%;"><div class="pos-label">LM</div><div class="player-name-pitch">{lm}</div></div>
+        <div class="player-card-on-pitch" style="top:42%; left:33%;"><div class="pos-label">CM</div><div class="player-name-pitch">{cm1}</div></div>
+        <div class="player-card-on-pitch" style="top:42%; left:57%;"><div class="pos-label">CM</div><div class="player-name-pitch">{cm2}</div></div>
+        <div class="player-card-on-pitch" style="top:42%; left:82%;"><div class="pos-label">RM</div><div class="player-name-pitch">{rm}</div></div>
         
-        <div class="player" style="top:85%; left:43%; border-color:#f2cc60;"><div class="pos" style="color:#f2cc60;">GK</div><div class="name">{gk}</div></div>
+        <div class="player-card-on-pitch" style="top:15%; left:33%;"><div class="pos-label">ST</div><div class="player-name-pitch">{st1}</div></div>
+        <div class="player-card-on-pitch" style="top:15%; left:57%;"><div class="pos-label">ST</div><div class="player-name-pitch">{st2}</div></div>
     </div>
     """
     
-    # HTML Olarak Render Et
-    st.components.v1.html(pitch_style, height=520)
+    # HTML Olarak Render Et (Streamlit'in kodu metin olarak basmasını önler)
+    components.html(pitch_html, height=540)
     
-    kadro_txt = f"Kadro: {gk}-{lb}-{cb1}-{cb2}-{rb}-{lm}-{cm1}-{cm2}-{rm}-{st1}-{st2}"
-    st.download_button("📩 KADRO LİSTESİNİ İNDİR", kadro_txt, file_name="kadro.txt")
-
-# --- 4. FAVORİLER ---
-with tabs[3]:
-    st.subheader("⭐ Kalıcı Favorilerin")
-    for f in get_user_favs(st.session_state.user):
-        c1, c2 = st.columns([5, 1]); c1.markdown(f'<div class="player-card fav-active" style="padding:10px;"><b>{f}</b></div>', unsafe_allow_html=True)
-        if c2.button("🗑️", key=f"del_{f}"): supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", f).execute(); st.rerun()
+    # Hatalı olan indirme kısmını düzelttik
+    kadro_txt = f"Kadro (4-4-2): {gk}-{lb}-{cb1}-{cb2}-{rb}-{lm}-{cm1}-{cm2}-{rm}-{st1}-{st2}"
+    st.download_button("📩 KADRO LİSTESİNİ İNDİR", kadro_txt, file_name="elite_kadro.txt")
 
 # --- 5. BARROW AI (V122 - BİN VE MİLYON BÜTÇE ZEKASI) ---
 with tabs[4]:
