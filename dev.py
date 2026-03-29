@@ -140,29 +140,6 @@ with tabs[3]:
         c1, c2 = st.columns([5, 1]); c1.markdown(f'<div class="player-card fav-active" style="padding:10px;"><b>{f}</b></div>', unsafe_allow_html=True)
         if c2.button("🗑️", key=f"del_{f}"): supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", f).execute(); st.rerun()
 
-# --- 6. SCOUT CHAT (V123 - AKILLI SOHBET SİSTEMİ) ---
-with tabs[5]: # Tab numarasını kendi sımana göre ayarla (Örn: tabs[5])
-    st.subheader("💬 Scout Chat (Canlı)")
-    st.markdown('<p style="color:#8b949e; font-size:12px;">Sadece son 50 mesaj gösterilir. Sayfayı yenileyerek güncel mesajları görebilirsin.</p>', unsafe_allow_html=True)
-
-    # MESAJ GÖNDERME ALANI
-    with st.container():
-        c1, c2 = st.columns([5, 1])
-        yeni_mesaj = c1.text_input("Mesajın...", key="chat_input", placeholder="Mermi gibi bir oyuncu buldum!")
-        if c2.button("GÖNDER", use_container_width=True):
-            if yeni_mesaj.strip():
-                try:
-                    supabase.table("sohbet").insert({
-                        "username": st.session_state.user,
-                        "mesaj": yeni_mesaj
-                    }).execute()
-                    st.rerun() # Mesaj gidince sayfayı yenile ki hemen görüksün
-                except:
-                    st.error("Mesaj gönderilemedi!")
-
-    st.markdown("---")
-
-
 # --- 5. BARROW AI (V122 - BİN VE MİLYON BÜTÇE ZEKASI) ---
 with tabs[4]:
     st.markdown('<div style="text-align:center;"><h1 style="color:#ef4444;">🤵 BARROW AI</h1></div>', unsafe_allow_html=True)
