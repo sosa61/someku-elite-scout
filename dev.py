@@ -226,51 +226,6 @@ with tabs[1]:
     else:
         st.error("135+ PA oyuncu havuzu yüklenemedi.")
 
-        # --- TEKNİK DETAY VE FAVORİLEME ALANI ---
-        if st.session_state.rulet_kazanan:
-            p = st.session_state.rulet_kazanan
-            st.markdown("---")
-            
-            # Kart Görünümü
-            col1, col2 = st.columns([1, 2])
-            
-            with col1:
-                # Modern Şeffaf Kart Tasarımı
-                st.markdown(f"""
-                <div style="background: rgba(255,255,255,0.05); border: 2px solid #238636; border-radius: 20px; padding: 20px; text-align: center; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-                    <div style="font-size: 40px; margin-bottom: 10px;">👤</div>
-                    <h3 style="margin:0; color: white;">{p['oyuncu_adi']}</h3>
-                    <p style="color: #238636; font-weight: bold; margin: 5px 0;">{p['mevki']}</p>
-                    <div style="display: flex; justify-content: space-around; margin-top: 15px; border-top: 1px solid #30363d; padding-top: 10px;">
-                        <div><small style="display:block; color:#8b949e;">YAŞ</small><b>{p['yas']}</b></div>
-                        <div><small style="display:block; color:#8b949e;">PA</small><b style="color:#238636;">{p['pa']}</b></div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-
-            with col2:
-                st.subheader("🕵️ Scout Notları")
-                st.write(f"🏟️ **Kulüp:** {p['kulup']}")
-                st.write(f"💰 **Piyasa Değeri:** {p['deger']}")
-                st.write(f"🌍 **Uyruk:** {p.get('uyruk', 'Belirtilmemiş')}")
-                
-                # Favorilere Ekle Butonu
-                if st.button("⭐ FAVORİLERİME EKLE", use_container_width=True):
-                    try:
-                        fav_data = {
-                            "oyuncu_adi": p['oyuncu_adi'],
-                            "kulup": p['kulup'],
-                            "pa": p['pa'],
-                            "mevki": p['mevki']
-                        }
-                        # 'favoriler' tablosuna ekle (Tablo adını kendine göre kontrol et)
-                        supabase.table("favoriler").insert(fav_data).execute()
-                        st.success(f"{p['oyuncu_adi']} scout listene eklendi!")
-                    except Exception as e:
-                        st.error(f"Hata: {e}")
-    else:
-        st.error("135+ PA oyuncu havuzu yüklenemedi.")
-
 # --- 📋 İLK 11 (V127 - DİNAMİK DİZİLİŞ VE DİKEY SAHA) ---
 with tabs[2]:
     st.subheader("📋 Stratejik İlk 11")
