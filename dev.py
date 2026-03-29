@@ -108,7 +108,7 @@ with tabs[0]:
         if c1.button("⬅️ Geri") and st.session_state.page > 0: st.session_state.page -= 1; st.rerun()
         if c2.button("İleri ➡️"): st.session_state.page += 1; st.rerun()
 
-# --- 2. RULET (V146 - FAVORİ FİX VE STABİL HAFIZA) ---
+# --- 2. RULET (V147 - FAVORİ VE DEĞER FİX) ---
 with tabs[1]:
     st.markdown('<h2 style="text-align:center;">🎰 SCOUT RULETİ</h2>', unsafe_allow_html=True)
     
@@ -117,24 +117,22 @@ with tabs[1]:
     import time
     import urllib.parse
 
-    # 1. Hafıza Yönetimi: Kazanan oyuncuyu session_state'de tutalım
+    # Hafıza Yönetimi
     if 'rulet_winner' not in st.session_state:
         st.session_state.rulet_winner = None
     if 'animasyon_tamam' not in st.session_state:
         st.session_state.animasyon_tamam = False
 
-    # Veritabanı Havuzu
     r_offset = random.randint(0, 500)
     res = supabase.table("oyuncular").select("*").gte("pa", 135).range(r_offset, r_offset + 100).execute()
     
     if res.data:
-        # ÇEVİR BUTONU
         if st.button("🎰 RULETİ ÇEVİR (135+ PA MERMİSİ SÜR)", use_container_width=True):
             all_p = res.data
             strip_players = [random.choice(all_p) for _ in range(45)]
             winner_index = 38
-            st.session_state.rulet_winner = random.choice(all_p) # Kazananı hafızaya yaz
-            st.session_state.animasyon_tamam = False # Yeni animasyon başlıyor
+            st.session_state.rulet_winner = random.choice(all_p)
+            st.session_state.animasyon_tamam = False
             
             strip_players[winner_index] = st.session_state.rulet_winner
             players_json = json.dumps(strip_players)
@@ -178,54 +176,57 @@ with tabs[1]:
             </script>
             """
             st.components.v1.html(roulette_html, height=270)
-            time.sleep(5.5) # Bekle
-            st.session_state.animasyon_tamam = True # Animasyon bitti bilgisi
-            st.rerun() # Detay panelini kalıcı göstermek için sayfayı bir kez yenile
+            time.sleep(5.5)
+            st.session_state.animasyon_tamam = True
+            st.rerun()
 
-        # --- SONUÇ PANELİ (SESSION STATE KONTROLLÜ) ---
+        # --- SONUÇ PANELİ ---
         if st.session_state.rulet_winner and st.session_state.animasyon_tamam:
             winner = st.session_state.rulet_winner
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(winner['oyuncu_adi'])}"
             
+            # Değer Kontrolü (300M hatası için önlem)
+            raw_val = winner.get('deger', 'N/A')
+            display_val = "Bilinmiyor" if raw_val == "£300.000.000" or raw_val == "300.000.000" else raw_val
+
             st.markdown("---")
             col_left, col_right = st.columns([1, 2])
             
             with col_left:
                 st.markdown(f"""
-                <div style="background: rgba(255,255,255,0.05); border: 2px solid #238636; border-radius: 20px; padding: 20px; text-align: center; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-                    <div style="font-size: 40px; margin-bottom: 10px;">👤</div>
-                    <h3 style="margin:0; color: white;">{winner['oyuncu_adi']}</h3>
-                    <p style="color: #238636; font-weight: bold; margin: 5px 0;">{winner['mevki']}</p>
+                <div style="background: rgba(255,255,255,0.05); border: 2px solid #238636; border-radius: 20px; padding: 20px; text-align: center; backdrop-filter: blur(10px);">
+                    <div style="font-size: 40px;">👤</div>
+                    <h3 style="margin:0;">{winner['oyuncu_adi']}</h3>
+                    <p style="color: #238636; font-weight: bold;">{winner['mevki']}</p>
                     <div style="display: flex; justify-content: space-around; margin-top: 15px; border-top: 1px solid #30363d; padding-top: 10px;">
                         <div><small style="display:block; color:#8b949e;">YAŞ</small><b>{winner['yas']}</b></div>
                         <div><small style="display:block; color:#8b949e;">CA</small><b style="color:#58a6ff;">{winner.get('ca', '-')}</b></div>
                         <div><small style="display:block; color:#8b949e;">PA</small><b style="color:#238636;">{winner['pa']}</b></div>
                     </div>
-                    <a href="{tm_url}" target="_blank" style="text-decoration: none;">
-                        <div style="background: #1a3151; color: white; padding: 8px; border-radius: 10px; margin-top: 15px; font-size: 12px; font-weight: bold;">🌐 Transfermarkt</div>
-                    </a>
                 </div>
                 """, unsafe_allow_html=True)
             
             with col_right:
                 st.subheader("🕵️ Scout Raporu")
                 st.write(f"🌍 **Ülke:** {winner.get('ulke', 'Bilinmiyor')}")
-                st.write(f"💰 **Değer:** {winner.get('deger', 'N/A')}")
+                st.write(f"💰 **Değer:** {display_val}")
                 
-                # FAVORİLEME BUTONU (Artık kaybolmaz)
+                # FAVORİLEME BUTONU (SÜTUN KONTROLLÜ)
                 if st.button("⭐ FAVORİLERİME EKLE", use_container_width=True):
                     try:
+                        # HATA ÇÖZÜMÜ: Sadece veritabanında kesin olan sütunları gönderiyoruz
+                        # Eğer 'kulup' sütunun yoksa aşağıdan çıkarabilirsin.
                         supabase.table("favoriler").insert({
                             "oyuncu_adi": winner['oyuncu_adi'], 
-                            "kulup": winner.get('kulup', 'Serbest'), 
                             "pa": winner['pa'], 
                             "mevki": winner['mevki']
                         }).execute()
-                        st.success(f"✅ {winner['oyuncu_adi']} başarıyla eklendi!")
+                        st.success(f"✅ {winner['oyuncu_adi']} listeye eklendi!")
                     except Exception as e:
-                        st.error(f"Hata oluştu: {e}")
+                        st.error(f"Tablo hatası: {e}")
+                        st.info("İpucu: Supabase'de 'favoriler' tablosuna 'kulup' sütununu eklemeyi unutma!")
     else:
-        st.error("Veritabanı bağlantısı hatası.")
+        st.error("Havuz yüklenemedi.")
 
 # --- 📋 İLK 11 (V127 - DİNAMİK DİZİLİŞ VE DİKEY SAHA) ---
 with tabs[2]:
