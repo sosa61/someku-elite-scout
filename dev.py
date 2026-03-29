@@ -318,6 +318,9 @@ with tabs[4]:
                     st.error(f"Barrow: '{req_price_limit*1000 if req_price_limit < 1 else req_price_limit}{' bin' if req_price_limit < 1 else 'M'}' bütçeye ancak su alırsın hıyarto! Bütçeyi artır.")
             else:
                 st.warning("Barrow: 'İstediğin kriterlerde mermi bulamadım, siktir git kendin ara.'")
+
+
+
 # --- 7. ADMIN (V129 - GİZLİ VE SAYGILI PANEL) ---
 with tabs[4]: # Tab sırasını kontrol et
     if st.session_state.get('user') == "someku":
