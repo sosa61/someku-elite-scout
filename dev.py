@@ -34,24 +34,21 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- BARROW SÖZLÜĞÜ (GENİŞLETİLMİŞ) ---
+# --- BARROW SÖZLÜĞÜ ---
 BARROW_QUOTES = [
-    "Lan hıyarto, cebinde 3 kuruş para var hala Mbappe peşinde koşuyorsun. Al sana şunu, hadi yine iyisin... 2 seneye Real Madrid'e itelersin.",
+    "Lan hıyarto, cebinde 3 kuruş para var hala Mbappe peşinde koşuyorsun. Al sana şunu, hadi yine iyisin...",
     "Bana bak evlat, futbolu oynamayı bilmiyorsun bari düzgün adam al. Al şu aşağıdaki mermiyi, kadrona bir nebze haysiyet gelsin amk.",
-    "Ulan 2 milyona anca pazarın kapısından girersin ama bugün keyfim yerinde. Al şu aşağıdaki çocuğu, 2 sene sonra kapında yatmazlarsa gel yüzüme tükür. Hadi kaybol şimdi!",
+    "Ulan 2 milyona anca pazarın kapısından girersin ama bugün keyfim yerinde. Al şu aşağıdaki çocuğu, 2 sene sonra kapında yatmazsa gel yüzüme tükür.",
     "Yine mi geldin baş belası? Senin o taktik anlayışına tüküreyim. Al sana mermi gibi bir herif, git başka yerde oyna.",
-    "Bak buraya, bu çocuk FM tarihinin en büyük mermilerinden biri olacak. Almazsan senin vizyonuna yazıklar olsun.",
-    "Scout dedin geldik, cebindeki parayı söyle de ona göre çöp önermeyeyim sana hıyar herif. Şu adama bi göz at, beğenmezsen git kumda oyna.",
-    "Ulan şu oyuncuyu ben keşfettim diye demiyorum, topu ayağına aldığında stattaki büfeci bile ayağa kalkar. Al şunu da akıllan.",
-    "Cebinde akrep mi var lan? Al sana en ucuzundan ama en kalitelisinden bir canavar. Değerini bil."
+    "Bak buraya, bu çocuk FM tarihinin en büyük mermilerinden biri olacak. Almazsan senin vizyonuna yazıklar olsun."
 ]
 
 # --- VERİ FONKSİYONLARI ---
 def get_announcement():
     try:
         res = supabase.table("sistem").select("duyuru").eq("id", 1).execute()
-        return res.data[0]['duyuru'] if res.data else "🔥 SOMEKU SCOUT V100 Yayında!"
-    except: return "🔥 SOMEKU SCOUT V100 Yayında!"
+        return res.data[0]['duyuru'] if res.data else "🔥 SOMEKU SCOUT V101 Yayında!"
+    except: return "🔥 SOMEKU SCOUT V101 Yayında!"
 
 def get_user_favs(username):
     try:
@@ -109,33 +106,37 @@ with st.sidebar:
 
 tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🤖 BARROW AI", "🛠️ ADMIN"])
 
-# --- 1. SCOUT ---
+# --- 1. SCOUT (SAYFA SIFIRLAMA EKLENDİ) ---
 with tabs[0]:
     POS_TR = {"Hepsi": "Hepsi", "Kaleci": "GK", "Stoper": "D C", "Sol Bek": "D L", "Sağ Bek": "D R", "Ön Libero": "DM", "Merkez Orta Saha": "M C", "Sol Kanat": "AM L", "Sağ Kanat": "AM R", "Ofansif Orta Saha": "AM C", "Forvet": "ST"}
-    REG_TR = {
-        "Hepsi": [], 
-        "Avrupa": ["Türkiye", "Almanya", "Fransa", "İngiltere", "İtalya", "İspanya", "Hollanda", "Portekiz", "Belçika"],
-        "Kuzey Avrupa": ["Norveç", "İsveç", "Danimarka", "Finlandiya", "İzlanda"],
-        "Balkanlar": ["Hırvatistan", "Sırbistan", "Yunanistan", "Bulgaristan", "Slovenya", "Bosna Hersek"],
-        "Güney Amerika": ["Brezilya", "Arjantin", "Uruguay", "Kolombiya", "Ekvador"],
-        "Afrika": ["Nijerya", "Senegal", "Mısır", "Fildişi Sahili", "Fas", "Cezayir"],
-        "Asya": ["Japonya", "Güney Kore", "Suudi Arabistan", "Katar", "Avustralya", "Çin"]
-    }
+    REG_TR = {"Hepsi": [], "Avrupa": ["Türkiye", "Almanya", "Fransa", "İngiltere", "İtalya", "İspanya", "Hollanda", "Portekiz", "Belçika"], "Kuzey Avrupa": ["Norveç", "İsveç", "Danimarka", "Finlandiya", "İzlanda"], "Balkanlar": ["Hırvatistan", "Sırbistan", "Yunanistan", "Bulgaristan", "Slovenya", "Bosna Hersek"], "Güney Amerika": ["Brezilya", "Arjantin", "Uruguay", "Kolombiya", "Ekvador"], "Afrika": ["Nijerya", "Senegal", "Mısır", "Fildişi Sahili", "Fas", "Cezayir"], "Asya": ["Japonya", "Güney Kore", "Suudi Arabistan", "Katar", "Avustralya", "Çin"]}
+    
     f1, f2, f3 = st.columns(3)
     with f1: name_f = st.text_input("👤 Oyuncu Ara:"); team_f = st.text_input("🏟️ Takım Ara:")
     with f2: reg_f = st.selectbox("🌍 Bölge:", list(REG_TR.keys())); country_f = st.text_input("🏳️ Uyruk Ara:")
     with f3: pos_f = st.selectbox("👟 Mevki:", list(POS_TR.keys())); sort_f = st.selectbox("🔃 Sıralama:", ["pa", "ca", "yas", "deger"])
+    
     v1, v2 = st.columns(2)
     with v1: age_f = st.slider("🎂 Yaş:", 14, 50, (14, 25))
     with v2: pa_f = st.slider("📊 PA Aralığı:", 0, 200, (140, 200))
+
+    # --- AKILLI SAYFA SIFIRLAMA MANTIĞI ---
+    current_filter = f"{name_f}-{team_f}-{reg_f}-{country_f}-{pos_f}-{age_f}-{pa_f}-{sort_f}"
+    if "last_filter" not in st.session_state: st.session_state.last_filter = current_filter
+    if st.session_state.last_filter != current_filter:
+        st.session_state.page = 0
+        st.session_state.last_filter = current_filter
+
     query = supabase.table("oyuncular").select("*").gte("yas", age_f[0]).lte("yas", age_f[1]).gte("pa", pa_f[0]).lte("pa", pa_f[1])
     if name_f: query = query.ilike("oyuncu_adi", f"%{name_f}%")
     if team_f: query = query.ilike("kulup", f"%{team_f}%")
     if country_f: query = query.ilike("ulke", f"%{country_f}%")
     if pos_f != "Hepsi": query = query.ilike("mevki", f"%{POS_TR[pos_f]}%")
     if reg_f != "Hepsi": query = query.in_("ulke", REG_TR[reg_f])
+    
     res = query.order(sort_f, desc=True).range(st.session_state.page*12, (st.session_state.page*12)+11).execute()
     st.markdown(f'<div class="page-indicator">Sayfa: {st.session_state.page + 1}</div>', unsafe_allow_html=True)
+
     if res.data:
         cols = st.columns(2)
         for i, p in enumerate(res.data):
@@ -161,14 +162,25 @@ with tabs[0]:
         if c1.button("⬅️ Geri") and st.session_state.page > 0: st.session_state.page -= 1; st.rerun()
         if c2.button("İleri ➡️"): st.session_state.page += 1; st.rerun()
 
-# --- 2. RULET ---
+# --- 2. RULET (FAVORİLEME EKLENDİ) ---
 with tabs[1]:
     if st.button("🎰 ÇEVİR!", use_container_width=True):
         lucky_res = supabase.table("oyuncular").select("*").gte("pa", 150).lte("yas", 21).limit(100).execute()
         if lucky_res.data: st.session_state.roulette_player = random.choice(lucky_res.data); st.balloons()
     if st.session_state.roulette_player:
         p = st.session_state.roulette_player
-        st.markdown(f'<div class="player-card fav-active"><h2>🌟 {p["oyuncu_adi"]}</h2><p>{p["kulup"]} | PA: {p["pa"]} | Yaş: {p["yas"]}</p></div>', unsafe_allow_html=True)
+        is_fav = p['oyuncu_adi'] in st.session_state.get('fav_list', [])
+        st.markdown(f'''<div class="player-card {"fav-active" if is_fav else ""}">
+            <span class="pa-badge">PA: {p["pa"]}</span>
+            <h2>🌟 {p["oyuncu_adi"]}</h2><p>{p["kulup"]} | CA: {p["ca"]} | Yaş: {p["yas"]}</p></div>''', unsafe_allow_html=True)
+        if st.button(f"{'⭐ Favoriden Çıkar' if is_fav else '⭐ Favorilere Ekle'}", key="roul_fav"):
+            if is_fav:
+                supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", p['oyuncu_adi']).execute()
+                st.session_state.fav_list.remove(p['oyuncu_adi'])
+            else:
+                supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": p['oyuncu_adi']}).execute()
+                st.session_state.fav_list.append(p['oyuncu_adi'])
+            st.rerun()
 
 # --- 3. 11 KUR ---
 with tabs[2]:
@@ -197,34 +209,17 @@ with tabs[3]:
 # --- 5. BARROW AI ---
 with tabs[4]:
     st.markdown('<div style="text-align:center; padding: 20px;"><h1 style="color:#ef4444; margin:0;">🤵 BARROW AI</h1><p style="color:#9ca3af;">Huysuz, küfürlü ama mermi gibi scout önerileri.</p></div>', unsafe_allow_html=True)
-    
     chat_input = st.text_input("Barrow'a emir ver (Örn: 'Ucuz Mbappe', 'Genç Mermi Stoper'):", key="barrow_chat")
-    
     if st.button("Barrow'u Uyandır"):
         if chat_input:
             st.markdown(f'<div class="barrow-box"><span class="barrow-name">Barrow Mesajı</span><p class="barrow-text">{random.choice(BARROW_QUOTES)}</p></div>', unsafe_allow_html=True)
-            
-            # --- GELİŞMİŞ BARROW FİLTRELEME MANTIĞI ---
-            # MBAPPE ve GENÇ OYUNCU İSTEĞİ (Kritik: Yaş <= 22 ve PA >= 155)
             b_query = supabase.table("oyuncular").select("*")
-            
-            is_mbappe_req = "mbappe" in chat_input.lower()
-            is_youth_req = "genç" in chat_input.lower() or "genç" in chat_input.lower()
-            
-            if is_mbappe_req or is_youth_req:
-                b_query = b_query.lte("yas", 22).gte("pa", 155)
-                if "mbappe" in chat_input.lower() or "forvet" in chat_input.lower():
-                    b_query = b_query.ilike("mevki", "%ST%")
-            elif "stoper" in chat_input.lower() or "defans" in chat_input.lower():
-                b_query = b_query.ilike("mevki", "%D C%").gte("pa", 150)
-            elif "mermi" in chat_input.lower():
-                b_query = b_query.gte("pa", 165).lte("yas", 24)
-            else:
-                b_query = b_query.gte("pa", 150).limit(50)
-
+            if "mbappe" in chat_input.lower() or "genç" in chat_input.lower(): b_query = b_query.lte("yas", 22).gte("pa", 155)
+            elif "stoper" in chat_input.lower(): b_query = b_query.ilike("mevki", "%D C%").gte("pa", 150)
+            elif "mermi" in chat_input.lower(): b_query = b_query.gte("pa", 165).lte("yas", 24)
+            else: b_query = b_query.gte("pa", 150).limit(50)
             res_b = b_query.execute()
             if res_b.data:
-                # Mbappe istenmişse Mbappe'nin kendisini listeden çıkar (alternatif bulmak için)
                 clean_list = [x for x in res_b.data if "Mbappé" not in x["oyuncu_adi"]]
                 if clean_list:
                     p_b = random.choice(clean_list)
@@ -233,10 +228,7 @@ with tabs[4]:
                         <span class="pa-badge" style="background:#ef4444;">BARROW SEÇİMİ</span>
                         <h3 style="color:#ef4444;">🔥 {p_b["oyuncu_adi"]}</h3>
                         <p style="font-family: 'JetBrains Mono'; color:#00ff41;">🏟️ {p_b["kulup"]} | 📊 PA: {p_b["pa"]} | 🎂 YAŞ: {p_b["yas"]} | 👟 {p_b["mevki"]}</p>
-                        <p style="color:#8b949e; font-style:italic;">"Bunu almazsan git bu oyunu sil amk."</p>
                         <a href="{tm_url}" target="_blank" class="tm-link">Transfermarkt ➔</a></div>''', unsafe_allow_html=True)
-                else: st.warning("Barrow: 'O kadar iyi adam yok piyasada, git kendin bul hıyar!'")
-            else: st.warning("Barrow: 'Aradığın şeyi veritabanında bulamadım, bozuk herhalde!'")
 
 # --- 6. ADMIN ---
 with tabs[5]:
