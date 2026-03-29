@@ -47,8 +47,8 @@ BARROW_KNOWLEDGE = {
 def get_announcement():
     try:
         res = supabase.table("sistem").select("duyuru").eq("id", 1).execute()
-        return res.data[0]['duyuru'] if res.data else "🔥 SOMEKU SCOUT V107 Yayında!"
-    except: return "🔥 SOMEKU SCOUT V107 Yayında!"
+        return res.data[0]['duyuru'] if res.data else "🔥 SOMEKU SCOUT V108 Yayında!"
+    except: return "🔥 SOMEKU SCOUT V108 Yayında!"
 
 def get_user_favs(username):
     try:
@@ -87,20 +87,32 @@ if st.session_state.user is None:
 st.markdown(f'<div class="ann-box">{get_announcement()}</div>', unsafe_allow_html=True)
 tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🤖 BARROW AI", "🛠️ ADMIN"])
 
-# --- 1. SCOUT ---
+# --- 1. SCOUT (BÖLGELER GERİ GELDİ) ---
 with tabs[0]:
     POS_TR = {"Hepsi": "Hepsi", "Kaleci": "GK", "Stoper": "D C", "Sol Bek": "D L", "Sağ Bek": "D R", "Ön Libero": "DM", "Merkez Orta Saha": "M C", "Sol Kanat": "AM L", "Sağ Kanat": "AM R", "Ofansif Orta Saha": "AM C", "Forvet": "ST"}
+    REG_TR = {
+        "Hepsi": [], 
+        "Avrupa": ["Türkiye", "Almanya", "Fransa", "İngiltere", "İtalya", "İspanya", "Hollanda", "Portekiz", "Belçika"],
+        "Kuzey Avrupa": ["Norveç", "İsveç", "Danimarka", "Finlandiya", "İzlanda"],
+        "Balkanlar": ["Hırvatistan", "Sırbistan", "Yunanistan", "Bulgaristan", "Slovenya", "Bosna Hersek"],
+        "Güney Amerika": ["Brezilya", "Arjantin", "Uruguay", "Kolombiya", "Ekvador"],
+        "Afrika": ["Nijerya", "Senegal", "Mısır", "Fildişi Sahili", "Fas", "Cezayir"],
+        "Asya": ["Japonya", "Güney Kore", "Suudi Arabistan", "Katar", "Avustralya", "Çin"]
+    }
     f1, f2, f3 = st.columns(3)
     with f1: name_f = st.text_input("👤 Oyuncu Ara:"); team_f = st.text_input("Takım Ara:")
-    with f2: country_f = st.text_input("Uyruk Ara:"); pos_f = st.selectbox("Mevki:", list(POS_TR.keys()))
-    with f3: sort_f = st.selectbox("Sıralama:", ["pa", "ca", "yas", "deger"]); age_f = st.slider("Yaş:", 14, 50, (14, 25))
-    pa_f = st.slider("PA Aralığı:", 0, 200, (140, 200))
+    with f2: reg_f = st.selectbox("🌍 Bölge:", list(REG_TR.keys())); country_f = st.text_input("Uyruk Ara:")
+    with f3: pos_f = st.selectbox("Mevki:", list(POS_TR.keys())); sort_f = st.selectbox("Sıralama:", ["pa", "ca", "yas", "deger"])
+    v1, v2 = st.columns(2)
+    with v1: age_f = st.slider("Yaş:", 14, 50, (14, 25))
+    with v2: pa_f = st.slider("PA Aralığı:", 0, 200, (140, 200))
     
     query = supabase.table("oyuncular").select("*").gte("yas", age_f[0]).lte("yas", age_f[1]).gte("pa", pa_f[0]).lte("pa", pa_f[1])
     if name_f: query = query.ilike("oyuncu_adi", f"%{name_f}%")
     if team_f: query = query.ilike("kulup", f"%{team_f}%")
     if country_f: query = query.ilike("ulke", f"%{country_f}%")
     if pos_f != "Hepsi": query = query.ilike("mevki", f"%{POS_TR[pos_f]}%")
+    if reg_f != "Hepsi": query = query.in_("ulke", REG_TR[reg_f])
     
     p_idx = st.session_state.page
     res = query.order(sort_f, desc=True).range(p_idx*12, (p_idx*12)+11).execute()
@@ -138,7 +150,7 @@ with tabs[1]:
             else: supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": p['oyuncu_adi']}).execute(); st.session_state.fav_list.append(p['oyuncu_adi'])
             st.rerun()
 
-# --- 3. 11 KUR (YENİLENDİ) ---
+# --- 3. 11 KUR ---
 with tabs[2]:
     st.subheader("📋 Elite 11 Kur")
     f_n = st.session_state.fav_list if st.session_state.fav_list else ["Boş"]
@@ -157,16 +169,24 @@ with tabs[3]:
         c1, c2 = st.columns([5, 1]); c1.markdown(f'<div class="player-card fav-active" style="padding:10px;">{f}</div>', unsafe_allow_html=True)
         if c2.button("🗑️", key=f"del_{f}"): supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", f).execute(); st.session_state.fav_list.remove(f); st.rerun()
 
-# --- 5. BARROW AI (FİXED) ---
+# --- 5. BARROW AI (FİYAT ANALİZİ) ---
 with tabs[4]:
     st.markdown('<div style="text-align:center;"><h1 style="color:#ef4444;">🤵 BARROW AI</h1></div>', unsafe_allow_html=True)
-    b_in = st.text_input("Emir ver (Örn: '17 yaş stoper', 'Mbappe'):", key="b_in")
+    b_in = st.text_input("Emir ver (Örn: '17 yaş stoper', '5M euro Mbappe'):", key="b_in")
     if st.button("BARROWA SOR"):
         if b_in:
             st.markdown(f'<div class="barrow-box"><p class="barrow-text">{random.choice(BARROW_INSULTS)}</p></div>', unsafe_allow_html=True)
             bq = supabase.table("oyuncular").select("*")
+            
+            # Numerik Ayıklama (Yaş ve Fiyat)
             nums = re.findall(r'\d+', b_in)
-            age = int(nums[0]) if nums and int(nums[0]) < 45 else 23
+            req_price = None
+            if nums:
+                if "m" in b_in.lower() or "euro" in b_in.lower():
+                    req_price = float(nums[0])
+                age = int(nums[0]) if int(nums[0]) < 45 else 23
+            else:
+                age = 23
             
             if "yaş" in b_in.lower(): bq = bq.eq("yas", age)
             else: bq = bq.lte("yas", age)
@@ -178,18 +198,32 @@ with tabs[4]:
             elif "stoper" in b_in.lower(): bq = bq.ilike("mevki", "%D C%")
             elif "forvet" in b_in.lower(): bq = bq.ilike("mevki", "%ST%")
             
-            res_b = bq.order("pa", desc=True).limit(50).execute()
+            res_b = bq.order("pa", desc=True).limit(200).execute()
+            
             if res_b.data:
-                p_b = random.choice(res_b.data)
-                is_f = p_b['oyuncu_adi'] in st.session_state.fav_list
-                tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p_b['oyuncu_adi'])}"
-                st.markdown(f'''<div class="player-card {"fav-active" if is_f else ""}" style="border-left-color:#ff0000; background:#000;">
-                    <h3 style="color:#ff0000;">{p_b["oyuncu_adi"]}</h3>
-                    <p style="font-family:'JetBrains Mono'; color:#00ff41;">🏟️ {p_b["kulup"]} | 📊 PA: {p_b["pa"]} | 🎂 YAŞ: {p_b["yas"]} | 👟 {p_b["mevki"]} | 💰 {p_b.get("deger","-")}</p>
-                    <a href="{tm_url}" target="_blank" class="tm-link">Transfermarkt ➔</a></div>''', unsafe_allow_html=True)
-                if st.button("⭐ Favorile", key=f"bf_{p_b['oyuncu_adi']}"):
-                    supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": p_b['oyuncu_adi']}).execute(); st.rerun()
-            else: st.warning("Bulamadım siktir git!")
+                # Kesin Fiyat Filtresi
+                def parse_v(x):
+                    d = str(x.get("deger","0")).replace("£","").replace("M","").replace(",","")
+                    try: return float(re.findall(r"[-+]?\d*\.\d+|\d+", d)[0])
+                    except: return 999.0
+
+                f_list = res_b.data
+                if req_price:
+                    f_list = [x for x in res_b.data if parse_v(x) <= req_price]
+                
+                if f_list:
+                    p_b = random.choice(f_list)
+                    tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p_b['oyuncu_adi'])}"
+                    st.markdown(f'''<div class="player-card" style="border-left-color:#ff0000; background:#000;">
+                        <h3 style="color:#ff0000;">{p_b["oyuncu_adi"]}</h3>
+                        <p style="font-family:'JetBrains Mono'; color:#00ff41;">🏟️ {p_b["kulup"]} | 📊 PA: {p_b["pa"]} | 🎂 YAŞ: {p_b["yas"]} | 👟 {p_b["mevki"]} | 💰 {p_b.get("deger","-")}</p>
+                        <a href="{tm_url}" target="_blank" class="tm-link">Transfermarkt ➔</a></div>''', unsafe_allow_html=True)
+                    if st.button("⭐ Favorile", key=f"bf_{p_b['oyuncu_adi']}"):
+                        supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": p_b['oyuncu_adi']}).execute(); st.rerun()
+                else:
+                    st.error(f"Barrow: '{req_price}M bütçeye öyle adam yok lan hıyar! Daha fazla para getir ya da kriteri değiştir.'")
+            else:
+                st.warning("Bulamadım siktir git!")
 
 # --- 6. ADMIN ---
 with tabs[5]:
