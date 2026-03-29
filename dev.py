@@ -108,40 +108,40 @@ with tabs[0]:
         if c1.button("⬅️ Geri") and st.session_state.page > 0: st.session_state.page -= 1; st.rerun()
         if c2.button("İleri ➡️"): st.session_state.page += 1; st.rerun()
 
-## --- 4. FAVORİLER (V149 - GÜNCEL TABLO UYUMLU) ---
+# --- 4. FAVORİLER (V150 - DUPLICATE KEY FIX) ---
 with tabs[3]:
     st.markdown('<h2 style="text-align:center;">⭐ KALICI FAVORİLERİN</h2>', unsafe_allow_html=True)
     
-    # Yeni tablo yapısına göre verileri çekiyoruz
+    # Verileri çek
     res = supabase.table("favoriler").select("*").order("created_at", desc=True).execute()
     
     if res.data:
-        # Favorileri şık kartlar halinde gösterelim
-        for p in res.data:
+        # İndeks kullanarak aynı oyuncu olsa bile butonun çakışmasını engelliyoruz
+        for idx, p in enumerate(res.data):
             with st.container():
                 st.markdown(f"""
                 <div style="background: rgba(255,255,255,0.05); border-left: 5px solid #238636; border-radius: 10px; padding: 15px; margin-bottom: 10px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
                             <h4 style="margin:0; color: white;">{p['oyuncu_adi']}</h4>
-                            <small style="color: #8b949e;">🏟️ {p.get('kulup', 'Serbest')} | 📍 {p.get('mevki', '-')}</small>
+                            <p style="margin:5px 0; font-size:12px; color: #8b949e;">🏟️ {p.get('kulup', 'Serbest')} | 📍 {p.get('mevki', '-')}</p>
                         </div>
                         <div style="text-align: right;">
-                            <span style="background: #238636; color: white; padding: 2px 8px; border-radius: 5px; font-size: 12px;">PA: {p['pa']}</span>
-                            <span style="background: #1a3151; color: white; padding: 2px 8px; border-radius: 5px; font-size: 12px; margin-left: 5px;">CA: {p.get('ca', '-')}</span>
+                            <span style="background: #238636; color: white; padding: 2px 8px; border-radius: 5px; font-size: 11px;">PA: {p['pa']}</span>
+                            <span style="background: #1a3151; color: white; padding: 2px 8px; border-radius: 5px; font-size: 11px; margin-left: 5px;">CA: {p.get('ca', '-')}</span>
                         </div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Silme Butonu (Her oyuncunun altına küçük bir buton)
-                if st.button(f"🗑️ Sil: {p['oyuncu_adi']}", key=f"del_{p['id']}"):
+                # FIX: Buton key kısmına idx ekleyerek her butonu benzersiz yaptık
+                if st.button(f"🗑️ {p['oyuncu_adi']} Listeden Sil", key=f"del_{p['id']}_{idx}"):
                     supabase.table("favoriler").delete().eq("id", p['id']).execute()
-                    st.success("Mermi listeden çıkarıldı!")
+                    st.success("Mermi hedeften kaldırıldı!")
+                    time.sleep(1) # Kullanıcı görsün diye hafif bekle
                     st.rerun()
     else:
-        st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
-
+        st.info("Henüz favori mermin yok. Ruletten avlanmaya devam et! 🕵️‍♂️")
 
 # --- 📋 İLK 11 (V127 - DİNAMİK DİZİLİŞ VE DİKEY SAHA) ---
 with tabs[2]:
