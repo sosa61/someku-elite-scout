@@ -109,24 +109,23 @@ with tabs[0]:
         if c2.button("İleri ➡️"): st.session_state.page += 1; st.rerun()
 
 
-# --- 2. RULET (V134 - GİZLİ BAŞLANGIÇ VE DİNAMİK SEÇİM) ---
+# --- 2. RULET (V135 - GİZLİ KARTLAR VE 135+ PA HAVUZU) ---
 with tabs[1]:
     st.markdown('<h2 style="text-align:center;">🎰 SCOUT RULETİ</h2>', unsafe_allow_html=True)
     
-    # Her basışta farklı oyuncu seçilmesi için session_state kullanıyoruz
-    if st.button("🎰 RULETİ ÇEVİR (YENİ MERMİ)", use_container_width=True):
-        # Veritabanından rastgele oyuncuları çek
-        res = supabase.table("oyuncular").select("*").limit(50).execute()
+    # 1. 135 PA ÜSTÜ TÜM OYUNCULARI ÇEK
+    # Not: Veritabanın çok büyük olduğu için içinden rastgele 100 tanesini süzüyoruz
+    res = supabase.table("oyuncular").select("*").gte("pa", 135).limit(100).execute()
+    
+    if res.data:
+        import random
+        import json
         
-        if res.data:
-            import random
-            import json
-            
+        # Kullanıcı butona bastığında tetiklensin
+        if st.button("🎰 RULETİ ÇEVİR (135+ PA MERMİSİ SÜR)", use_container_width=True):
             all_p = res.data
-            # Şeridi oluştur (40 kartlık uzun bir yol)
             strip_players = [random.choice(all_p) for _ in range(40)]
             
-            # Gerçek Kazananı 35. sıraya koyuyoruz (Dönüş mesafesi için ideal)
             winner_index = 35
             winner = random.choice(all_p)
             strip_players[winner_index] = winner
@@ -140,23 +139,31 @@ with tabs[1]:
                         position: relative; width: 100%; height: 220px;
                         background: #0d1117; border: 3px solid #30363d;
                         border-radius: 15px; overflow: hidden; display: flex; align-items: center;
-                        visibility: hidden; /* Başlangıçta gizli */
                     }}
                     #r-pointer {{
                         position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-                        width: 4px; height: 100%; background: #f2cc60; z-index: 100; box-shadow: 0 0 15px #f2cc60;
+                        width: 4px; height: 100%; background: #238636; z-index: 100; box-shadow: 0 0 15px #238636;
                     }}
                     #r-track {{
                         display: flex; position: absolute; left: 0; 
-                        will-change: transform;
                     }}
                     .r-card {{
                         min-width: 150px; height: 170px; background: #161b22;
                         border: 2px solid #30363d; margin: 0 5px; border-radius: 10px;
                         display: flex; flex-direction: column; justify-content: center;
-                        align-items: center; text-align: center; color: white; font-family: sans-serif;
+                        align-items: center; text-align: center; color: transparent; /* İsimler gizli */
+                        transition: all 0.5s; font-family: sans-serif;
                     }}
-                    .winner-style {{ border-color: #f2cc60; background: #1c160d; box-shadow: inset 0 0 15px #f2cc60; }}
+                    /* Kazanan oyuncu durduğunda tetiklenecek class */
+                    .is-winner {{ 
+                        border-color: #238636 !important; 
+                        color: white !important; 
+                        background: #0e2a14 !important;
+                        box-shadow: inset 0 0 20px #238636, 0 0 15px #238636 !important;
+                        transform: scale(1.05);
+                    }}
+                    .r-card b {{ display: block; margin: 5px 0; }}
+                    .r-card small {{ color: inherit; opacity: 0.7; }}
                 </style>
 
                 <div id="r-wrapper">
@@ -173,44 +180,47 @@ with tabs[1]:
                     const cardWidth = 160; 
                     const winIdx = {winner_index};
 
-                    // 1. Şeridi Oluştur
                     track.innerHTML = "";
                     players.forEach((p, i) => {{
                         const card = document.createElement('div');
-                        card.className = i === winIdx ? 'r-card winner-style' : 'r-card';
-                        card.innerHTML = `<small style="color:#8b949e">${{p.kulup}}</small><br>
-                                          <b style="font-size:13px">${{p.oyuncu_adi}}</b><br>
-                                          <small style="color:#58a6ff">${{p.mevki}}</small>`;
+                        card.className = 'r-card';
+                        card.id = 'card-' + i;
+                        card.innerHTML = `<small>?</small><br><b>???</b><br><small>???</small>`;
                         track.appendChild(card);
                     }});
 
-                    // 2. Görünür Yap ve Çevir
                     setTimeout(() => {{
-                        wrapper.style.visibility = 'visible';
-                        track.style.transition = 'transform 4s cubic-bezier(0.1, 0, 0.1, 1)';
+                        track.style.transition = 'transform 5s cubic-bezier(0.1, 0, 0.1, 1)';
                         const containerWidth = wrapper.offsetWidth;
                         const targetPos = (winIdx * cardWidth) - (containerWidth / 2) + (cardWidth / 2);
                         track.style.transform = 'translateX(-' + targetPos + 'px)';
+                        
+                        // Animasyon bitince (5 saniye sonra) kartı aç
+                        setTimeout(() => {{
+                            const winCard = document.getElementById('card-' + winIdx);
+                            const p = players[winIdx];
+                            winCard.classList.add('is-winner');
+                            winCard.innerHTML = `<small style="color:#8b949e">${{p.kulup}}</small><br>
+                                              <b style="font-size:13px">${{p.oyuncu_adi}}</b><br>
+                                              <small style="color:#58a6ff">PA: ${{p.pa}}</small>`;
+                        }}, 5000);
                     }}, 100);
                 }})();
             </script>
             """
             st.components.v1.html(roulette_html, height=250)
             
-            # Detayları gösteren buton/bilgi alanı
-            st.success(f"🎯 Hedef Kilitlendi: **{winner['oyuncu_adi']}** ({winner['kulup']})")
-            with st.expander("📊 Oyuncu Detay Dosyası"):
-                col_a, col_b = st.columns(2)
-                col_a.write(f"**Mevki:** {winner['mevki']}")
-                col_a.write(f"**Yaş:** {winner['yas']}")
-                col_b.write(f"**PA:** {winner['pa']}")
-                col_b.write(f"**Değer:** {winner['deger']}")
+            # Alt kısım sadece seçim bittikten sonra manuel olarak açılabilir kalsın
+            st.info("🎯 Kazanan mermi yukarıdaki yeşil kartta açıklanacak!")
+            with st.expander("📝 Teknik Detay Dosyası (Sadece Seçimden Sonra Açınız)"):
+                st.write(f"**Oyuncu:** {winner['oyuncu_adi']}")
+                st.write(f"**Mevki:** {winner['mevki']} | **Yaş:** {winner['yas']}")
+                st.write(f"**Kulüp:** {winner['kulup']} | **Potansiyel:** {winner['pa']}")
+                st.write(f"**Değer:** {winner['deger']}")
         else:
-            st.error("Sistemde mermi kalmadı (Veri çekilemedi).")
+            st.info("135 PA ve üzeri oyuncular mermiye sürüldü. Çevirmek için butona bas!")
     else:
-        # Butona basılmadığı sürece burası boş kalacak
-        st.info("Ruleti başlatmak için yukarıdaki butona bas. Oyuncular çevirme anında yüklenecektir.")
-
+        st.error("Veritabanında 135 PA üzeri oyuncu bulunamadı.")
 # Dosyanın en başına şunu ekle: import streamlit.components.v1 as components
 
 # --- 📋 İLK 11 (V127 - DİNAMİK DİZİLİŞ VE DİKEY SAHA) ---
