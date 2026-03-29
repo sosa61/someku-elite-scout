@@ -4,6 +4,7 @@ import urllib.parse
 import pandas as pd
 import random
 import time
+import re
 
 # --- BAĞLANTI AYARLARI ---
 URL = "https://iwgowefraytdbcdgeqdz.supabase.co"
@@ -34,35 +35,29 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- BARROW BEYİN VE SÖZLÜK ---
+# --- BARROW SÖZLÜĞÜ VE BEYNİ ---
 BARROW_KNOWLEDGE = {
-    "messi": ["AM R", "ST", "AM C"],
-    "mbappe": ["ST", "AM L"],
-    "ronaldo": ["ST", "AM L"],
-    "neymar": ["AM L", "AM C"],
-    "de bruyne": ["M C", "AM C"],
-    "van dijk": ["D C"],
-    "haaland": ["ST"],
-    "modric": ["M C"],
-    "kante": ["DM", "M C"]
+    "messi": ["AM R", "ST", "AM C"], "mbappe": ["ST", "AM L"], "ronaldo": ["ST", "AM L"],
+    "neymar": ["AM L", "AM C"], "van dijk": ["D C"], "haaland": ["ST"]
 }
 
 BARROW_QUOTES = [
-    "Lan hıyarto, cebinde 3 kuruş para var hala Mbappe peşinde koşuyorsun. Al sana şunu, hadi yine iyisin...",
-    "Ulan senin taktik anlayışınla mahalle maçına bile gidilmez ama neyse, al şu topçuyu da biraz kalite gör.",
-    "Bana bak evlat, o mevkide senin oynattığın adamı görsem kramponumla kovalarım. Al şu mermiyi koy oraya.",
-    "2 milyona stoper arıyorsun, pazarda domates mi alıyorsun lan hıyar? Al şu çocuğu, 2 sene sonra elini öperler.",
-    "Yine mi sen? FM'yi sil de bir nefes alalım amk. Al şu listeyi, git kadronu düzelt.",
-    "Bak buraya, bu çocuk topu ayağına aldığında statta elektrikler kesilir. Senin vizyonun yetmez ama al bi dene.",
-    "Şu oyuncuyu ben buldum diye demiyorum, 19 yaşında ama sahadaki 35 yaşındaki abilerine ders verir.",
-    "Cebinde akrep mi var? Ucuz diye çöp toplama, al şu gerçek yeteneği gör."
+    "Ulan hıyarto, cebinde kuruş yok hala Mbappe peşindesin. Al şu sümüklü veledi, belki adam edersin.",
+    "Bak buraya amk, istediğin kriterlere uygun bir mermi buldum. Beğenmezsen git kumda oyna.",
+    "Bana bak evlat, o mevkide senin oynattığın adamı görsem kramponumla kovalarım. Al şunu koy oraya.",
+    "Şu oyuncuyu ben buldum diye demiyorum, 2 sene sonra Real Madrid kapında yatmazsa gel yüzüme tükür.",
+    "Yine mi sen? FM'yi sil de bir nefes alalım amk. Al şu listeyi, git kadronu düzelt hıyar herif.",
+    "Sana oyuncu değil, futbolun kitabını yazacak adam lazım. Al şu çocuğu da vizyonun gelişsin.",
+    "Cebinde akrep mi var lan? En ucuzundan en mermisini buldum, hadi yine iyisin.",
+    "Ulan 17 yaşında adam istiyorsun, kreş mi işletiyorsun lan pezevenk? Al al hadi bunu al.",
+    "Şu adamdaki potansiyel senin zekandan daha yüksek, sakın harcama çocuğu amk."
 ]
 
 def get_announcement():
     try:
         res = supabase.table("sistem").select("duyuru").eq("id", 1).execute()
-        return res.data[0]['duyuru'] if res.data else "🔥 SOMEKU SCOUT V102 Yayında!"
-    except: return "🔥 SOMEKU SCOUT V102 Yayında!"
+        return res.data[0]['duyuru'] if res.data else "🔥 SOMEKU SCOUT V103 Yayında!"
+    except: return "🔥 SOMEKU SCOUT V103 Yayında!"
 
 def get_user_favs(username):
     try:
@@ -70,7 +65,7 @@ def get_user_favs(username):
         return [f['oyuncu_adi'] for f in res.data]
     except: return []
 
-# --- OTURUM ---
+# --- OTURUM VE YÜKLEME ---
 if 'user' not in st.session_state: st.session_state.user = st.query_params.get("user", None)
 if st.session_state.user and 'fav_list' not in st.session_state: st.session_state.fav_list = get_user_favs(st.session_state.user)
 if 'lottie_shown' not in st.session_state:
@@ -92,7 +87,7 @@ if st.session_state.user is None:
             res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
             if res.data or (u_id == "someku" and u_pw == "28616128Ok"):
                 st.session_state.user = u_id
-                st.session_state.fav_list = get_user_favs(u_id); 
+                st.session_state.fav_list = get_user_favs(u_id)
                 if remember: st.query_params["user"] = u_id
                 st.rerun()
             else: st.error("Hatalı Giriş!")
@@ -103,7 +98,7 @@ if st.session_state.user is None:
             except: st.error("Hata!")
     st.stop()
 
-# --- ÜST ---
+# --- ÜST PANEL ---
 st.markdown(f'<div class="ann-box">{get_announcement()}</div>', unsafe_allow_html=True)
 with st.sidebar:
     st.write(f"👤 **{st.session_state.user}**")
@@ -194,42 +189,70 @@ with tabs[3]:
             c1, c2 = st.columns([5, 1]); c1.markdown(f'<div class="player-card fav-active" style="padding:10px;"><b>{f_name}</b></div>', unsafe_allow_html=True)
             if c2.button("🗑️", key=f"del_{f_name}"): supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", f_name).execute(); st.session_state.fav_list.remove(f_name); st.rerun()
 
-# --- 5. BARROW AI ---
+# --- 5. BARROW AI (HASAS FİLTRELEME) ---
 with tabs[4]:
-    st.markdown('<div style="text-align:center; padding: 20px;"><h1 style="color:#ef4444; margin:0;">🤵 BARROW AI</h1><p style="color:#9ca3af;">Zeki, huysuz ve tam bir futbol hıyarı.</p></div>', unsafe_allow_html=True)
-    chat_input = st.text_input("Barrow'a emir ver (Örn: 'Genç Messi', 'Sert Stoper', 'Ucuz Mbappe'):", key="barrow_chat")
+    st.markdown('<div style="text-align:center; padding: 20px;"><h1 style="color:#ef4444; margin:0;">🤵 BARROW AI</h1><p style="color:#9ca3af;">Net kriterlerle emir ver, yoksa seni haşlar.</p></div>', unsafe_allow_html=True)
+    chat_input = st.text_input("Barrow'a emir ver (Örn: '17 yaş stoper', '1M euro mbappe', '155 pa forvet'):", key="barrow_chat")
     if st.button("Barrow'u Uyandır"):
         if chat_input:
             st.markdown(f'<div class="barrow-box"><span class="barrow-name">Barrow Mesajı</span><p class="barrow-text">{random.choice(BARROW_QUOTES)}</p></div>', unsafe_allow_html=True)
-            b_query = supabase.table("oyuncular").select("*").lte("yas", 22).gte("pa", 150)
             
-            # Zeki Mevki Sorgulama
+            # --- NUMERİK KRİTERLERİ AYIKLA ---
+            nums = re.findall(r'\d+', chat_input)
+            req_age = int(nums[0]) if nums and int(nums[0]) < 40 else 22
+            req_pa = int(nums[0]) if nums and 130 <= int(nums[0]) <= 200 else 150
+            req_price = int(nums[0]) if nums and int(nums[0]) < 130 else None
+            
+            b_query = supabase.table("oyuncular").select("*")
+            
+            # 1. Yaş Kriteri (Tam Eşleşme veya Maksimum)
+            if "yaş" in chat_input.lower():
+                b_query = b_query.lte("yas", req_age)
+            else:
+                b_query = b_query.lte("yas", 22)
+                
+            # 2. PA Kriteri
+            if "pa" in chat_input.lower() or "potansiyel" in chat_input.lower():
+                b_query = b_query.gte("pa", req_pa)
+            else:
+                b_query = b_query.gte("pa", 150)
+            
+            # 3. Mevki Kriteri (Zeki)
             target_mevki = None
             for key, mevkiler in BARROW_KNOWLEDGE.items():
                 if key in chat_input.lower(): target_mevki = mevkiler; break
             
             if target_mevki:
-                # Efsane ismine göre mevki eşlemesi
-                b_query = supabase.table("oyuncular").select("*").lte("yas", 22).gte("pa", 155)
-                or_query = ",".join([f'mevki.ilike.%{m}%' for m in target_mevki])
-                res_b = b_query.or_(or_query).execute()
+                or_q = ",".join([f'mevki.ilike.%{m}%' for m in target_mevki])
+                b_query = b_query.or_(or_q)
             elif "stoper" in chat_input.lower() or "defans" in chat_input.lower():
-                res_b = b_query.ilike("mevki", "%D C%").execute()
-            elif "forvet" in chat_input.lower():
-                res_b = b_query.ilike("mevki", "%ST%").execute()
-            else:
-                res_b = b_query.limit(50).execute()
+                b_query = b_query.ilike("mevki", "%D C%")
+            elif "forvet" in chat_input.lower() or "golcü" in chat_input.lower():
+                b_query = b_query.ilike("mevki", "%ST%")
+            
+            res_b = b_query.order("pa", desc=True).limit(100).execute()
             
             if res_b.data:
-                clean_list = [x for x in res_b.data if x["pa"] < 195] # Çok bilindik isimleri bazen elemek için
-                p_b = random.choice(clean_list if clean_list else res_b.data)
-                tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p_b['oyuncu_adi'])}"
-                st.markdown(f'''<div class="player-card fav-active" style="border-left: 10px solid #ef4444; background: #000;">
-                    <span class="pa-badge" style="background:#ef4444;">BARROW ANALİZİ</span>
-                    <h3 style="color:#ef4444;">🔥 {p_b["oyuncu_adi"]}</h3>
-                    <p style="font-family: 'JetBrains Mono'; color:#00ff41;">🏟️ {p_b["kulup"]} | 📊 PA: {p_b["pa"]} | 🎂 YAŞ: {p_b["yas"]} | 👟 {p_b["mevki"]}</p>
-                    <a href="{tm_url}" target="_blank" class="tm-link">Transfermarkt ➔</a></div>''', unsafe_allow_html=True)
-            else: st.warning("Barrow: 'O kadar iyi adam yok piyasada, git kendin bul hıyar!'")
+                # 4. Fiyat Filtresi (Sayısal Temizlik)
+                final_list = res_b.data
+                if req_price and "milyon" in chat_input.lower() or "m" in chat_input.lower():
+                    # Değer içindeki sayıları ayıklayıp karşılaştır (£1.2M -> 1.2)
+                    def get_val(p):
+                        d = str(p.get("deger", "0")).replace("£","").replace("M","").replace(",","")
+                        try: return float(re.findall(r"[-+]?\d*\.\d+|\d+", d)[0])
+                        except: return 999.0
+                    final_list = [x for x in res_b.data if get_val(x) <= req_price]
+
+                if final_list:
+                    p_b = random.choice(final_list)
+                    tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p_b['oyuncu_adi'])}"
+                    st.markdown(f'''<div class="player-card fav-active" style="border-left: 10px solid #ef4444; background: #000;">
+                        <span class="pa-badge" style="background:#ef4444;">BARROW ANALİZİ</span>
+                        <h3 style="color:#ef4444;">🔥 {p_b["oyuncu_adi"]}</h3>
+                        <p style="font-family: 'JetBrains Mono'; color:#00ff41;">🏟️ {p_b["kulup"]} | 📊 PA: {p_b["pa"]} | 🎂 YAŞ: {p_b["yas"]} | 💰 {p_b.get("deger","Bilinmiyor")}</p>
+                        <a href="{tm_url}" target="_blank" class="tm-link">Transfermarkt ➔</a></div>''', unsafe_allow_html=True)
+                else: st.warning("Barrow: 'O fiyata anca turşu alırsın, düzgün bütçe ver hıyar!'")
+            else: st.warning("Barrow: 'İstediğin kriterde adam yok, FM'yi kapa uyu!'")
 
 # --- 6. ADMIN ---
 with tabs[5]:
