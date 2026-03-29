@@ -108,107 +108,82 @@ with tabs[0]:
         if c1.button("⬅️ Geri") and st.session_state.page > 0: st.session_state.page -= 1; st.rerun()
         if c2.button("İleri ➡️"): st.session_state.page += 1; st.rerun()
 
-# --- 2. RULET (V131 - ANİMASYONLU SİSTEM) ---
+# --- 2. RULET (V132 - GERÇEK KAYMA EFEKTİ) ---
 with tabs[1]:
     st.markdown('<h2 style="text-align:center;">🎰 SCOUT RULETİ</h2>', unsafe_allow_html=True)
-    st.write("Butona bas ve şanslı merminin düşmesini bekle!")
-
-    # CSS ANİMASYONU: Kartların kayma efekti
-    st.markdown("""
+    
+    # Veritabanından rastgele 30 oyuncu çekiyoruz
+    res = supabase.table("oyuncular").select("*").limit(30).execute()
+    
+    if res.data:
+        import random
+        all_p = res.data
+        winner = random.choice(all_p)
+        
+        # Rulet şeridini oluştur (Görsellik için karışık liste)
+        strip_players = [random.choice(all_p) for _ in range(25)]
+        strip_players[20] = winner # 21. oyuncu kazanan olacak şekilde ayarlandı
+        
+        # HTML/CSS/JS Komple Paket
+        roulette_html = f"""
         <style>
-        @keyframes roulette-spin {
-            0% { transform: translateX(0); }
-            80% { transform: translateX(-1500px); }
-            100% { transform: translateX(-1450px); }
-        }
-        .roulette-container {
-            overflow: hidden;
-            width: 100%;
-            background: #0d1117;
-            border: 2px solid #30363d;
-            border-radius: 15px;
-            padding: 20px;
-            position: relative;
-            white-space: nowrap;
-        }
-        .roulette-track {
-            display: inline-block;
-            animation: roulette-spin 3s cubic-bezier(0.15, 0, 0.15, 1) forwards;
-        }
-        .rulet-card {
-            display: inline-block;
-            width: 150px;
-            height: 200px;
-            background: #161b22;
-            border: 2px solid #58a6ff;
-            border-radius: 10px;
-            margin-right: 15px;
-            text-align: center;
-            vertical-align: top;
-            padding-top: 60px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
-        .winner-card {
-            border: 3px solid #f2cc60 !important;
-            box-shadow: 0 0 20px #f2cc60 !important;
-            transform: scale(1.1);
-        }
-        .pointer {
-            position: absolute;
-            top: 0; left: 50%;
-            width: 4px; height: 100%;
-            background: #f2cc60;
-            z-index: 10;
-            transform: translateX(-50%);
-        }
+            .r-wrapper {{
+                position: relative; width: 100%; height: 250px;
+                background: #0d1117; border: 3px solid #30363d;
+                border-radius: 15px; overflow: hidden; display: flex; align-items: center;
+            }}
+            .r-pointer {{
+                position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+                width: 4px; height: 100%; background: #f2cc60; z-index: 100; box-shadow: 0 0 15px #f2cc60;
+            }}
+            .r-track {{
+                display: flex; position: absolute; left: 0; transition: transform 4s cubic-bezier(0.1, 0, 0.1, 1);
+                padding-left: 50%;
+            }}
+            .r-card {{
+                min-width: 140px; height: 180px; background: #161b22;
+                border: 2px solid #58a6ff; margin: 0 10px; border-radius: 10px;
+                display: flex; flex-direction: column; justify-content: center;
+                align-items: center; text-align: center; color: white; font-family: sans-serif;
+            }}
+            .winner-style {{ border-color: #f2cc60; background: #1c160d; box-shadow: inset 0 0 20px #f2cc60; }}
+            .r-btn {{
+                width: 100%; padding: 15px; background: #238636; color: white;
+                border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 20px;
+            }}
+            .r-btn:hover {{ background: #2ea043; }}
         </style>
-    """, unsafe_allow_html=True)
 
-    if st.button("🎰 RULETİ ÇEVİR", use_container_width=True):
-        # Veritabanından rastgele 20 oyuncu çekiyoruz (Görsellik için)
-        res = supabase.table("oyuncular").select("*").limit(20).execute()
-        if res.data:
-            import random
-            dummy_players = res.data
-            winner = random.choice(dummy_players) # Gerçek kazanan
-            
-            # Animasyonlu track oluşturma
-            track_html = '<div class="roulette-container"><div class="pointer"></div><div class="roulette-track">'
-            
-            # Önce 15 tane rastgele kart (kayma efekti için)
-            for i in range(15):
-                p = random.choice(dummy_players)
-                track_html += f'<div class="roulette-card"><p style="font-size:10px; color:#8b949e;">{p["kulup"]}</p><b style="font-size:12px;">{p["oyuncu_adi"]}</b></div>'
-            
-            # 16. Kart KAZANAN OYUNCU (Tam merkeze gelecek şekilde ayarladım)
-            track_html += f'<div class="roulette-card winner-card"><p style="color:#f2cc60; font-size:12px;">🎯 HEDEF</p><b>{winner["oyuncu_adi"]}</b><br><small>{winner["kulup"]}</small></div>'
-            
-            # Sonuna 4 tane daha kart ekle ki boşluk kalmasın
-            for i in range(4):
-                p = random.choice(dummy_players)
-                track_html += f'<div class="roulette-card"><p style="font-size:10px; color:#8b949e;">{p["kulup"]}</p><b>{p["oyuncu_adi"]}</b></div>'
-                
-            track_html += '</div></div>'
-            
-            st.markdown(track_html, unsafe_allow_html=True)
-            
-            # Kazananın detaylarını animasyon bitince (3 sn sonra) göster
-            import time
-            time.sleep(3)
-            
-            st.balloons()
-            st.success(f"🎯 Şanslı Mermi: **{winner['oyuncu_adi']}** ({winner['kulup']})")
-            
-            # Detaylı Kart
-            st.markdown(f"""
-                <div style="background:#161b22; padding:20px; border-radius:15px; border-left:5px solid #f2cc60; text-align:center;">
-                    <h3>{winner['oyuncu_adi']}</h3>
-                    <p>🏟️ {winner['kulup']} | 📍 {winner['mevki']} | 🎂 {winner['yas']} Yaş</p>
-                    <p>💎 PA: {winner['pa']} | 💰 Değer: {winner['deger']}</p>
-                </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.error("Veritabanı boş, mermi bulunamadı!")
+        <button class="r-btn" onclick="startRoulette()">🎰 RULETİ ÇEVİR (MERMİYİ SÜR)</button>
+        
+        <div class="r-wrapper">
+            <div class="r-pointer"></div>
+            <div id="track" class="r-track">
+                {"".join([f'<div class="r-card {"winner-style" if i==20 else ""}"><small style="color:#8b949e">{p["kulup"]}</small><br><b>{p["oyuncu_adi"]}</b><br><small style="color:#58a6ff">{p["mevki"]}</small></div>' for i, p in enumerate(strip_players)])}
+            </div>
+        </div>
+
+        <script>
+            function startRoulette() {{
+                const track = document.getElementById('track');
+                // Kart genişliği (140) + Margin (20) = 160px. 
+                // 20. karta gitmek için yaklaşık mesafe:
+                const moveDist = (20 * 160); 
+                track.style.transform = 'translateX(-' + moveDist + 'px)';
+            }}
+        </script>
+        """
+        
+        # Render
+        st.components.v1.html(roulette_html, height=350)
+        
+        # Sonuç Paneli (Animasyon bitince görünmesi için manuel bir detay)
+        with st.expander("🎯 Son Çıkan Merminin Detayları"):
+            st.write(f"**Oyuncu:** {winner['oyuncu_adi']}")
+            st.write(f"**Kulüp:** {winner['kulup']} | **PA:** {winner['pa']}")
+            st.write(f"**Değer:** {winner['deger']}")
+    else:
+        st.error("Oyuncu listesi yüklenemedi.")
 
 # Dosyanın en başına şunu ekle: import streamlit.components.v1 as components
 
