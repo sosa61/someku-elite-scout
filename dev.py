@@ -65,7 +65,7 @@ if st.session_state.user is None:
 
 tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🤖 BARROW AI", "🛠️ ADMIN"])
 
-# --- 1. SCOUT (V167 - RULET SİSTEMİYLE TAM SENKRON) ---
+# --- 1. SCOUT (V168 - RULET KAYIT SİSTEMİYLE BİREBİR AYNI) ---
 with tabs[0]:
     POS_TR = {"Hepsi": "Hepsi", "Kaleci": "GK", "Stoper": "D C", "Sol Bek": "D L", "Sağ Bek": "D R", "Ön Libero": "DM", "Merkez Orta Saha": "M C", "Sol Kanat": "AM L", "Sağ Kanat": "AM R", "Ofansif Orta Saha": "AM C", "Forvet": "ST"}
     REG_TR = {"Hepsi": [], "Avrupa": ["Türkiye", "Almanya", "Fransa", "İngiltere", "İtalya", "İspanya", "Hollanda", "Portekiz", "Belçika"], "Kuzey Avrupa": ["Norveç", "İsveç", "Danimarka", "Finlandiya", "İzlanda"], "Balkanlar": ["Hırvatistan", "Sırbistan", "Yunanistan", "Bulgaristan", "Slovenya", "Bosna Hersek"], "Güney Amerika": ["Brezilya", "Arjantin", "Uruguay", "Kolombiya", "Ekvador"], "Afrika": ["Nijerya", "Senegal", "Mısır", "Fildişi Sahili", "Fas", "Cezayir"], "Asya": ["Japonya", "Güney Kore", "Suudi Arabistan", "Katar", "Avustralya", "Çin"]}
@@ -80,9 +80,10 @@ with tabs[0]:
     with v2: pa_f = st.slider("📊 PA Değeri:", 0, 200, (135, 200))
     
     if "page" not in st.session_state: st.session_state.page = 0
-    if "fav_list" not in st.session_state: st.session_state.fav_list = []
+    # Favori listesini veritabanından taze çekelim ki Rulet ile senkron olsun
+    f_res = supabase.table("favoriler").select("oyuncu_adi").execute()
+    st.session_state.fav_list = [x['oyuncu_adi'] for x in f_res.data] if f_res.data else []
 
-    # Dinamik Sorgu
     query = supabase.table("oyuncular").select("*").gte("yas", age_f[0]).lte("yas", age_f[1]).gte("pa", pa_f[0]).lte("pa", pa_f[1])
     if name_f: query = query.ilike("oyuncu_adi", f"%{name_f}%")
     if team_f: query = query.ilike("kulup", f"%{team_f}%")
@@ -99,46 +100,38 @@ with tabs[0]:
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
             
             with cols[i%2]:
-                card_border = "2px solid #238636" if is_fav else "1px solid #30363d"
+                card_style = "border: 2px solid #238636; background: rgba(35, 134, 54, 0.05);" if is_fav else "border: 1px solid #30363d;"
                 st.markdown(f'''
-                <div style="padding:15px; border-radius:12px; margin-bottom:10px; border:{card_border}; background:rgba(255,255,255,0.02); position:relative;">
+                <div style="padding:15px; border-radius:12px; margin-bottom:10px; {card_style} position:relative;">
                     <span style="position:absolute; top:10px; right:10px; background:#238636; color:white; padding:2px 8px; border-radius:5px; font-size:11px; font-weight:bold;">PA: {p["pa"]}</span>
-                    <h4 style="margin:0; font-size:16px;">{p["oyuncu_adi"]}</h4>
+                    <h4 style="margin:0;">{p["oyuncu_adi"]}</h4>
                     <p style="font-size:11px; color:#8b949e; margin:5px 0;">🏟️ {p["kulup"]} | 👟 {p["mevki"]}</p>
                     <a href="{tm_url}" target="_blank" style="color:#58a6ff; font-size:11px; text-decoration:none;">Transfermarkt ➔</a>
                 </div>
                 ''', unsafe_allow_html=True)
                 
-                # RULETTEKİ AYNI FAVORİLEME MANTIĞI
+                # --- RULETTEKİ KAYIT SİSTEMİNİN AYNISI ---
                 btn_txt = "⭐ LİSTEDEN ÇIKAR" if is_fav else "☆ FAVORİLERE EKLE"
-                if st.button(btn_txt, key=f"sc_fav_{p['oyuncu_adi']}_{i}", use_container_width=True):
-                    try:
-                        if is_fav:
-                            supabase.table("favoriler").delete().eq("oyuncu_adi", p['oyuncu_adi']).execute()
-                            st.session_state.fav_list.remove(p['oyuncu_adi'])
-                        else:
-                            # Rulet'teki gibi tüm mermiyi paketliyoruz
-                            supabase.table("favoriler").insert({
-                                "oyuncu_adi": p['oyuncu_adi'], 
-                                "kulup": p.get('kulup', 'Serbest'), 
-                                "pa": p['pa'], 
-                                "mevki": p['mevki'],
-                                "ca": p.get('ca', 0),
-                                "kullanici_adi": "someku"
-                            }).execute()
-                            st.session_state.fav_list.append(p['oyuncu_adi'])
-                        st.rerun()
-                    except Exception:
-                        # Eğer veritabanında hala sütun hatası varsa, en azından isimle kaydetmeyi dener
-                        supabase.table("favoriler").insert({"oyuncu_adi": p['oyuncu_adi'], "kullanici_adi": "someku"}).execute()
-                        st.session_state.fav_list.append(p['oyuncu_adi'])
-                        st.rerun()
+                if st.button(btn_txt, key=f"sc_btn_{p['oyuncu_adi']}_{i}", use_container_width=True):
+                    if is_fav:
+                        supabase.table("favoriler").delete().eq("oyuncu_adi", p['oyuncu_adi']).execute()
+                    else:
+                        # Rulet'teki o meşhur başarılı insert komutu:
+                        supabase.table("favoriler").insert({
+                            "oyuncu_adi": p['oyuncu_adi'], 
+                            "kulup": p.get('kulup', 'Serbest'), 
+                            "pa": p['pa'], 
+                            "mevki": p['mevki'], 
+                            "ca": p.get('ca', 0),
+                            "kullanici_adi": "someku"
+                        }).execute()
+                    st.rerun()
 
-        # Sayfalama
+        # Navigasyon
         c1, c2 = st.columns(2)
-        if c1.button("⬅️ Önceki", use_container_width=True) and st.session_state.page > 0:
+        if c1.button("⬅️ Geri", use_container_width=True) and st.session_state.page > 0:
             st.session_state.page -= 1; st.rerun()
-        if c2.button("Sonraki ➡️", use_container_width=True):
+        if c2.button("İleri ➡️", use_container_width=True):
             st.session_state.page += 1; st.rerun()
 
 
