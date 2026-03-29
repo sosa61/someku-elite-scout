@@ -26,6 +26,7 @@ st.markdown("""
     .ann-box { background: #1c2128; border: 1px solid #30363d; padding: 15px; border-radius: 10px; color: #58a6ff; text-align: center; margin-bottom: 20px; border-bottom: 3px solid #3b82f6; font-weight: bold; }
     .section-header { background: #21262d; padding: 10px; border-radius: 8px; margin: 20px 0 10px 0; border-left: 5px solid #58a6ff; font-weight: bold; }
     .page-indicator { background: #3b82f6; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; margin: 10px 0; display: inline-block; }
+    .tm-link { color: #58a6ff !important; text-decoration: none; border: 1px solid #58a6ff; padding: 3px 10px; border-radius: 5px; font-size: 12px; display: inline-block; margin-top: 10px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -33,8 +34,8 @@ st.markdown("""
 def get_announcement():
     try:
         res = supabase.table("sistem").select("duyuru").eq("id", 1).execute()
-        return res.data[0]['duyuru'] if res.data else "🔥 SOMEKU SCOUT V92 Yayında!"
-    except: return "🔥 SOMEKU SCOUT V92 Yayında!"
+        return res.data[0]['duyuru'] if res.data else "🔥 SOMEKU SCOUT V93 Yayında!"
+    except: return "🔥 SOMEKU SCOUT V93 Yayında!"
 
 def get_user_favs(username):
     try:
@@ -48,8 +49,8 @@ if 'lottie_shown' not in st.session_state:
     time.sleep(1.5); st.session_state.lottie_shown = True; st.rerun()
 
 # --- SESSION STATE ---
-if 'user' not in st.session_state: st.session_state.user = None
-if 'fav_list' not in st.session_state: st.session_state.fav_list = []
+if 'user' not in st.session_state: st.session_state.user = st.query_params.get("user", None)
+if 'fav_list' not in st.session_state: st.session_state.fav_list = get_user_favs(st.session_state.user) if st.session_state.user else []
 if 'page' not in st.session_state: st.session_state.page = 0
 if 'roulette_player' not in st.session_state: st.session_state.roulette_player = None
 
@@ -60,11 +61,13 @@ if st.session_state.user is None:
     with t1:
         u_id = st.text_input("Kullanıcı Adı:", key="l_u")
         u_pw = st.text_input("Şifre:", type="password", key="l_p")
+        remember = st.checkbox("Beni Hatırla")
         if st.button("Giriş", use_container_width=True):
             res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
             if res.data or (u_id == "someku" and u_pw == "28616128Ok"):
                 st.session_state.user = u_id
                 st.session_state.fav_list = get_user_favs(u_id)
+                if remember: st.query_params["user"] = u_id
                 st.rerun()
             else: st.error("Hatalı Giriş!")
     with t2:
@@ -78,7 +81,11 @@ if st.session_state.user is None:
 st.markdown(f'<div class="ann-box">{get_announcement()}</div>', unsafe_allow_html=True)
 with st.sidebar:
     st.write(f"👤 **{st.session_state.user}**")
-    if st.button("🚪 Çıkış"): st.session_state.user = None; st.session_state.pop('lottie_shown', None); st.rerun()
+    if st.button("🚪 Çıkış"): 
+        st.session_state.user = None
+        st.query_params.clear()
+        st.session_state.pop('lottie_shown', None)
+        st.rerun()
 
 tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🛠️ ADMIN"])
 
@@ -91,7 +98,8 @@ with tabs[0]:
         "Kuzey Avrupa": ["Norveç", "İsveç", "Danimarka", "Finlandiya", "İzlanda"],
         "Balkanlar": ["Hırvatistan", "Sırbistan", "Yunanistan", "Bulgaristan", "Slovenya", "Bosna Hersek"],
         "Güney Amerika": ["Brezilya", "Arjantin", "Uruguay", "Kolombiya", "Ekvador"],
-        "Afrika": ["Nijerya", "Senegal", "Mısır", "Fildişi Sahili", "Fas", "Cezayir"]
+        "Afrika": ["Nijerya", "Senegal", "Mısır", "Fildişi Sahili", "Fas", "Cezayir"],
+        "Asya": ["Japonya", "Güney Kore", "Suudi Arabistan", "Katar", "Avustralya", "Çin"]
     }
     
     f1, f2, f3 = st.columns(3)
@@ -118,6 +126,7 @@ with tabs[0]:
         cols = st.columns(2)
         for i, p in enumerate(res.data):
             is_fav = p['oyuncu_adi'] in st.session_state.fav_list
+            tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
             with cols[i % 2]:
                 st.markdown(f'''
                     <div class="player-card {"fav-active" if is_fav else ""}">
@@ -125,6 +134,7 @@ with tabs[0]:
                         <h3 style="margin:0;">{p["oyuncu_adi"]}</h3>
                         <p style="color:#8b949e; font-size:0.9rem; margin:5px 0;">📍 {p.get("ulke","")} | 🏟️ {p["kulup"]} | 👟 {p["mevki"]}</p>
                         <p style="font-size:0.95rem;">📊 CA: {p["ca"]} | 🎂 Yaş: {p["yas"]} | 💰 Değer: {p.get("deger", "Bilinmiyor")}</p>
+                        <a href="{tm_url}" target="_blank" class="tm-link">Transfermarkt ➔</a>
                     </div>
                 ''', unsafe_allow_html=True)
                 ck1, ck2 = st.columns([3, 1])
@@ -151,16 +161,17 @@ with tabs[1]:
     if st.session_state.roulette_player:
         p = st.session_state.roulette_player
         is_fav = p['oyuncu_adi'] in st.session_state.fav_list
+        tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
         st.markdown(f'''
             <div class="player-card {"fav-active" if is_fav else ""}">
                 <span class="pa-badge">PA: {p["pa"]}</span>
                 <h2>🌟 {p["oyuncu_adi"]}</h2>
                 <p>🏟️ {p["kulup"]} | CA: {p["ca"]} | Yaş: {p["yas"]} | 💰 {p.get("deger", "Bilinmiyor")}</p>
+                <a href="{tm_url}" target="_blank" class="tm-link">Transfermarkt ➔</a>
             </div>
         ''', unsafe_allow_html=True)
         st.code(p['oyuncu_adi'])
         
-        # Rulet Favorileme Butonu
         if st.button(f"{'⭐ Favoriden Çıkar' if is_fav else '⭐ Favorilere Ekle'}", key="roul_fav_action"):
             if is_fav:
                 supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", p['oyuncu_adi']).execute()
@@ -200,7 +211,6 @@ with tabs[3]:
 # --- 5. ADMIN ---
 with tabs[4]:
     if st.session_state.user == "someku":
-        st.subheader("🛠️ Admin Paneli")
         adm1, adm2, adm3 = st.tabs(["✏️ Veri", "📢 Duyuru", "👥 Üyeler"])
         with adm1:
             e_s = st.text_input("Oyuncu Ara:")
