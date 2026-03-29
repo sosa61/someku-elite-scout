@@ -34,8 +34,8 @@ st.markdown("""
 def get_announcement():
     try:
         res = supabase.table("sistem").select("duyuru").eq("id", 1).execute()
-        return res.data[0]['duyuru'] if res.data else "🔥 SOMEKU SCOUT V94 Yayında!"
-    except: return "🔥 SOMEKU SCOUT V94 Yayında!"
+        return res.data[0]['duyuru'] if res.data else "🔥 SOMEKU SCOUT V95 Yayında!"
+    except: return "🔥 SOMEKU SCOUT V95 Yayında!"
 
 def get_user_favs(username):
     try:
@@ -48,9 +48,17 @@ if 'lottie_shown' not in st.session_state:
     st.markdown('<div class="loader-container"><div class="magnifier">🕵️‍♂️</div><h2 style="color: #58a6ff;">Elite Veritabanı Hazırlanıyor...</h2></div>', unsafe_allow_html=True)
     time.sleep(1.5); st.session_state.lottie_shown = True; st.rerun()
 
-# --- SESSION STATE ---
-if 'user' not in st.session_state: st.session_state.user = st.query_params.get("user", None)
-if 'fav_list' not in st.session_state: st.session_state.fav_list = get_user_favs(st.session_state.user) if st.session_state.user else []
+# --- OTURUM YÖNETİMİ (BENİ HATIRLA) ---
+if 'user' not in st.session_state:
+    saved_user = st.query_params.get("user")
+    if saved_user:
+        st.session_state.user = saved_user
+    else:
+        st.session_state.user = None
+
+if st.session_state.user and 'fav_list' not in st.session_state:
+    st.session_state.fav_list = get_user_favs(st.session_state.user)
+
 if 'page' not in st.session_state: st.session_state.page = 0
 if 'roulette_player' not in st.session_state: st.session_state.roulette_player = None
 
@@ -61,13 +69,14 @@ if st.session_state.user is None:
     with t1:
         u_id = st.text_input("Kullanıcı Adı:", key="l_u")
         u_pw = st.text_input("Şifre:", type="password", key="l_p")
-        remember = st.checkbox("Beni Hatırla")
+        remember = st.checkbox("Beni Hatırla", value=True)
         if st.button("Giriş", use_container_width=True):
             res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
             if res.data or (u_id == "someku" and u_pw == "28616128Ok"):
                 st.session_state.user = u_id
                 st.session_state.fav_list = get_user_favs(u_id)
-                if remember: st.query_params["user"] = u_id
+                if remember: 
+                    st.query_params["user"] = u_id
                 st.rerun()
             else: st.error("Hatalı Giriş!")
     with t2:
@@ -84,14 +93,16 @@ with st.sidebar:
     if st.button("🚪 Çıkış"): 
         st.session_state.user = None
         st.query_params.clear()
+        st.session_state.pop('fav_list', None)
         st.session_state.pop('lottie_shown', None)
         st.rerun()
 
-tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🏟️ LİG SEÇ", "🛠️ ADMIN"])
+tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🛠️ ADMIN"])
 
 # --- 1. SCOUT ---
 with tabs[0]:
     POS_TR = {"Hepsi": "Hepsi", "Kaleci": "GK", "Stoper": "D C", "Sol Bek": "D L", "Sağ Bek": "D R", "Ön Libero": "DM", "Merkez Orta Saha": "M C", "Sol Kanat": "AM L", "Sağ Kanat": "AM R", "Ofansif Orta Saha": "AM C", "Forvet": "ST"}
+    LIG_TR = ["Hepsi", "Türkiye", "İngiltere", "Almanya", "İspanya", "İtalya", "Fransa", "Hollanda", "Portekiz"]
     REG_TR = {
         "Hepsi": [], 
         "Avrupa": ["Türkiye", "Almanya", "Fransa", "İngiltere", "İtalya", "İspanya", "Hollanda", "Portekiz", "Belçika"],
@@ -104,7 +115,7 @@ with tabs[0]:
     
     f1, f2, f3 = st.columns(3)
     with f1: name_f = st.text_input("👤 Oyuncu Ara:"); team_f = st.text_input("🏟️ Takım Ara:")
-    with f2: reg_f = st.selectbox("🌍 Bölge:", list(REG_TR.keys())); country_f = st.text_input("🏳️ Ülke Ara:")
+    with f2: lig_f = st.selectbox("🏟️ Lig Filtresi:", LIG_TR); country_f = st.text_input("🏳️ Ülke Ara:")
     with f3: pos_f = st.selectbox("👟 Mevki:", list(POS_TR.keys())); sort_f = st.selectbox("🔃 Sıralama:", ["pa", "ca", "yas", "deger"])
     
     v1, v2 = st.columns(2)
@@ -115,8 +126,8 @@ with tabs[0]:
     if name_f: query = query.ilike("oyuncu_adi", f"%{name_f}%")
     if team_f: query = query.ilike("kulup", f"%{team_f}%")
     if country_f: query = query.ilike("ulke", f"%{country_f}%")
+    if lig_f != "Hepsi": query = query.ilike("ulke", f"%{lig_f}%") # Lig seçimi ülke sütunundaki eşleşmeye göre çalışır
     if pos_f != "Hepsi": query = query.ilike("mevki", f"%{POS_TR[pos_f]}%")
-    if reg_f != "Hepsi": query = query.in_("ulke", REG_TR[reg_f])
     
     res = query.order(sort_f, desc=True).range(st.session_state.page*12, (st.session_state.page*12)+11).execute()
     
@@ -125,7 +136,8 @@ with tabs[0]:
     if res.data:
         cols = st.columns(2)
         for i, p in enumerate(res.data):
-            is_fav = p['oyuncu_adi'] in st.session_state.fav_list
+            fav_list = st.session_state.get('fav_list', [])
+            is_fav = p['oyuncu_adi'] in fav_list
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
             with cols[i % 2]:
                 st.markdown(f'''
@@ -208,24 +220,8 @@ with tabs[3]:
                 st.rerun()
     else: st.info("Favori listen boş.")
 
-# --- 5. LİG SEÇ (KARİYER RULETİ) ---
+# --- 5. ADMIN ---
 with tabs[4]:
-    st.subheader("🏟️ Takım Bulma Çarkı")
-    lig_sec = st.selectbox("Ülke Seç:", ["Hepsi", "Türkiye", "İngiltere", "Almanya", "İspanya", "İtalya", "Fransa", "Hollanda", "Portekiz"])
-    if st.button("🏟️ ÇARK-I TAKIM!"):
-        try:
-            query_t = supabase.table("oyuncular").select("kulup")
-            if lig_sec != "Hepsi": query_t = query_t.ilike("ulke", f"%{lig_sec}%")
-            t_res = query_t.limit(1000).execute()
-            if t_res.data:
-                t_havuz = list(set([x['kulup'] for x in t_res.data]))
-                secilen = random.choice(t_havuz)
-                st.markdown(f'<div class="player-card fav-active" style="text-align:center;"><h3>Yeni Macera:</h3><h1>🏟️ {secilen}</h1></div>', unsafe_allow_html=True)
-            else: st.warning("Filtreye uygun takım bulunamadı.")
-        except: st.error("Bağlantı hatası.")
-
-# --- 6. ADMIN ---
-with tabs[5]:
     if st.session_state.user == "someku":
         adm1, adm2, adm3 = st.tabs(["✏️ Veri", "📢 Duyuru", "👥 Üyeler"])
         with adm1:
