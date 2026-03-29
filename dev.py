@@ -108,7 +108,7 @@ with tabs[0]:
         if c1.button("⬅️ Geri") and st.session_state.page > 0: st.session_state.page -= 1; st.rerun()
         if c2.button("İleri ➡️"): st.session_state.page += 1; st.rerun()
 
-# --- 2. RULET (V138 - KUSURSUZ MERKEZLEME) ---
+# --- 2. RULET (V139 - KESİN MERKEZLEME FİX) ---
 with tabs[1]:
     st.markdown('<h2 style="text-align:center;">🎰 SCOUT RULETİ</h2>', unsafe_allow_html=True)
     
@@ -120,9 +120,9 @@ with tabs[1]:
         
         if st.button("🎰 RULETİ ÇEVİR (135+ PA MERMİSİ SÜR)", use_container_width=True):
             all_p = res.data
-            strip_players = [random.choice(all_p) for _ in range(45)] # Şeridi biraz daha uzattım
+            strip_players = [random.choice(all_p) for _ in range(40)]
             
-            winner_index = 38 # Hedef kart
+            winner_index = 35 # Sabit hedef
             winner = random.choice(all_p)
             strip_players[winner_index] = winner
             players_json = json.dumps(strip_players)
@@ -133,27 +133,28 @@ with tabs[1]:
                     #r-wrapper {{
                         position: relative; width: 100%; height: 240px;
                         background: #0d1117; border: 3px solid #30363d;
-                        border-radius: 15px; overflow: hidden; display: flex; align-items: center;
+                        border-radius: 15px; overflow: hidden; 
+                        /* Çizgiyi tam ortaya sabitlemek için flex kullanıyoruz */
+                        display: flex; justify-content: center; align-items: center;
                     }}
                     #r-pointer {{
                         position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-                        width: 4px; height: 100%; background: #238636; z-index: 100; 
-                        box-shadow: 0 0 20px #238636;
+                        width: 4px; height: 100%; background: #238636; z-index: 1000; 
+                        box-shadow: 0 0 25px #238636;
                     }}
                     #r-track {{
-                        display: flex; position: absolute; left: 0; 
+                        display: flex; position: absolute; 
+                        /* Başlangıç pozisyonunu JS ile ayarlayacağız */
                         transition: transform 5s cubic-bezier(0.1, 0, 0.1, 1);
                         will-change: transform;
                     }}
                     .r-card {{
-                        /* GENİŞLİK SABİTLEME - ÇOK KRİTİK */
                         min-width: 160px !important; max-width: 160px !important; 
                         height: 190px; background: #161b22;
                         border: 2px solid #30363d; margin: 0; border-radius: 12px;
                         display: flex; flex-direction: column; justify-content: center;
                         align-items: center; text-align: center; color: transparent;
                         font-family: sans-serif; transition: all 0.6s ease;
-                        /* Kapalı Kart Deseni */
                         background-image: repeating-linear-gradient(45deg, #1c2128 0, #1c2128 10px, #161b22 10px, #161b22 20px);
                     }}
                     .is-winner {{ 
@@ -163,14 +164,13 @@ with tabs[1]:
                         background-image: none !important;
                         box-shadow: inset 0 0 30px #238636;
                         transform: scale(1.08);
-                        z-index: 50;
                     }}
                     .r-card .folder-icon {{ font-size: 30px; color: #30363d; margin-bottom: 10px; }}
                 </style>
 
                 <div id="r-wrapper">
                     <div id="r-pointer"></div>
-                    <div id="r-track"></div>
+                    <div id="r-track" style="transform: translateX(0px);"></div>
                 </div>
             </div>
 
@@ -178,28 +178,30 @@ with tabs[1]:
                 (function() {{
                     const players = {players_json};
                     const track = document.getElementById('r-track');
-                    const wrapper = document.getElementById('r-wrapper');
-                    const cardWidth = 160; // Margin 0 olduğu için net genişlik bu
+                    const cardWidth = 160; 
                     const winIdx = {winner_index};
 
+                    // Şeridi inşa et
                     track.innerHTML = "";
                     players.forEach((p, i) => {{
                         const card = document.createElement('div');
                         card.className = 'r-card';
                         card.id = 'card-' + i;
-                        card.innerHTML = `<div class="folder-icon">📂</div><small>TOP SECRET</small><br><b>???</b>`;
+                        card.innerHTML = '<div class="folder-icon">📂</div><small>TOP SECRET</small><br><b>???</b>';
                         track.appendChild(card);
                     }});
 
+                    // MERKEZLEME MANTIĞI:
+                    // Başlangıçta 0. kartın ortasını pointer'a hizala
+                    const initialOffset = (cardWidth / 2);
+                    track.style.left = "50%";
+                    track.style.transform = "translateX(-" + initialOffset + "px)";
+
+                    // Çevirme işlemi
                     setTimeout(() => {{
-                        const containerWidth = wrapper.offsetWidth;
-                        
-                        // KUSURSUZ FORMÜL:
-                        // (Hedef Kart Baştan Mesafesi) - (Ekranın Yarısı) + (Kartın Yarısı)
-                        // Örn: (38 * 160) - (Genişlik/2) + 80
-                        const targetPos = (winIdx * cardWidth) - (containerWidth / 2) + (cardWidth / 2);
-                        
-                        track.style.transform = 'translateX(-' + targetPos + 'px)';
+                        // winIdx kadar kart git, başlangıçtaki yarım kartı da hesaba kat
+                        const moveX = (winIdx * cardWidth) + (cardWidth / 2);
+                        track.style.transform = "translateX(-" + moveX + "px)";
                         
                         setTimeout(() => {{
                             const winCard = document.getElementById('card-' + winIdx);
