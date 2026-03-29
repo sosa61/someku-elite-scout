@@ -321,10 +321,10 @@ with tabs[4]:
 
 
 
-# --- 6. ADMIN (V129 - GİZLİ VE SAYGILI PANEL) ---
-    with tabs[6]: # Tab sırasını kontrol et
-    if st.session_state.get('user') == "someku":
-        st.markdown('<h1 style="color:#ff4b4b; text-align:center;">🛡️ YÖNETİM PANELİ</h1>', unsafe_allow_html=True)
+with tabs[5]:
+    if st.session_state.get('user') == "someku": # <-- BURASI İÇERİDE OLACAK
+        st.markdown("### YÖNETİM PANELİ") # <-- BU DA DAHA İÇERİDE
+        # ... diğer tüm admin kodları da bu hizada devam etmeli ...
         
         # Üst İstatistik Barı
         c1, c2, c3 = st.columns(3)
