@@ -140,56 +140,51 @@ with tabs[3]:
         c1, c2 = st.columns([5, 1]); c1.markdown(f'<div class="player-card fav-active" style="padding:10px;"><b>{f}</b></div>', unsafe_allow_html=True)
         if c2.button("🗑️", key=f"del_{f}"): supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", f).execute(); st.rerun()
             
-# --- 5. BARROW AI (V121 - TÜM YAŞ ARALIKLARI İÇİN DİNAMİK ZEKA) ---
+# --- 5. BARROW AI (V122 - BİN VE MİLYON BÜTÇE ZEKASI) ---
 with tabs[4]:
     st.markdown('<div style="text-align:center;"><h1 style="color:#ef4444;">🤵 BARROW AI</h1></div>', unsafe_allow_html=True)
-    b_in = st.text_input("Barrow'a emir ver (Örn: '15 18 yaş arası golcü', '22-25 yaş 3m defans'):", key="b_in_v121")
+    b_in = st.text_input("Barrow'a emir ver (Örn: '500 bin euro defans', '3m forvet', '15-18 yaş 200k'):", key="b_in_v122")
     
     if st.button("BARROWA SOR"):
         if b_in:
             st.markdown(f'<div class="barrow-box"><p class="barrow-text">{random.choice(BARROW_INSULTS)}</p></div>', unsafe_allow_html=True)
             
-            # 1. ADIM: Tüm sayıları bul
+            # --- NUMERİK VE BİRİM ANALİZİ ---
             all_nums = re.findall(r'\d+', b_in)
-            
             req_min_age = None
             req_max_age = None
-            req_price = None
+            req_price_limit = None # Milyon cinsinden saklayacağız
             
-            # 2. ADIM: Bütçeyi (milyonları) ayıkla ve listeden çıkart
-            price_match = re.search(r'(\d+)\s*(m|milyon|euro|para)', b_in.lower())
-            if price_match:
-                req_price = float(price_match.group(1))
-                price_str = str(int(req_price))
-                if price_str in all_nums:
-                    all_nums.remove(price_str) # Parayı listeden sildik ki yaşla karışmasın
+            # 1. BÜTÇE AYIKLAMA (Bin/Milyon Farkı)
+            # Milyon kontrolü (5m, 5 milyon vb)
+            m_match = re.search(r'(\d+)\s*(m|milyon|milyon|mio)', b_in.lower())
+            # Bin kontrolü (500 bin, 500k, 500b vb)
+            k_match = re.search(r'(\d+)\s*(bin|k|b|bin)', b_in.lower())
+            
+            if m_match:
+                req_price_limit = float(m_match.group(1))
+                if str(m_match.group(1)) in all_nums: all_nums.remove(str(m_match.group(1)))
+            elif k_match:
+                # Bin değerini Milyona çevir (Örn: 500 bin -> 0.5)
+                req_price_limit = float(k_match.group(1)) / 1000
+                if str(k_match.group(1)) in all_nums: all_nums.remove(str(k_match.group(1)))
 
-            # 3. ADIM: Kalan sayıları yaş aralığı olarak işle (Evrensel kural)
+            # 2. YAŞ ARALIĞI AYIKLAMA
             if len(all_nums) >= 2:
-                # Kullanıcı iki sayı yazdıysa (Örn: 17 21)
-                n1 = int(all_nums[0])
-                n2 = int(all_nums[1])
-                req_min_age = min(n1, n2)
-                req_max_age = max(n1, n2)
+                n1, n2 = int(all_nums[0]), int(all_nums[1])
+                req_min_age, req_max_age = min(n1, n2), max(n1, n2)
             elif len(all_nums) == 1:
-                # Kullanıcı tek sayı yazdıysa (Örn: 20 yaş)
                 req_max_age = int(all_nums[0])
 
-            # Veritabanı sorgusunu hazırla
+            # Sorgu Başlangıcı
             bq = supabase.table("oyuncular").select("*").gte("pa", 135)
             
-            # 4. ADIM: Yaş Filtresini mermi gibi uygula
-            if req_min_age and req_max_age:
-                bq = bq.gte("yas", req_min_age).lte("yas", req_max_age)
-                msg_age = f"{req_min_age}-{req_max_age} yaş arası"
-            elif req_max_age:
-                bq = bq.lte("yas", req_max_age)
-                msg_age = f"{req_max_age} yaş ve altı"
-            else:
-                bq = bq.lte("yas", 26) # Hiç yaş yazmazsa varsayılan
-                msg_age = "genç"
+            # Yaş Filtresi
+            if req_min_age and req_max_age: bq = bq.gte("yas", req_min_age).lte("yas", req_max_age)
+            elif req_max_age: bq = bq.lte("yas", req_max_age)
+            else: bq = bq.lte("yas", 26)
                 
-            # 5. ADIM: Mevki Zekası
+            # Mevki Filtresi
             low_in = b_in.lower()
             t_m_list = []
             if "defans" in low_in or "stoper" in low_in or "bek" in low_in: t_m_list.extend(["D C", "D L", "D R"])
@@ -200,30 +195,28 @@ with tabs[4]:
             
             for k, v in BARROW_KNOWLEDGE.items():
                 if k in low_in: t_m_list.extend(v)
-            
             if t_m_list:
-                or_filters = ",".join([f'mevki.ilike.%{m}%' for m in set(t_m_list)])
-                bq = bq.or_(or_filters)
+                bq = bq.or_(",".join([f'mevki.ilike.%{m}%' for m in set(t_m_list)]))
             
-            # Havuzu genişlet (PA 135+ olan 1000 oyuncu)
             res_b = bq.order("pa", desc=True).limit(1000).execute()
             
             if res_b.data:
-                # 6. ADIM: Fiyat kontrol fonksiyonu
-                def clean_price(x):
+                # Fiyat Karşılaştırma Fonksiyonu
+                def get_m_value(x):
                     v_s = str(x.get("deger", "0")).replace(",", ".")
                     v_n = re.findall(r"[-+]?\d*\.\d+|\d+", v_s)
                     if v_n:
                         r = float(v_n[0])
+                        # Veritabanındaki 'K' değerlerini M'ye çevirip kıyasla
                         return r / 1000 if "K" in v_s.upper() else r
                     return 9999.0
 
                 final_b = res_b.data
-                if req_price:
-                    final_b = [x for x in res_b.data if clean_price(x) <= req_price]
+                if req_price_limit is not None:
+                    final_b = [x for x in res_b.data if get_m_value(x) <= req_price_limit]
                 
                 if final_b:
-                    p_b = random.choice(final_b) # Dev havuzdan mermi gibi rastgele seçim
+                    p_b = random.choice(final_b)
                     is_f = p_b['oyuncu_adi'] in st.session_state.get('fav_list', [])
                     tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p_b['oyuncu_adi'])}"
                     
@@ -232,7 +225,7 @@ with tabs[4]:
                         <p style="font-family:'JetBrains Mono'; color:#00ff41;">🏟️ {p_b["kulup"]} | 👟 {p_b["mevki"]} | 📊 PA: {p_b["pa"]} | 🎂 YAŞ: {p_b["yas"]} | 💰 {p_b.get("deger","-")}</p>
                         <a href="{tm_url}" target="_blank" class="tm-link">Transfermarkt ➔</a></div>''', unsafe_allow_html=True)
                     
-                    if st.button(f"{'⭐ Listeden Çıkar' if is_f else '⭐ Listeye Ekle'}", key=f"bf_v121_{p_b['oyuncu_adi']}"):
+                    if st.button(f"{'⭐ Listeden Çıkar' if is_f else '⭐ Listeye Ekle'}", key=f"bf_v122_{p_b['oyuncu_adi']}"):
                         if is_f:
                             supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", p_b['oyuncu_adi']).execute()
                             st.session_state.fav_list.remove(p_b['oyuncu_adi'])
@@ -241,10 +234,9 @@ with tabs[4]:
                             st.session_state.fav_list.append(p_b['oyuncu_adi'])
                         st.rerun()
                 else:
-                    st.error(f"Barrow: '{req_price}M bütçeye ve {msg_age} adam mı olur hıyarto? Bütçeni artır!'")
+                    st.error(f"Barrow: '{req_price_limit*1000 if req_price_limit < 1 else req_price_limit}{' bin' if req_price_limit < 1 else 'M'}' bütçeye ancak su alırsın hıyarto! Bütçeyi artır.")
             else:
-                st.warning(f"Barrow: '{msg_age}' aralığında istediğin mevkide mermi bulamadım.")
-
+                st.warning("Barrow: 'İstediğin kriterlerde mermi bulamadım, siktir git kendin ara.'")
 # --- 6. ADMIN ---
 with tabs[5]:
     if st.session_state.user == "someku":
