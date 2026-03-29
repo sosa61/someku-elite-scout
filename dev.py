@@ -318,8 +318,61 @@ with tabs[4]:
                     st.error(f"Barrow: '{req_price_limit*1000 if req_price_limit < 1 else req_price_limit}{' bin' if req_price_limit < 1 else 'M'}' bütçeye ancak su alırsın hıyarto! Bütçeyi artır.")
             else:
                 st.warning("Barrow: 'İstediğin kriterlerde mermi bulamadım, siktir git kendin ara.'")
-# --- 6. ADMIN ---
-with tabs[5]:
-    if st.session_state.user == "someku":
-        u_l = supabase.table("users").select("*").execute()
-        if u_l.data: st.table(pd.DataFrame(u_l.data))
+# --- 7. ADMIN (V129 - GİZLİ VE SAYGILI PANEL) ---
+with tabs[4]: # Tab sırasını kontrol et
+    if st.session_state.get('user') == "someku":
+        st.markdown('<h1 style="color:#ff4b4b; text-align:center;">🛡️ YÖNETİM PANELİ</h1>', unsafe_allow_html=True)
+        
+        # Üst İstatistik Barı
+        c1, c2, c3 = st.columns(3)
+        try:
+            total_players = len(supabase.table("oyuncular").select("id").execute().data)
+            total_users = len(supabase.table("users").select("id").execute().data)
+            c1.metric("Toplam Oyuncu", total_players)
+            c2.metric("Kayıtlı Kullanıcı", total_users)
+            c3.success("Sistem Aktif")
+        except:
+            st.warning("Veri bağlantısı kontrol ediliyor...")
+
+        st.markdown("---")
+
+        # --- ADMIN İŞLEMLERİ ---
+        adm_tabs = st.tabs(["🏃 Oyuncu Ekle", "🗑️ Oyuncu Sil", "👥 Kullanıcı Listesi"])
+
+        with adm_tabs[0]:
+            st.write("### Yeni Oyuncu Girişi")
+            with st.form("add_player_v129"):
+                ad = st.text_input("Oyuncu Adı")
+                klb = st.text_input("Kulüp")
+                mvk = st.text_input("Mevki")
+                ys = st.number_input("Yaş", min_value=14, max_value=45, value=20)
+                pa_v = st.number_input("PA", min_value=1, max_value=200, value=150)
+                dgr = st.text_input("Değer (Örn: 2M €)")
+                if st.form_submit_button("KAYDET"):
+                    if ad:
+                        supabase.table("oyuncular").insert({
+                            "oyuncu_adi": ad, "kulup": klb, "mevki": mvk, 
+                            "yas": ys, "pa": pa_v, "deger": dgr
+                        }).execute()
+                        st.success(f"{ad} başarıyla eklendi.")
+
+        with adm_tabs[1]:
+            st.write("### Oyuncu Verisi Sil")
+            search_del = st.text_input("Oyuncu Ara:")
+            if search_del:
+                res_del = supabase.table("oyuncular").select("*").ilike("oyuncu_adi", f"%{search_del}%").execute()
+                for p in res_del.data:
+                    if st.button(f"SİL: {p['oyuncu_adi']}", key=f"d_{p['id']}"):
+                        supabase.table("oyuncular").delete().eq("id", p['id']).execute()
+                        st.info("Kayıt silindi.")
+                        st.rerun()
+
+        with adm_tabs[2]:
+            st.write("### Kullanıcı Denetimi")
+            u_list = supabase.table("users").select("*").execute()
+            if u_list.data:
+                for u in u_list.data:
+                    st.write(f"👤 {u['username']} (ID: {u['id']})")
+    else:
+        # Diğer kullanıcılar buraya tıklasa bile boş bir sayfa ve bu mesajı görür
+        st.warning("Bu alana erişim yetkiniz bulunmamaktadır.")
