@@ -1,4 +1,4 @@
-```python
+
 import streamlit as st
 from supabase import create_client, Client
 import urllib.parse
@@ -7,7 +7,7 @@ import time
 
 # --- BAĞLANTI ---
 URL = "https://iwgowefraytdbcdgeqdz.supabase.co"
-KEY = "BURAYA_SUPABASE_KEY"
+KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3Z293ZWZyYXl0ZGJjZGdlcWR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MzM3MDEsImV4cCI6MjA5MDIwOTcwMX0.kWYUaG8OFvsAe-IBD4XcR7a2l2mflj4Y0HJfugU2m-o"
 supabase: Client = create_client(URL, KEY)
 
 # --- SAYFA ---
