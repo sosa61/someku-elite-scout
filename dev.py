@@ -107,83 +107,114 @@ with tabs[0]:
         c1, c2 = st.columns(2)
         if c1.button("⬅️ Geri") and st.session_state.page > 0: st.session_state.page -= 1; st.rerun()
         if c2.button("İleri ➡️"): st.session_state.page += 1; st.rerun()
-
-# --- 2. RULET (V132 - GERÇEK KAYMA EFEKTİ) ---
+# --- 2. RULET (V133 - TAM İSABET VE TEKRAR ÇALIŞMA) ---
 with tabs[1]:
     st.markdown('<h2 style="text-align:center;">🎰 SCOUT RULETİ</h2>', unsafe_allow_html=True)
     
-    # Veritabanından rastgele 30 oyuncu çekiyoruz
-    res = supabase.table("oyuncular").select("*").limit(30).execute()
+    # Veritabanından rastgele 40 oyuncu çekiyoruz
+    res = supabase.table("oyuncular").select("*").limit(40).execute()
     
     if res.data:
         import random
+        import json
+        
         all_p = res.data
-        winner = random.choice(all_p)
+        # Rulet şeridi için 35 oyuncu hazırla
+        strip_players = [random.choice(all_p) for _ in range(35)]
+        winner_index = 30 # 31. oyuncu (indeks 30) kazanan olacak
+        winner = strip_players[winner_index]
         
-        # Rulet şeridini oluştur (Görsellik için karışık liste)
-        strip_players = [random.choice(all_p) for _ in range(25)]
-        strip_players[20] = winner # 21. oyuncu kazanan olacak şekilde ayarlandı
+        # Oyuncu listesini JS'e güvenli aktarmak için stringe çevir
+        players_json = json.dumps(strip_players)
         
-        # HTML/CSS/JS Komple Paket
         roulette_html = f"""
-        <style>
-            .r-wrapper {{
-                position: relative; width: 100%; height: 250px;
-                background: #0d1117; border: 3px solid #30363d;
-                border-radius: 15px; overflow: hidden; display: flex; align-items: center;
-            }}
-            .r-pointer {{
-                position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-                width: 4px; height: 100%; background: #f2cc60; z-index: 100; box-shadow: 0 0 15px #f2cc60;
-            }}
-            .r-track {{
-                display: flex; position: absolute; left: 0; transition: transform 4s cubic-bezier(0.1, 0, 0.1, 1);
-                padding-left: 50%;
-            }}
-            .r-card {{
-                min-width: 140px; height: 180px; background: #161b22;
-                border: 2px solid #58a6ff; margin: 0 10px; border-radius: 10px;
-                display: flex; flex-direction: column; justify-content: center;
-                align-items: center; text-align: center; color: white; font-family: sans-serif;
-            }}
-            .winner-style {{ border-color: #f2cc60; background: #1c160d; box-shadow: inset 0 0 20px #f2cc60; }}
-            .r-btn {{
-                width: 100%; padding: 15px; background: #238636; color: white;
-                border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 20px;
-            }}
-            .r-btn:hover {{ background: #2ea043; }}
-        </style>
+        <div id="roulette-root">
+            <style>
+                #r-wrapper {{
+                    position: relative; width: 100%; height: 220px;
+                    background: #0d1117; border: 3px solid #30363d;
+                    border-radius: 15px; overflow: hidden; display: flex; align-items: center;
+                }}
+                #r-pointer {{
+                    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+                    width: 4px; height: 100%; background: #f2cc60; z-index: 100; box-shadow: 0 0 15px #f2cc60;
+                }}
+                #r-track {{
+                    display: flex; position: absolute; left: 0; 
+                    transition: transform 4s cubic-bezier(0.1, 0, 0.1, 1);
+                    will-change: transform;
+                }}
+                .r-card {{
+                    min-width: 150px; height: 170px; background: #161b22;
+                    border: 2px solid #30363d; margin: 0 5px; border-radius: 10px;
+                    display: flex; flex-direction: column; justify-content: center;
+                    align-items: center; text-align: center; color: white; font-family: sans-serif;
+                }}
+                .winner-style {{ border-color: #f2cc60; background: #1c160d; box-shadow: inset 0 0 15px #f2cc60; }}
+                .r-btn {{
+                    width: 100%; padding: 15px; background: #238636; color: white;
+                    border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 15px;
+                    font-size: 16px;
+                }}
+                .r-btn:active {{ transform: scale(0.98); }}
+            </style>
 
-        <button class="r-btn" onclick="startRoulette()">🎰 RULETİ ÇEVİR (MERMİYİ SÜR)</button>
-        
-        <div class="r-wrapper">
-            <div class="r-pointer"></div>
-            <div id="track" class="r-track">
-                {"".join([f'<div class="r-card {"winner-style" if i==20 else ""}"><small style="color:#8b949e">{p["kulup"]}</small><br><b>{p["oyuncu_adi"]}</b><br><small style="color:#58a6ff">{p["mevki"]}</small></div>' for i, p in enumerate(strip_players)])}
+            <button class="r-btn" onclick="spin()">🎰 RULETİ ÇEVİR (YENİ MERMİ)</button>
+            
+            <div id="r-wrapper">
+                <div id="r-pointer"></div>
+                <div id="r-track"></div>
             </div>
         </div>
 
         <script>
-            function startRoulette() {{
-                const track = document.getElementById('track');
-                // Kart genişliği (140) + Margin (20) = 160px. 
-                // 20. karta gitmek için yaklaşık mesafe:
-                const moveDist = (20 * 160); 
-                track.style.transform = 'translateX(-' + moveDist + 'px)';
+            const players = {players_json};
+            const track = document.getElementById('r-track');
+            const cardWidth = 160; // 150px width + 10px margin
+            
+            function buildTrack() {{
+                track.innerHTML = "";
+                players.forEach((p, i) => {{
+                    const card = document.createElement('div');
+                    card.className = i === {winner_index} ? 'r-card winner-style' : 'r-card';
+                    card.innerHTML = `<small style="color:#8b949e">${{p.kulup}}</small><br>
+                                      <b style="font-size:13px">${{p.oyuncu_adi}}</b><br>
+                                      <small style="color:#58a6ff">${{p.mevki}}</small>`;
+                    track.appendChild(card);
+                }});
             }}
+
+            function spin() {{
+                // 1. Reset: Önce başlangıç pozisyonuna jet hızıyla dön
+                track.style.transition = 'none';
+                track.style.transform = 'translateX(0px)';
+                
+                // Küçük bir delay ile animasyonu başlat (Resetin algılanması için)
+                setTimeout(() => {{
+                    track.style.transition = 'transform 4s cubic-bezier(0.1, 0, 0.1, 1)';
+                    
+                    // Hesaplama: (Kart Sayısı * Kart Genişliği) - (Ekran Yarısı) + (Yarım Kart)
+                    // Bu sayede kazanan kart TAM ORTAYA (sarıya) gelir.
+                    const containerWidth = document.getElementById('r-wrapper').offsetWidth;
+                    const targetPos = ({winner_index} * cardWidth) - (containerWidth / 2) + (cardWidth / 2);
+                    
+                    track.style.transform = 'translateX(-' + targetPos + 'px)';
+                }}, 50);
+            }}
+
+            buildTrack();
         </script>
         """
         
-        # Render
-        st.components.v1.html(roulette_html, height=350)
+        st.components.v1.html(roulette_html, height=320)
         
-        # Sonuç Paneli (Animasyon bitince görünmesi için manuel bir detay)
-        with st.expander("🎯 Son Çıkan Merminin Detayları"):
-            st.write(f"**Oyuncu:** {winner['oyuncu_adi']}")
+        # Detaylar
+        with st.expander("🎯 Son Merminin Künyesi"):
+            st.write(f"**İsim:** {winner['oyuncu_adi']} | **Yaş:** {winner['yas']}")
             st.write(f"**Kulüp:** {winner['kulup']} | **PA:** {winner['pa']}")
-            st.write(f"**Değer:** {winner['deger']}")
+            st.write(f"**Piyasa Değeri:** {winner['deger']}")
     else:
-        st.error("Oyuncu listesi yüklenemedi.")
+        st.error("Veritabanı bağlantısı başarısız.")
 
 # Dosyanın en başına şunu ekle: import streamlit.components.v1 as components
 
