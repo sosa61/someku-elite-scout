@@ -109,24 +109,22 @@ with tabs[0]:
         if c2.button("İleri ➡️"): st.session_state.page += 1; st.rerun()
 
 
-# --- 2. RULET (V135 - GİZLİ KARTLAR VE 135+ PA HAVUZU) ---
+# --- 2. RULET (V136 - MERKEZ HİZALAMA GÜNCELLEMESİ) ---
 with tabs[1]:
     st.markdown('<h2 style="text-align:center;">🎰 SCOUT RULETİ</h2>', unsafe_allow_html=True)
     
-    # 1. 135 PA ÜSTÜ TÜM OYUNCULARI ÇEK
-    # Not: Veritabanın çok büyük olduğu için içinden rastgele 100 tanesini süzüyoruz
+    # 135 PA Üstü Havuz
     res = supabase.table("oyuncular").select("*").gte("pa", 135).limit(100).execute()
     
     if res.data:
         import random
         import json
         
-        # Kullanıcı butona bastığında tetiklensin
         if st.button("🎰 RULETİ ÇEVİR (135+ PA MERMİSİ SÜR)", use_container_width=True):
             all_p = res.data
             strip_players = [random.choice(all_p) for _ in range(40)]
             
-            winner_index = 35
+            winner_index = 35 # Hedef kartın sırası
             winner = random.choice(all_p)
             strip_players[winner_index] = winner
             
@@ -146,15 +144,15 @@ with tabs[1]:
                     }}
                     #r-track {{
                         display: flex; position: absolute; left: 0; 
+                        transition: transform 5s cubic-bezier(0.1, 0, 0.1, 1);
                     }}
                     .r-card {{
                         min-width: 150px; height: 170px; background: #161b22;
                         border: 2px solid #30363d; margin: 0 5px; border-radius: 10px;
                         display: flex; flex-direction: column; justify-content: center;
-                        align-items: center; text-align: center; color: transparent; /* İsimler gizli */
-                        transition: all 0.5s; font-family: sans-serif;
+                        align-items: center; text-align: center; color: transparent;
+                        font-family: sans-serif; transition: all 0.5s;
                     }}
-                    /* Kazanan oyuncu durduğunda tetiklenecek class */
                     .is-winner {{ 
                         border-color: #238636 !important; 
                         color: white !important; 
@@ -162,8 +160,6 @@ with tabs[1]:
                         box-shadow: inset 0 0 20px #238636, 0 0 15px #238636 !important;
                         transform: scale(1.05);
                     }}
-                    .r-card b {{ display: block; margin: 5px 0; }}
-                    .r-card small {{ color: inherit; opacity: 0.7; }}
                 </style>
 
                 <div id="r-wrapper">
@@ -177,7 +173,9 @@ with tabs[1]:
                     const players = {players_json};
                     const track = document.getElementById('r-track');
                     const wrapper = document.getElementById('r-wrapper');
-                    const cardWidth = 160; 
+                    const cardBaseWidth = 150; // Kartın net genişliği
+                    const cardMargin = 10;    // Sağ+Sol toplam margin (5+5)
+                    const totalCardWidth = cardBaseWidth + cardMargin; 
                     const winIdx = {winner_index};
 
                     track.innerHTML = "";
@@ -190,12 +188,13 @@ with tabs[1]:
                     }});
 
                     setTimeout(() => {{
-                        track.style.transition = 'transform 5s cubic-bezier(0.1, 0, 0.1, 1)';
                         const containerWidth = wrapper.offsetWidth;
-                        const targetPos = (winIdx * cardWidth) - (containerWidth / 2) + (cardWidth / 2);
+                        // HESAPLAMA: (Önceki kartların toplamı) + (Hedef kartın yarısı) - (Ekranın yarısı)
+                        // Bu sayede kartın tam ortası sarı çizgiye (pointer) denk gelir.
+                        const targetPos = (winIdx * totalCardWidth) + (totalCardWidth / 2) - (containerWidth / 2);
+                        
                         track.style.transform = 'translateX(-' + targetPos + 'px)';
                         
-                        // Animasyon bitince (5 saniye sonra) kartı aç
                         setTimeout(() => {{
                             const winCard = document.getElementById('card-' + winIdx);
                             const p = players[winIdx];
@@ -210,17 +209,12 @@ with tabs[1]:
             """
             st.components.v1.html(roulette_html, height=250)
             
-            # Alt kısım sadece seçim bittikten sonra manuel olarak açılabilir kalsın
             st.info("🎯 Kazanan mermi yukarıdaki yeşil kartta açıklanacak!")
-            with st.expander("📝 Teknik Detay Dosyası (Sadece Seçimden Sonra Açınız)"):
+            with st.expander("📝 Teknik Detay Dosyası"):
                 st.write(f"**Oyuncu:** {winner['oyuncu_adi']}")
-                st.write(f"**Mevki:** {winner['mevki']} | **Yaş:** {winner['yas']}")
                 st.write(f"**Kulüp:** {winner['kulup']} | **Potansiyel:** {winner['pa']}")
-                st.write(f"**Değer:** {winner['deger']}")
-        else:
-            st.info("135 PA ve üzeri oyuncular mermiye sürüldü. Çevirmek için butona bas!")
     else:
-        st.error("Veritabanında 135 PA üzeri oyuncu bulunamadı.")
+        st.error("135+ PA oyuncu listesi yüklenemedi.")
 # Dosyanın en başına şunu ekle: import streamlit.components.v1 as components
 
 # --- 📋 İLK 11 (V127 - DİNAMİK DİZİLİŞ VE DİKEY SAHA) ---
