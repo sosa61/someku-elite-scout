@@ -108,29 +108,29 @@ with tabs[0]:
         if c1.button("⬅️ Geri") and st.session_state.page > 0: st.session_state.page -= 1; st.rerun()
         if c2.button("İleri ➡️"): st.session_state.page += 1; st.rerun()
 
-# --- 2. RULET (V140 - SINIRSIZ HAVUZ VE KESİN İSABET) ---
+# --- 2. RULET (V141 - KART GÖRÜNÜMÜ VE FAVORİLEME) ---
 with tabs[1]:
     st.markdown('<h2 style="text-align:center;">🎰 SCOUT RULETİ</h2>', unsafe_allow_html=True)
     
-    # 1. TÜM VERİTABANINDAN RASTGELE SEÇİM YAPMAK İÇİN OFFSET HESAPLA
-    # 135 PA üstü oyuncu sayısını tahmini 10.000 varsayalım (veya dinamik alabilirsin)
-    # Her basışta farklı bir 100'lük pakete gitmek için:
+    # Veritabanından rastgele 135+ PA oyuncuları çek
     import random
-    r_offset = random.randint(0, 1000) # Veritabanının derinliğine dalar
-    
+    r_offset = random.randint(0, 1000)
     res = supabase.table("oyuncular").select("*").gte("pa", 135).range(r_offset, r_offset + 100).execute()
     
     if res.data:
-        import json
-        
-        if st.button("🎰 RULETİ ÇEVİR (470K HAVUZDAN MERMİ SÜR)", use_container_width=True):
+        # Session State ile kazananı tutalım ki buton basıldığında kaybolmasın
+        if 'rulet_kazanan' not in st.session_state:
+            st.session_state.rulet_kazanan = None
+
+        if st.button("🎰 RULETİ ÇEVİR (135+ PA MERMİSİ SÜR)", use_container_width=True):
             all_p = res.data
-            # 45 kartlık uzun bir şerit oluştur
             strip_players = [random.choice(all_p) for _ in range(45)]
-            
-            winner_index = 38 # Kazanan kartın şeritteki sırası
+            winner_index = 38
             winner = random.choice(all_p)
             strip_players[winner_index] = winner
+            st.session_state.rulet_kazanan = winner # Kazananı hafızaya al
+            
+            import json
             players_json = json.dumps(strip_players)
             
             roulette_html = f"""
@@ -144,8 +144,7 @@ with tabs[1]:
                     }}
                     #r-pointer {{
                         position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-                        width: 4px; height: 100%; background: #238636; z-index: 1000; 
-                        box-shadow: 0 0 25px #238636;
+                        width: 4px; height: 100%; background: #238636; z-index: 1000; box-shadow: 0 0 25px #238636;
                     }}
                     #r-track {{
                         display: flex; position: absolute; left: 50%;
@@ -158,72 +157,90 @@ with tabs[1]:
                         border: 2px solid #30363d; margin: 0; border-radius: 12px;
                         display: flex; flex-direction: column; justify-content: center;
                         align-items: center; text-align: center; color: transparent;
-                        font-family: sans-serif; transition: all 0.6s ease;
                         background-image: repeating-linear-gradient(45deg, #1c2128 0, #1c2128 10px, #161b22 10px, #161b22 20px);
                     }}
                     .is-winner {{ 
-                        border-color: #238636 !important; 
-                        color: white !important; 
-                        background: #0e2a14 !important;
-                        background-image: none !important;
-                        box-shadow: inset 0 0 30px #238636;
-                        transform: scale(1.08);
+                        border-color: #238636 !important; color: white !important; 
+                        background: #0e2a14 !important; background-image: none !important;
+                        box-shadow: inset 0 0 30px #238636; transform: scale(1.08);
                     }}
-                    .r-card .folder-icon {{ font-size: 30px; color: #30363d; margin-bottom: 10px; }}
                 </style>
-
-                <div id="r-wrapper">
-                    <div id="r-pointer"></div>
-                    <div id="r-track"></div>
-                </div>
+                <div id="r-wrapper"><div id="r-pointer"></div><div id="r-track"></div></div>
             </div>
-
             <script>
                 (function() {{
                     const players = {players_json};
                     const track = document.getElementById('r-track');
-                    const cardWidth = 160; 
-                    const winIdx = {winner_index};
-
+                    const cardWidth = 160;
                     track.innerHTML = "";
                     players.forEach((p, i) => {{
                         const card = document.createElement('div');
                         card.className = 'r-card';
                         card.id = 'card-' + i;
-                        card.innerHTML = '<div class="folder-icon">📂</div><small>SCOUT FILE</small><br><b>???</b>';
+                        card.innerHTML = '📂<br><small>SCOUT FILE</small>';
                         track.appendChild(card);
                     }});
-
-                    // MERKEZLEME AYARI: Şeridi ilk kartın ortasından başlat
                     track.style.transform = "translateX(-" + (cardWidth / 2) + "px)";
-
-                    // ÇEVİRME
                     setTimeout(() => {{
-                        // winIdx kadar git ve her zaman tam ortada dur
-                        const finalMove = (winIdx * cardWidth) + (cardWidth / 2);
+                        const finalMove = ({winner_index} * cardWidth) + (cardWidth / 2);
                         track.style.transform = "translateX(-" + finalMove + "px)";
-                        
                         setTimeout(() => {{
-                            const winCard = document.getElementById('card-' + winIdx);
-                            const p = players[winIdx];
+                            const winCard = document.getElementById('card-' + {winner_index});
+                            const p = players[{winner_index}];
                             winCard.classList.add('is-winner');
-                            winCard.innerHTML = `
-                                <small style="color:#8b949e; font-size:10px;">${{p.kulup}}</small><br>
-                                <b style="font-size:14px; margin:5px 0;">${{p.oyuncu_adi}}</b><br>
-                                <div style="background:#238636; padding:2px 8px; border-radius:4px; font-size:11px;">PA: ${{p.pa}}</div>
-                            `;
+                            winCard.innerHTML = `<small>${{p.kulup}}</small><br><b>${{p.oyuncu_adi}}</b><br><div style="background:#238636;padding:2px 8px;border-radius:4px;font-size:11px;">PA: ${{p.pa}}</div>`;
                         }}, 5000);
                     }}, 150);
                 }})();
             </script>
             """
             st.components.v1.html(roulette_html, height=270)
+            st.rerun() # Teknik detay kutusunu tetiklemek için
+
+        # --- TEKNİK DETAY VE FAVORİLEME ALANI ---
+        if st.session_state.rulet_kazanan:
+            p = st.session_state.rulet_kazanan
+            st.markdown("---")
             
-            with st.expander("📝 Teknik Detay Dosyası"):
-                st.write(f"**Oyuncu:** {winner['oyuncu_adi']} | **PA:** {winner['pa']}")
-                st.write(f"**Kulüp:** {winner['kulup']} | **Mevki:** {winner['mevki']}")
+            # Kart Görünümü
+            col1, col2 = st.columns([1, 2])
+            
+            with col1:
+                # Modern Şeffaf Kart Tasarımı
+                st.markdown(f"""
+                <div style="background: rgba(255,255,255,0.05); border: 2px solid #238636; border-radius: 20px; padding: 20px; text-align: center; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                    <div style="font-size: 40px; margin-bottom: 10px;">👤</div>
+                    <h3 style="margin:0; color: white;">{p['oyuncu_adi']}</h3>
+                    <p style="color: #238636; font-weight: bold; margin: 5px 0;">{p['mevki']}</p>
+                    <div style="display: flex; justify-content: space-around; margin-top: 15px; border-top: 1px solid #30363d; padding-top: 10px;">
+                        <div><small style="display:block; color:#8b949e;">YAŞ</small><b>{p['yas']}</b></div>
+                        <div><small style="display:block; color:#8b949e;">PA</small><b style="color:#238636;">{p['pa']}</b></div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with col2:
+                st.subheader("🕵️ Scout Notları")
+                st.write(f"🏟️ **Kulüp:** {p['kulup']}")
+                st.write(f"💰 **Piyasa Değeri:** {p['deger']}")
+                st.write(f"🌍 **Uyruk:** {p.get('uyruk', 'Belirtilmemiş')}")
+                
+                # Favorilere Ekle Butonu
+                if st.button("⭐ FAVORİLERİME EKLE", use_container_width=True):
+                    try:
+                        fav_data = {
+                            "oyuncu_adi": p['oyuncu_adi'],
+                            "kulup": p['kulup'],
+                            "pa": p['pa'],
+                            "mevki": p['mevki']
+                        }
+                        # 'favoriler' tablosuna ekle (Tablo adını kendine göre kontrol et)
+                        supabase.table("favoriler").insert(fav_data).execute()
+                        st.success(f"{p['oyuncu_adi']} scout listene eklendi!")
+                    except Exception as e:
+                        st.error(f"Hata: {e}")
     else:
-        st.error("Veritabanı bağlantısı veya PA filtresi hatalı.")
+        st.error("135+ PA oyuncu havuzu yüklenemedi.")
 
 # --- 📋 İLK 11 (V127 - DİNAMİK DİZİLİŞ VE DİKEY SAHA) ---
 with tabs[2]:
