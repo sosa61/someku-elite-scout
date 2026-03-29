@@ -108,7 +108,7 @@ with tabs[0]:
         if c1.button("⬅️ Geri") and st.session_state.page > 0: st.session_state.page -= 1; st.rerun()
         if c2.button("İleri ➡️"): st.session_state.page += 1; st.rerun()
 
-# --- 2. RULET (V151 - LAZER NOKTASI HİZALAMA) ---
+# --- 2. RULET (V152 - KESİN SENKRONİZASYON) ---
 with tabs[1]:
     st.markdown('<h2 style="text-align:center;">🎰 SCOUT RULETİ</h2>', unsafe_allow_html=True)
     
@@ -117,90 +117,107 @@ with tabs[1]:
     import time
     import urllib.parse
 
+    # Hafıza Yönetimi
     if 'rulet_winner' not in st.session_state:
         st.session_state.rulet_winner = None
     if 'animasyon_tamam' not in st.session_state:
         st.session_state.animasyon_tamam = False
 
+    # Veritabanından Oyuncuları Çek
     r_offset = random.randint(0, 500)
     res = supabase.table("oyuncular").select("*").gte("pa", 135).range(r_offset, r_offset + 100).execute()
     
     if res.data:
         if st.button("🎰 RULETİ ÇEVİR (135+ PA MERMİSİ SÜR)", use_container_width=True):
             all_p = res.data
-            strip_players = [random.choice(all_p) for _ in range(45)]
-            winner_index = 35 # Hedef kart
-            st.session_state.rulet_winner = random.choice(all_p)
+            # Şeridi 40 kart yapalım
+            strip_players = [random.choice(all_p) for _ in range(40)]
+            
+            # KAZANAN Kartı 35. Sıraya Sabitliyoruz
+            winner_idx = 35
+            winner = random.choice(all_p)
+            strip_players[winner_idx] = winner
+            
+            # Hafızaya alalım
+            st.session_state.rulet_winner = winner
             st.session_state.animasyon_tamam = False
             
-            strip_players[winner_index] = st.session_state.rulet_winner
             players_json = json.dumps(strip_players)
             
             roulette_html = f"""
             <div id="roulette-root">
                 <style>
-                    #r-wrapper {{ 
-                        position: relative; width: 100%; height: 240px; 
-                        background: #0d1117; border: 3px solid #30363d; 
-                        border-radius: 15px; overflow: hidden; 
-                        display: flex; justify-content: center; align-items: center; 
+                    #r-wrapper {{
+                        position: relative; width: 100%; height: 240px;
+                        background: #0d1117; border: 3px solid #30363d;
+                        border-radius: 15px; overflow: hidden;
+                        display: flex; justify-content: center; align-items: center;
                     }}
-                    #r-pointer {{ 
-                        position: absolute; top: 0; left: 50%; transform: translateX(-50%); 
-                        width: 4px; height: 100%; background: #238636; z-index: 1000; 
-                        box-shadow: 0 0 25px #238636; 
+                    #r-pointer {{
+                        position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+                        width: 4px; height: 100%; background: #238636; z-index: 1000;
+                        box-shadow: 0 0 25px #238636;
                     }}
-                    #r-track {{ 
+                    #r-track {{
                         display: flex; position: absolute; left: 50%;
                         transition: transform 5s cubic-bezier(0.1, 0, 0.1, 1);
                         will-change: transform;
+                        transform: translateX(0px);
                     }}
-                    .r-card {{ 
-                        min-width: 160px !important; max-width: 160px !important; 
-                        height: 190px; background: #161b22; 
-                        border: 2px solid #30363d; margin: 0; border-radius: 12px; 
-                        display: flex; flex-direction: column; justify-content: center; 
+                    .r-card {{
+                        min-width: 160px !important; max-width: 160px !important;
+                        height: 190px; background: #161b22;
+                        border: 2px solid #30363d; margin: 0; border-radius: 12px;
+                        display: flex; flex-direction: column; justify-content: center;
                         align-items: center; text-align: center; color: transparent;
-                        background-image: repeating-linear-gradient(45deg, #1c2128 0, #1c2128 10px, #161b22 10px, #161b22 20px); 
+                        background-image: repeating-linear-gradient(45deg, #1c2128 0, #1c2128 10px, #161b22 10px, #161b22 20px);
                     }}
-                    .is-winner {{ 
-                        border-color: #238636 !important; color: white !important; 
-                        background: #0e2a14 !important; background-image: none !important; 
-                        box-shadow: inset 0 0 30px #238636; transform: scale(1.05); 
+                    .is-winner {{
+                        border-color: #238636 !important; color: white !important;
+                        background: #0e2a14 !important; background-image: none !important;
+                        box-shadow: inset 0 0 30px #238636; transform: scale(1.05);
                     }}
                 </style>
-                <div id="r-wrapper"><div id="r-pointer"></div><div id="r-track"></div></div>
+                <div id="r-wrapper">
+                    <div id="r-pointer"></div>
+                    <div id="r-track"></div>
+                </div>
             </div>
             <script>
                 (function() {{
                     const players = {players_json};
                     const track = document.getElementById('r-track');
                     const cardWidth = 160;
-                    const winIdx = {winner_index};
+                    const winIdx = {winner_idx};
 
                     track.innerHTML = "";
                     players.forEach((p, i) => {{
                         const card = document.createElement('div');
-                        card.className = 'r-card'; card.id = 'card-' + i;
-                        card.innerHTML = '📂<br><small>SCOUT FILE</small>';
+                        card.className = 'r-card';
+                        card.id = 'card-' + i;
+                        card.innerHTML = '📂<br><small>TOP SECRET</small>';
                         track.appendChild(card);
                     }});
 
-                    // Şeridi tam orta noktadan başlat (ilk kartın yarısı)
-                    track.style.transform = "translateX(-" + (cardWidth / 2) + "px)";
+                    // Şeridi tam orta noktadan başlat
+                    track.style.transform = "translateX(0px)";
 
                     setTimeout(() => {{
-                        // HESAPLAMA: Kaçıncı kart * Kart Genişliği + Yarım Kart (Tam merkeze oturması için)
-                        const finalMove = (winIdx * cardWidth) + (cardWidth / 2);
-                        track.style.transform = "translateX(-" + finalMove + "px)";
+                        // HESAPLAMA: (Kart Sayısı * Genişlik) + (Yarım Kart ki tam çizgiye gelsin)
+                        const targetX = (winIdx * cardWidth) + (cardWidth / 2);
+                        track.style.transform = "translateX(-" + targetX + "px)";
                         
                         setTimeout(() => {{
                             const winCard = document.getElementById('card-' + winIdx);
                             const p = players[winIdx];
                             winCard.classList.add('is-winner');
-                            winCard.innerHTML = `<small style="font-size:10px;">${{p.kulup || 'Serbest'}}</small><br><b style="font-size:12px;">${{p.oyuncu_adi}}</b><br><div style="background:#238636;padding:2px 8px;border-radius:4px;font-size:11px;">PA: ${{p.pa}}</div>`;
+                            winCard.innerHTML = `
+                                <small style="font-size:10px;">${{p.kulup || 'Serbest'}}</small><br>
+                                <b style="font-size:12px;">${{p.oyuncu_adi}}</b><br>
+                                <div style="background:#238636;padding:2px 8px;border-radius:4px;font-size:11px;">PA: ${{p.pa}}</div>
+                            `;
                         }}, 5000);
-                    }}, 150);
+                    }}, 100);
                 }})();
             </script>
             """
@@ -209,7 +226,7 @@ with tabs[1]:
             st.session_state.animasyon_tamam = True
             st.rerun()
 
-        # --- ALT PANEL SONUÇ ---
+        # --- ALT PANEL SONUÇ (SESSION STATE) ---
         if st.session_state.rulet_winner and st.session_state.animasyon_tamam:
             p = st.session_state.rulet_winner
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
@@ -239,7 +256,7 @@ with tabs[1]:
                         "oyuncu_adi": p['oyuncu_adi'], "kulup": p.get('kulup', 'Serbest'), 
                         "pa": p['pa'], "mevki": p['mevki'], "ca": p.get('ca', '-')
                     }).execute()
-                    st.success("✅ Favorilere mermi gibi eklendi!")
+                    st.success("✅ Favorilere eklendi!")
     else:
         st.error("Mermi havuzu yüklenemedi.")
 
