@@ -108,19 +108,20 @@ with tabs[0]:
         if c1.button("⬅️ Geri") and st.session_state.page > 0: st.session_state.page -= 1; st.rerun()
         if c2.button("İleri ➡️"): st.session_state.page += 1; st.rerun()
 
-# --- 2. RULET (V142 - SİNEMATİK KAYMA VE GECİKMELİ KART) ---
+# --- 2. RULET (V143 - ALT PANEL SONUÇ SİSTEMİ) ---
 with tabs[1]:
     st.markdown('<h2 style="text-align:center;">🎰 SCOUT RULETİ</h2>', unsafe_allow_html=True)
     
-    # 135 PA Üstü Havuzdan 100 Kişi Çek
     import random
+    import json
+    import time
+
+    # 135 PA Üstü Havuz
     r_offset = random.randint(0, 500)
     res = supabase.table("oyuncular").select("*").gte("pa", 135).range(r_offset, r_offset + 100).execute()
     
     if res.data:
-        # Sonuçları göstermek için bir boş alan (placeholder) yaratıyoruz
-        result_placeholder = st.empty()
-
+        # DÜZENLEME: Önce Rulet Butonu ve Alanı
         if st.button("🎰 RULETİ ÇEVİR (135+ PA MERMİSİ SÜR)", use_container_width=True):
             all_p = res.data
             strip_players = [random.choice(all_p) for _ in range(45)]
@@ -128,7 +129,6 @@ with tabs[1]:
             winner = random.choice(all_p)
             strip_players[winner_index] = winner
             
-            import json
             players_json = json.dumps(strip_players)
             
             # RULET ANİMASYONU (JS)
@@ -174,8 +174,7 @@ with tabs[1]:
                     track.innerHTML = "";
                     players.forEach((p, i) => {{
                         const card = document.createElement('div');
-                        card.className = 'r-card';
-                        card.id = 'card-' + i;
+                        card.className = 'r-card'; card.id = 'card-' + i;
                         card.innerHTML = '📂<br><small>SCOUT FILE</small>';
                         track.appendChild(card);
                     }});
@@ -195,36 +194,39 @@ with tabs[1]:
             """
             st.components.v1.html(roulette_html, height=270)
             
-            # --- DETAYLARI GÖSTERMEK İÇİN BEKLE VE BAS ---
-            import time
-            time.sleep(5.5) # Ruletin durmasını bekliyoruz
+            # --- SONUÇ KARTINI RULETİN ALTINA KOYUYORUZ ---
+            result_area = st.empty() # Kart tam burada belirecek
+            time.sleep(5.5) # Ruletin durma süresi
             
-            with result_placeholder.container():
+            with result_area.container():
                 st.markdown("---")
-                c1, c2 = st.columns([1, 2])
-                with c1:
+                col_left, col_right = st.columns([1, 2])
+                with col_left:
                     st.markdown(f"""
-                    <div style="background: rgba(255,255,255,0.05); border: 2px solid #238636; border-radius: 20px; padding: 20px; text-align: center; backdrop-filter: blur(10px);">
-                        <div style="font-size: 40px;">👤</div>
-                        <h3 style="margin:0;">{winner['oyuncu_adi']}</h3>
-                        <p style="color: #238636; font-weight: bold;">{winner['mevki']}</p>
+                    <div style="background: rgba(255,255,255,0.05); border: 2px solid #238636; border-radius: 20px; padding: 20px; text-align: center; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                        <div style="font-size: 40px; margin-bottom: 10px;">👤</div>
+                        <h3 style="margin:0; color: white;">{winner['oyuncu_adi']}</h3>
+                        <p style="color: #238636; font-weight: bold; margin: 5px 0;">{winner['mevki']}</p>
                         <div style="display: flex; justify-content: space-around; margin-top: 15px; border-top: 1px solid #30363d; padding-top: 10px;">
                             <div><small style="display:block; color:#8b949e;">YAŞ</small><b>{winner['yas']}</b></div>
                             <div><small style="display:block; color:#8b949e;">PA</small><b style="color:#238636;">{winner['pa']}</b></div>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
-                with c2:
+                with col_right:
                     st.subheader("🕵️ Scout Notları")
                     st.write(f"🏟️ **Kulüp:** {winner['kulup']}")
                     st.write(f"💰 **Değer:** {winner['deger']}")
+                    st.write(f"🌍 **Uyruk:** {winner.get('uyruk', 'Belirtilmemiş')}")
+                    
                     if st.button("⭐ FAVORİLERİME EKLE", use_container_width=True):
                         supabase.table("favoriler").insert({
-                            "oyuncu_adi": winner['oyuncu_adi'], "kulup": winner['kulup'], "pa": winner['pa']
+                            "oyuncu_adi": winner['oyuncu_adi'], "kulup": winner['kulup'], 
+                            "pa": winner['pa'], "mevki": winner['mevki']
                         }).execute()
-                        st.success("Listeye eklendi!")
+                        st.success(f"{winner['oyuncu_adi']} listeye mermi gibi eklendi!")
     else:
-        st.error("135+ PA oyuncu havuzu yüklenemedi.")
+        st.error("135+ PA oyuncu listesi yüklenemedi.")
 
 # --- 📋 İLK 11 (V127 - DİNAMİK DİZİLİŞ VE DİKEY SAHA) ---
 with tabs[2]:
