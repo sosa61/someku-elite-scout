@@ -108,60 +108,46 @@ with tabs[0]:
         if c1.button("⬅️ Geri") and st.session_state.page > 0: st.session_state.page -= 1; st.rerun()
         if c2.button("İleri ➡️"): st.session_state.page += 1; st.rerun()
 
-# --- 2. RULET (V145 - TRANSFERMARKT ENTEGRASYONU) ---
+# --- 2. RULET (V146 - FAVORİ FİX VE STABİL HAFIZA) ---
 with tabs[1]:
     st.markdown('<h2 style="text-align:center;">🎰 SCOUT RULETİ</h2>', unsafe_allow_html=True)
     
     import random
     import json
     import time
-    import urllib.parse # İsimleri URL'ye uygun hale getirmek için
+    import urllib.parse
 
-    # 135 PA Üstü Havuz
+    # 1. Hafıza Yönetimi: Kazanan oyuncuyu session_state'de tutalım
+    if 'rulet_winner' not in st.session_state:
+        st.session_state.rulet_winner = None
+    if 'animasyon_tamam' not in st.session_state:
+        st.session_state.animasyon_tamam = False
+
+    # Veritabanı Havuzu
     r_offset = random.randint(0, 500)
     res = supabase.table("oyuncular").select("*").gte("pa", 135).range(r_offset, r_offset + 100).execute()
     
     if res.data:
+        # ÇEVİR BUTONU
         if st.button("🎰 RULETİ ÇEVİR (135+ PA MERMİSİ SÜR)", use_container_width=True):
             all_p = res.data
             strip_players = [random.choice(all_p) for _ in range(45)]
             winner_index = 38
-            winner = random.choice(all_p)
-            strip_players[winner_index] = winner
+            st.session_state.rulet_winner = random.choice(all_p) # Kazananı hafızaya yaz
+            st.session_state.animasyon_tamam = False # Yeni animasyon başlıyor
             
+            strip_players[winner_index] = st.session_state.rulet_winner
             players_json = json.dumps(strip_players)
             
-            # --- RULET ANİMASYONU ---
+            # RULET ANİMASYONU (JS)
             roulette_html = f"""
             <div id="roulette-root">
                 <style>
-                    #r-wrapper {{
-                        position: relative; width: 100%; height: 240px;
-                        background: #0d1117; border: 3px solid #30363d;
-                        border-radius: 15px; overflow: hidden; 
-                        display: flex; justify-content: center; align-items: center;
-                    }}
-                    #r-pointer {{
-                        position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-                        width: 4px; height: 100%; background: #238636; z-index: 1000; box-shadow: 0 0 25px #238636;
-                    }}
-                    #r-track {{
-                        display: flex; position: absolute; left: 50%;
-                        transition: transform 5s cubic-bezier(0.1, 0, 0.1, 1);
-                    }}
-                    .r-card {{
-                        min-width: 160px !important; max-width: 160px !important; 
-                        height: 190px; background: #161b22;
-                        border: 2px solid #30363d; margin: 0; border-radius: 12px;
-                        display: flex; flex-direction: column; justify-content: center;
-                        align-items: center; text-align: center; color: transparent;
-                        background-image: repeating-linear-gradient(45deg, #1c2128 0, #1c2128 10px, #161b22 10px, #161b22 20px);
-                    }}
-                    .is-winner {{ 
-                        border-color: #238636 !important; color: white !important; 
-                        background: #0e2a14 !important; background-image: none !important;
-                        box-shadow: inset 0 0 30px #238636; transform: scale(1.08);
-                    }}
+                    #r-wrapper {{ position: relative; width: 100%; height: 240px; background: #0d1117; border: 3px solid #30363d; border-radius: 15px; overflow: hidden; display: flex; justify-content: center; align-items: center; }}
+                    #r-pointer {{ position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 4px; height: 100%; background: #238636; z-index: 1000; box-shadow: 0 0 25px #238636; }}
+                    #r-track {{ display: flex; position: absolute; left: 50%; transition: transform 5s cubic-bezier(0.1, 0, 0.1, 1); }}
+                    .r-card {{ min-width: 160px !important; max-width: 160px !important; height: 190px; background: #161b22; border: 2px solid #30363d; margin: 0; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: transparent; background-image: repeating-linear-gradient(45deg, #1c2128 0, #1c2128 10px, #161b22 10px, #161b22 20px); }}
+                    .is-winner {{ border-color: #238636 !important; color: white !important; background: #0e2a14 !important; background-image: none !important; box-shadow: inset 0 0 30px #238636; transform: scale(1.08); }}
                 </style>
                 <div id="r-wrapper"><div id="r-pointer"></div><div id="r-track"></div></div>
             </div>
@@ -192,55 +178,54 @@ with tabs[1]:
             </script>
             """
             st.components.v1.html(roulette_html, height=270)
-            
-            # --- ALT PANEL SONUÇ ---
-            result_area = st.empty()
-            time.sleep(5.5) 
-            
-            with result_area.container():
-                st.markdown("---")
-                
-                # Transfermarkt Linki Oluşturma
-                tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(winner['oyuncu_adi'])}"
+            time.sleep(5.5) # Bekle
+            st.session_state.animasyon_tamam = True # Animasyon bitti bilgisi
+            st.rerun() # Detay panelini kalıcı göstermek için sayfayı bir kez yenile
 
-                col_left, col_right = st.columns([1, 2])
-                with col_left:
-                    st.markdown(f"""
-                    <div style="background: rgba(255,255,255,0.05); border: 2px solid #238636; border-radius: 20px; padding: 20px; text-align: center; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-                        <div style="font-size: 40px; margin-bottom: 10px;">👤</div>
-                        <h3 style="margin:0; color: white;">{winner['oyuncu_adi']}</h3>
-                        <p style="color: #238636; font-weight: bold; margin: 5px 0;">{winner['mevki']}</p>
-                        <div style="display: flex; justify-content: space-around; margin-top: 15px; border-top: 1px solid #30363d; padding-top: 10px;">
-                            <div><small style="display:block; color:#8b949e;">YAŞ</small><b>{winner['yas']}</b></div>
-                            <div><small style="display:block; color:#8b949e;">CA</small><b style="color:#58a6ff;">{winner.get('ca', '-')}</b></div>
-                            <div><small style="display:block; color:#8b949e;">PA</small><b style="color:#238636;">{winner['pa']}</b></div>
-                        </div>
-                        <a href="{tm_url}" target="_blank" style="text-decoration: none;">
-                            <div style="background: #1a3151; color: white; padding: 8px; border-radius: 10px; margin-top: 15px; font-size: 12px; font-weight: bold;">
-                                🌐 Transfermarkt Profili
-                            </div>
-                        </a>
+        # --- SONUÇ PANELİ (SESSION STATE KONTROLLÜ) ---
+        if st.session_state.rulet_winner and st.session_state.animasyon_tamam:
+            winner = st.session_state.rulet_winner
+            tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(winner['oyuncu_adi'])}"
+            
+            st.markdown("---")
+            col_left, col_right = st.columns([1, 2])
+            
+            with col_left:
+                st.markdown(f"""
+                <div style="background: rgba(255,255,255,0.05); border: 2px solid #238636; border-radius: 20px; padding: 20px; text-align: center; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                    <div style="font-size: 40px; margin-bottom: 10px;">👤</div>
+                    <h3 style="margin:0; color: white;">{winner['oyuncu_adi']}</h3>
+                    <p style="color: #238636; font-weight: bold; margin: 5px 0;">{winner['mevki']}</p>
+                    <div style="display: flex; justify-content: space-around; margin-top: 15px; border-top: 1px solid #30363d; padding-top: 10px;">
+                        <div><small style="display:block; color:#8b949e;">YAŞ</small><b>{winner['yas']}</b></div>
+                        <div><small style="display:block; color:#8b949e;">CA</small><b style="color:#58a6ff;">{winner.get('ca', '-')}</b></div>
+                        <div><small style="display:block; color:#8b949e;">PA</small><b style="color:#238636;">{winner['pa']}</b></div>
                     </div>
-                    """, unsafe_allow_html=True)
+                    <a href="{tm_url}" target="_blank" style="text-decoration: none;">
+                        <div style="background: #1a3151; color: white; padding: 8px; border-radius: 10px; margin-top: 15px; font-size: 12px; font-weight: bold;">🌐 Transfermarkt</div>
+                    </a>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col_right:
+                st.subheader("🕵️ Scout Raporu")
+                st.write(f"🌍 **Ülke:** {winner.get('ulke', 'Bilinmiyor')}")
+                st.write(f"💰 **Değer:** {winner.get('deger', 'N/A')}")
                 
-                with col_right:
-                    st.subheader("🕵️ Scout Raporu")
-                    st.write(f"🌍 **Ülke:** {winner.get('ulke', 'Bilinmiyor')}")
-                    st.write(f"💰 **Değer:** {winner.get('deger', 'N/A')}")
-                    
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        if st.button("⭐ FAVORİLERİME EKLE", use_container_width=True):
-                            supabase.table("favoriler").insert({
-                                "oyuncu_adi": winner['oyuncu_adi'], "kulup": winner.get('kulup', 'Serbest'), 
-                                "pa": winner['pa'], "mevki": winner['mevki']
-                            }).execute()
-                            st.success("Listeye eklendi!")
-                    with c2:
-                        # Buton görünümlü Transfermarkt linki
-                        st.markdown(f'<a href="{tm_url}" target="_blank" style="text-decoration:none;"><button style="width:100%; height:38px; background-color:#1a3151; color:white; border:none; border-radius:4px; cursor:pointer;">🔗 TM DETAY</button></a>', unsafe_allow_html=True)
+                # FAVORİLEME BUTONU (Artık kaybolmaz)
+                if st.button("⭐ FAVORİLERİME EKLE", use_container_width=True):
+                    try:
+                        supabase.table("favoriler").insert({
+                            "oyuncu_adi": winner['oyuncu_adi'], 
+                            "kulup": winner.get('kulup', 'Serbest'), 
+                            "pa": winner['pa'], 
+                            "mevki": winner['mevki']
+                        }).execute()
+                        st.success(f"✅ {winner['oyuncu_adi']} başarıyla eklendi!")
+                    except Exception as e:
+                        st.error(f"Hata oluştu: {e}")
     else:
-        st.error("Veritabanı bağlantısı kurulamadı.")
+        st.error("Veritabanı bağlantısı hatası.")
 
 # --- 📋 İLK 11 (V127 - DİNAMİK DİZİLİŞ VE DİKEY SAHA) ---
 with tabs[2]:
