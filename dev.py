@@ -108,7 +108,7 @@ with tabs[0]:
         if c1.button("⬅️ Geri") and st.session_state.page > 0: st.session_state.page -= 1; st.rerun()
         if c2.button("İleri ➡️"): st.session_state.page += 1; st.rerun()
 
-# --- 2. RULET (V156 - HATASIZ VE STABİL SLOT) ---
+# --- 2. RULET (V157 - CA DENGESİ & TM ENTEGRASYONU) ---
 with tabs[1]:
     st.markdown('<h2 style="text-align:center;">🎰 SCOUT RULETİ</h2>', unsafe_allow_html=True)
     
@@ -117,115 +117,111 @@ with tabs[1]:
     import time
     import urllib.parse
 
-    # Session State Hafızası
     if 'rulet_winner' not in st.session_state:
         st.session_state.rulet_winner = None
     if 'animasyon_tamam' not in st.session_state:
         st.session_state.animasyon_tamam = False
 
-    # VERİ ÇEKME (HATA KONTROLLÜ)
+    # --- SCOUT FİLTRESİ (CA: 120-155 / PA: 135+) ---
     try:
-        # Offset değerini çok yüksek tutmamak hatayı engeller
-        r_offset = random.randint(0, 300) 
-        res = supabase.table("oyuncular").select("*").gte("pa", 135).range(r_offset, r_offset + 50).execute()
+        r_offset = random.randint(0, 200) 
+        # CA'sı çok uçuk olmayan ama potansiyeli yüksek oyuncuları çekiyoruz
+        res = supabase.table("oyuncular").select("*")\
+            .gte("pa", 135)\
+            .gte("ca", 120)\
+            .lte("ca", 155)\
+            .range(r_offset, r_offset + 40).execute()
         player_pool = res.data if res.data else []
-    except Exception as e:
-        st.error("Veritabanı bağlantısında bir sorun oluştu. Lütfen sayfayı yenileyin.")
+    except:
         player_pool = []
 
     if player_pool:
-        if st.button("🎰 RULETİ ÇEVİR (135+ PA MERMİSİ SÜR)", use_container_width=True):
+        if st.button("🎰 RULETİ ÇEVİR (POTANSİYELLİ MERMİ ARA)", use_container_width=True):
             strip_players = [random.choice(player_pool) for _ in range(30)]
             winner = random.choice(player_pool)
-            
             st.session_state.rulet_winner = winner
             st.session_state.animasyon_tamam = False
-            
-            # Kazananı 25. sıraya koyuyoruz
             strip_players[25] = winner
             players_json = json.dumps(strip_players)
             
-            # --- SLOT ANİMASYONU ---
+            # SLOT ANİMASYONU
             roulette_html = f"""
-            <div id="slot-container" style="position:relative; width:100%; height:180px; background:#0d1117; border:3px solid #30363d; border-radius:15px; overflow:hidden; display:flex; justify-content:center; align-items:center;">
+            <div id="slot-container" style="position:relative; width:100%; height:160px; background:#0d1117; border:3px solid #30363d; border-radius:15px; overflow:hidden; display:flex; justify-content:center; align-items:center;">
                 <div style="position:absolute; width:100%; height:60px; border-top:2px solid #238636; border-bottom:2px solid #238636; background:rgba(35, 134, 54, 0.1); z-index:10; pointer-events:none;"></div>
-                
                 <div id="slot-track" style="display:flex; flex-direction:column; position:absolute; top:0; transition: top 4s cubic-bezier(0.1, 0, 0.1, 1); width:100%;"></div>
             </div>
-
             <script>
                 (function() {{
                     const players = {players_json};
                     const track = document.getElementById('slot-track');
-                    const itemHeight = 60; // Sabit yükseklik
-                    const containerHeight = 180;
-                    const winIdx = 25;
-
+                    const itemH = 60; const contH = 160; const winI = 25;
                     track.innerHTML = players.map((p, i) => `
-                        <div id="slot-item-${{i}}" style="height:${{itemHeight}}px; width:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; transition: opacity 0.5s;">
-                            <small style="color:#8b949e; font-size:10px; overflow:hidden; white-space:nowrap;">${{p.kulup || 'Searching...'}}</small>
-                            <b style="color:white; font-size:13px; text-align:center;">${{p.oyuncu_adi}}</b>
+                        <div id="si-${{i}}" style="height:${{itemH}}px; width:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; transition: opacity 0.5s;">
+                            <small style="color:#8b949e; font-size:10px;">${{p.kulup || 'Scout Agent'}}</small>
+                            <b style="color:white; font-size:13px;">${{p.oyuncu_adi}}</b>
                         </div>
                     `).join('');
-
                     setTimeout(() => {{
-                        // FORMÜL: (Hangi Kart * Kart Boyu) - (Konteynırın Yarısı - Kartın Yarısı)
-                        const finalY = (winIdx * itemHeight) - (containerHeight / 2 - itemHeight / 2);
+                        const finalY = (winI * itemH) - (contH / 2 - itemH / 2);
                         track.style.top = "-" + finalY + "px";
-                        
-                        // Animasyon bitince diğerlerini temizle
                         setTimeout(() => {{
-                            players.forEach((_, i) => {{
-                                const el = document.getElementById('slot-item-' + i);
-                                if(i !== winIdx) el.style.opacity = "0";
-                            }});
+                            players.forEach((_, i) => {{ if(i !== winI) document.getElementById('si-'+i).style.opacity="0"; }});
                         }}, 4000);
                     }}, 100);
                 }})();
             </script>
             """
-            st.components.v1.html(roulette_html, height=200)
+            st.components.v1.html(roulette_html, height=180)
             time.sleep(4.5)
             st.session_state.animasyon_tamam = True
             st.rerun()
 
-        # --- SONUÇ PANELİ ---
+        # --- GÜNCELLENMİŞ OYUNCU KARTI VE DETAYLAR ---
         if st.session_state.rulet_winner and st.session_state.animasyon_tamam:
             p = st.session_state.rulet_winner
+            tm_query = urllib.parse.quote(p['oyuncu_adi'])
+            tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={tm_query}"
             
-            # Değer Filtreleri
+            # Değer Filtresi
             raw_val = str(p.get('deger', ''))
-            if "300.000.000" in raw_val: display_val = "❌ Satılık Değil"
-            elif raw_val in ["0", "£0", ""]: display_val = "💎 Paha Biçilemez"
-            else: display_val = raw_val
+            display_val = "❌ Satılık Değil" if "300.000.000" in raw_val else (raw_val if raw_val not in ["0","£0",""] else "💎 Paha Biçilemez")
 
             st.markdown("---")
-            # Mobil uyumlu tek sütun veya dar kolon
-            st.markdown(f"""
-            <div style="background: rgba(255,255,255,0.05); border: 2px solid #238636; border-radius: 20px; padding: 20px; text-align:center; margin-bottom:20px;">
-                <h3 style="margin:0;">{p['oyuncu_adi']}</h3>
-                <p style="color:#238636; font-weight:bold;">{p['mevki']}</p>
-                <div style="display:flex; justify-content:space-around; margin-top:15px; border-top:1px solid #30363d; padding-top:10px;">
-                    <div><small style="display:block; color:#8b949e;">YAŞ</small><b>{p['yas']}</b></div>
-                    <div><small style="display:block; color:#8b949e;">CA</small><b style="color:#58a6ff;">{p.get('ca', '-')}</b></div>
-                    <div><small style="display:block; color:#8b949e;">PA</small><b style="color:#238636;">{p['pa']}</b></div>
+            
+            # SOL: GÖRSEL KART / SAĞ: SCOUT NOTLARI
+            col_k, col_n = st.columns([1, 1])
+            
+            with col_k:
+                st.markdown(f"""
+                <div style="background: rgba(255,255,255,0.03); border: 2px solid #238636; border-radius: 20px; padding: 15px; text-align:center; backdrop-filter: blur(5px);">
+                    <div style="font-size:35px; margin-bottom:5px;">👤</div>
+                    <h3 style="margin:0; font-size:18px;">{p['oyuncu_adi']}</h3>
+                    <p style="color:#238636; font-weight:bold; font-size:12px; margin-bottom:10px;">{p['mevki']}</p>
+                    <div style="display:flex; justify-content:space-around; border-top:1px solid #30363d; padding-top:10px;">
+                        <div><small style="display:block; color:#8b949e; font-size:10px;">YAŞ</small><b>{p['yas']}</b></div>
+                        <div><small style="display:block; color:#8b949e; font-size:10px;">CA</small><b style="color:#58a6ff;">{p.get('ca', '-')}</b></div>
+                        <div><small style="display:block; color:#8b949e; font-size:10px;">PA</small><b style="color:#238636;">{p['pa']}</b></div>
+                    </div>
+                    <a href="{tm_url}" target="_blank" style="text-decoration:none;">
+                        <div style="background:#1a3151; color:white; border-radius:8px; padding:8px; margin-top:15px; font-size:11px; font-weight:bold;">🌐 TRANSFERMARKT PROFİLİ</div>
+                    </a>
                 </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.subheader("🕵️ Scout Raporu")
-            st.write(f"🌍 **Ülke:** {p.get('ulke', 'Bilinmiyor')}")
-            st.write(f"💰 **Değer:** {display_val}")
-            st.write(f"🏟️ **Kulüp:** {p.get('kulup', 'Serbest')}")
-            
-            if st.button("⭐ FAVORİLERİME EKLE", use_container_width=True):
-                supabase.table("favoriler").insert({
-                    "oyuncu_adi": p['oyuncu_adi'], "kulup": p.get('kulup', 'Serbest'), 
-                    "pa": p['pa'], "mevki": p['mevki'], "ca": p.get('ca', '-')
-                }).execute()
-                st.success("✅ Favorilere mermi gibi eklendi!")
+                """, unsafe_allow_html=True)
+
+            with col_n:
+                st.markdown(f"#### 🕵️ Scout Notları")
+                st.write(f"🌍 **Ülke:** {p.get('ulke', 'Bilinmiyor')}")
+                st.write(f"🏟️ **Kulüp:** {p.get('kulup', 'Serbest')}")
+                st.write(f"💰 **Değer:** {display_val}")
+                
+                if st.button("⭐ FAVORİLERİME EKLE", use_container_width=True):
+                    supabase.table("favoriler").insert({
+                        "oyuncu_adi": p['oyuncu_adi'], "kulup": p.get('kulup', 'Serbest'), 
+                        "pa": p['pa'], "mevki": p['mevki'], "ca": p.get('ca', '-')
+                    }).execute()
+                    st.success("✅ Listeye eklendi!")
     else:
-        st.warning("Şu an scout havuzuna ulaşılamıyor. Lütfen butona tekrar basmayı deneyin.")
+        st.warning("Kriterlere uygun mermi bulunamadı. Filtreyi genişletmek için tekrar deneyin.")
 
 # --- 📋 İLK 11 (V127 - DİNAMİK DİZİLİŞ VE DİKEY SAHA) ---
 with tabs[2]:
