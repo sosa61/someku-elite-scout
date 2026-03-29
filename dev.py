@@ -316,12 +316,39 @@ with tabs[2]:
     kadro_txt = f"Diziliş: {tactic}\nKadro: {gk}, {lb}, {cb1}, {cb2}, {rb}..."
     st.download_button("📩 KADRO LİSTESİNİ İNDİR", kadro_txt, file_name="kadro.txt")
 
-# --- 4. FAVORİLER ---
+# --- 4. FAVORİLER (V149 - GÜNCEL TABLO UYUMLU) ---
 with tabs[3]:
-    st.subheader("⭐ Kalıcı Favorilerin")
-    for f in get_user_favs(st.session_state.user):
-        c1, c2 = st.columns([5, 1]); c1.markdown(f'<div class="player-card fav-active" style="padding:10px;"><b>{f}</b></div>', unsafe_allow_html=True)
-        if c2.button("🗑️", key=f"del_{f}"): supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", f).execute(); st.rerun()
+    st.markdown('<h2 style="text-align:center;">⭐ KALICI FAVORİLERİN</h2>', unsafe_allow_html=True)
+    
+    # Yeni tablo yapısına göre verileri çekiyoruz
+    res = supabase.table("favoriler").select("*").order("created_at", desc=True).execute()
+    
+    if res.data:
+        # Favorileri şık kartlar halinde gösterelim
+        for p in res.data:
+            with st.container():
+                st.markdown(f"""
+                <div style="background: rgba(255,255,255,0.05); border-left: 5px solid #238636; border-radius: 10px; padding: 15px; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 style="margin:0; color: white;">{p['oyuncu_adi']}</h4>
+                            <small style="color: #8b949e;">🏟️ {p.get('kulup', 'Serbest')} | 📍 {p.get('mevki', '-')}</small>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="background: #238636; color: white; padding: 2px 8px; border-radius: 5px; font-size: 12px;">PA: {p['pa']}</span>
+                            <span style="background: #1a3151; color: white; padding: 2px 8px; border-radius: 5px; font-size: 12px; margin-left: 5px;">CA: {p.get('ca', '-')}</span>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Silme Butonu (Her oyuncunun altına küçük bir buton)
+                if st.button(f"🗑️ Sil: {p['oyuncu_adi']}", key=f"del_{p['id']}"):
+                    supabase.table("favoriler").delete().eq("id", p['id']).execute()
+                    st.success("Mermi listeden çıkarıldı!")
+                    st.rerun()
+    else:
+        st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
 
 # --- 5. BARROW AI (V122 - BİN VE MİLYON BÜTÇE ZEKASI) ---
 with tabs[4]:
