@@ -162,34 +162,6 @@ with tabs[5]: # Tab numarasını kendi sımana göre ayarla (Örn: tabs[5])
 
     st.markdown("---")
 
-    # MESAJLARI ÇEKME VE GÖSTERME
-    try:
-        # Sadece son 50 mesajı çekiyoruz (Hız için kritik!)
-        mesajlar_res = supabase.table("sohbet").select("*").order("created_at", desc=True).limit(50).execute()
-        
-        if mesajlar_res.data:
-            # Mesaj kutusu için scrollable alan (CSS ile)
-            chat_html = '<div style="background:#0d1117; border:1px solid #30363d; border-radius:10px; padding:15px; max-height:400px; overflow-y:auto; display:flex; flex-direction:column-reverse;">'
-            
-            for m in mesajlar_res.data:
-                # Kendi mesajların farklı renk, başkasınınki farklı renk olabilir
-                is_me = m['username'] == st.session_state.user
-                color = "#58a6ff" if is_me else "#238636"
-                name_style = f"color:{color}; font-weight:bold; font-size:13px;"
-                
-                chat_html += f'''
-                <div style="margin-bottom:10px; padding:8px; background:#161b22; border-radius:8px; border-left:3px solid {color};">
-                    <span style="{name_style}">{m['username']}</span> 
-                    <span style="color:#8b949e; font-size:10px;">({m['created_at'][11:16]})</span><br>
-                    <span style="color:white; font-size:14px;">{m['mesaj']}</span>
-                </div>
-                '''
-            chat_html += '</div>'
-            st.markdown(chat_html, unsafe_allow_html=True)
-        else:
-            st.info("Henüz mesaj yok. İlk mermiyi sen sür!")
-    except:
-        st.warning("Sohbet yüklenirken bir hata oluştu. Tabloyu kontrol et!")
 
 # --- 5. BARROW AI (V122 - BİN VE MİLYON BÜTÇE ZEKASI) ---
 with tabs[4]:
