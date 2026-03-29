@@ -1,4 +1,4 @@
-pandas
 streamlit
-altair
 supabase
+pandas
+altair<5
