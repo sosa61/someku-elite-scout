@@ -108,21 +108,27 @@ with tabs[0]:
         if c1.button("⬅️ Geri") and st.session_state.page > 0: st.session_state.page -= 1; st.rerun()
         if c2.button("İleri ➡️"): st.session_state.page += 1; st.rerun()
 
-# --- 2. RULET (V139 - KESİN MERKEZLEME FİX) ---
+# --- 2. RULET (V140 - SINIRSIZ HAVUZ VE KESİN İSABET) ---
 with tabs[1]:
     st.markdown('<h2 style="text-align:center;">🎰 SCOUT RULETİ</h2>', unsafe_allow_html=True)
     
-    res = supabase.table("oyuncular").select("*").gte("pa", 135).limit(100).execute()
+    # 1. TÜM VERİTABANINDAN RASTGELE SEÇİM YAPMAK İÇİN OFFSET HESAPLA
+    # 135 PA üstü oyuncu sayısını tahmini 10.000 varsayalım (veya dinamik alabilirsin)
+    # Her basışta farklı bir 100'lük pakete gitmek için:
+    import random
+    r_offset = random.randint(0, 1000) # Veritabanının derinliğine dalar
+    
+    res = supabase.table("oyuncular").select("*").gte("pa", 135).range(r_offset, r_offset + 100).execute()
     
     if res.data:
-        import random
         import json
         
-        if st.button("🎰 RULETİ ÇEVİR (135+ PA MERMİSİ SÜR)", use_container_width=True):
+        if st.button("🎰 RULETİ ÇEVİR (470K HAVUZDAN MERMİ SÜR)", use_container_width=True):
             all_p = res.data
-            strip_players = [random.choice(all_p) for _ in range(40)]
+            # 45 kartlık uzun bir şerit oluştur
+            strip_players = [random.choice(all_p) for _ in range(45)]
             
-            winner_index = 35 # Sabit hedef
+            winner_index = 38 # Kazanan kartın şeritteki sırası
             winner = random.choice(all_p)
             strip_players[winner_index] = winner
             players_json = json.dumps(strip_players)
@@ -134,7 +140,6 @@ with tabs[1]:
                         position: relative; width: 100%; height: 240px;
                         background: #0d1117; border: 3px solid #30363d;
                         border-radius: 15px; overflow: hidden; 
-                        /* Çizgiyi tam ortaya sabitlemek için flex kullanıyoruz */
                         display: flex; justify-content: center; align-items: center;
                     }}
                     #r-pointer {{
@@ -143,8 +148,7 @@ with tabs[1]:
                         box-shadow: 0 0 25px #238636;
                     }}
                     #r-track {{
-                        display: flex; position: absolute; 
-                        /* Başlangıç pozisyonunu JS ile ayarlayacağız */
+                        display: flex; position: absolute; left: 50%;
                         transition: transform 5s cubic-bezier(0.1, 0, 0.1, 1);
                         will-change: transform;
                     }}
@@ -170,7 +174,7 @@ with tabs[1]:
 
                 <div id="r-wrapper">
                     <div id="r-pointer"></div>
-                    <div id="r-track" style="transform: translateX(0px);"></div>
+                    <div id="r-track"></div>
                 </div>
             </div>
 
@@ -181,27 +185,23 @@ with tabs[1]:
                     const cardWidth = 160; 
                     const winIdx = {winner_index};
 
-                    // Şeridi inşa et
                     track.innerHTML = "";
                     players.forEach((p, i) => {{
                         const card = document.createElement('div');
                         card.className = 'r-card';
                         card.id = 'card-' + i;
-                        card.innerHTML = '<div class="folder-icon">📂</div><small>TOP SECRET</small><br><b>???</b>';
+                        card.innerHTML = '<div class="folder-icon">📂</div><small>SCOUT FILE</small><br><b>???</b>';
                         track.appendChild(card);
                     }});
 
-                    // MERKEZLEME MANTIĞI:
-                    // Başlangıçta 0. kartın ortasını pointer'a hizala
-                    const initialOffset = (cardWidth / 2);
-                    track.style.left = "50%";
-                    track.style.transform = "translateX(-" + initialOffset + "px)";
+                    // MERKEZLEME AYARI: Şeridi ilk kartın ortasından başlat
+                    track.style.transform = "translateX(-" + (cardWidth / 2) + "px)";
 
-                    // Çevirme işlemi
+                    // ÇEVİRME
                     setTimeout(() => {{
-                        // winIdx kadar kart git, başlangıçtaki yarım kartı da hesaba kat
-                        const moveX = (winIdx * cardWidth) + (cardWidth / 2);
-                        track.style.transform = "translateX(-" + moveX + "px)";
+                        // winIdx kadar git ve her zaman tam ortada dur
+                        const finalMove = (winIdx * cardWidth) + (cardWidth / 2);
+                        track.style.transform = "translateX(-" + finalMove + "px)";
                         
                         setTimeout(() => {{
                             const winCard = document.getElementById('card-' + winIdx);
@@ -213,7 +213,7 @@ with tabs[1]:
                                 <div style="background:#238636; padding:2px 8px; border-radius:4px; font-size:11px;">PA: ${{p.pa}}</div>
                             `;
                         }}, 5000);
-                    }}, 100);
+                    }}, 150);
                 }})();
             </script>
             """
@@ -223,8 +223,7 @@ with tabs[1]:
                 st.write(f"**Oyuncu:** {winner['oyuncu_adi']} | **PA:** {winner['pa']}")
                 st.write(f"**Kulüp:** {winner['kulup']} | **Mevki:** {winner['mevki']}")
     else:
-        st.error("135+ PA oyuncu listesi yüklenemedi.")
-# Dosyanın en başına şunu ekle: import streamlit.components.v1 as components
+        st.error("Veritabanı bağlantısı veya PA filtresi hatalı.")
 
 # --- 📋 İLK 11 (V127 - DİNAMİK DİZİLİŞ VE DİKEY SAHA) ---
 with tabs[2]:
