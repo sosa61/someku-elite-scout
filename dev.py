@@ -223,41 +223,39 @@ with tabs[1]:
     else:
         st.warning("Kriterlere uygun mermi bulunamadı. Filtreyi genişletmek için tekrar deneyin.")
 
-# --- 3. İLK 11 (V162 - KAYDET VE RESİM OLARAK İNDİR) ---
+# --- 3. İLK 11 (V163 - PNG VE METİN ÇIKTISI) ---
 with tabs[2]:
-    st.markdown('<h2 style="text-align:center;">🏟️ PRO MANAGER - KADRO KUR</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 style="text-align:center;">🏟️ ELITE ARENA - KADRO KUR</h2>', unsafe_allow_html=True)
     
-    import json
-
-    # --- SADECE FAVORİLERİ ÇEK ---
+    # --- FAVORİLERİ ÇEK ---
     try:
         res_fav = supabase.table("favoriler").select("*").order("pa", desc=True).execute()
         f_n = [f"{p['oyuncu_adi']} ({p['pa']})" for p in res_fav.data] if res_fav.data else ["Henüz Favorin Yok"]
     except:
         f_n = ["Bağlantı Hatası"]
 
-    tactic = st.selectbox("🏟️ Diziliş:", ["4-4-2", "4-3-3"], key="tactic_sel")
+    tactic = st.selectbox("🏟️ Diziliş Seç:", ["4-4-2", "4-3-3"], key="tactic_sel")
     
     # --- OYUNCU SEÇİMLERİ ---
-    st.markdown('<div style="color:#58a6ff; font-weight:bold; margin-bottom:5px;">🛡️ DEFANS</div>', unsafe_allow_html=True)
+    st.markdown('<div style="color:#58a6ff; font-weight:bold; font-size:12px;">🛡️ DEFANS</div>', unsafe_allow_html=True)
     c1, c2, c3, c4, c5 = st.columns(5)
     gk = c1.selectbox("GK", f_n, key="sl_gk"); lb = c2.selectbox("LB", f_n, key="sl_lb")
     cb1 = c3.selectbox("CB1", f_n, key="sl_cb1"); cb2 = c4.selectbox("CB2", f_n, key="sl_cb2"); rb = c5.selectbox("RB", f_n, key="sl_rb")
 
-    st.markdown('<div style="color:#238636; font-weight:bold; margin-bottom:5px;">⚡ HÜCUM</div>', unsafe_allow_html=True)
+    st.markdown('<div style="color:#238636; font-weight:bold; font-size:12px;">⚡ HÜCUM</div>', unsafe_allow_html=True)
     if tactic == "4-4-2":
         m1, m2, m3, m4 = st.columns(4)
         lm = m1.selectbox("LM", f_n, key="sl_lm"); cm1 = m2.selectbox("CM1", f_n, key="sl_cm1")
         cm2 = m3.selectbox("CM2", f_n, key="sl_cm2"); rm = m4.selectbox("RM", f_n, key="sl_rm")
         f1, f2 = st.columns(2)
         st1 = f1.selectbox("ST1", f_n, key="sl_st1"); st2 = f2.selectbox("ST2", f_n, key="sl_st2")
-        p_list = [gk, lb, cb1, cb2, rb, lm, cm1, cm2, rm, st1, st2]
+        kadro_txt = f"Diziliş: 4-4-2\nGK: {gk}\nLB: {lb}\nCB: {cb1}\nCB: {cb2}\nRB: {rb}\nLM: {lm}\nCM: {cm1}\nCM: {cm2}\nRM: {rm}\nST: {st1}\nST: {st2}"
     else:
         m1, m2, m3 = st.columns(3)
         cm1 = m1.selectbox("LCM", f_n, key="sl_lcm"); cm2 = m2.selectbox("CM", f_n, key="sl_cmm"); cm3 = m3.selectbox("RCM", f_n, key="sl_rcm")
         f1, f2, f3 = st.columns(3)
         lw = f1.selectbox("LW", f_n, key="sl_lw"); st_p = f2.selectbox("ST", f_n, key="sl_st"); rw = f3.selectbox("RW", f_n, key="sl_rw")
-        p_list = [gk, lb, cb1, cb2, rb, cm1, cm2, cm3, lw, st_p, rw]
+        kadro_txt = f"Diziliş: 4-3-3\nGK: {gk}\nLB: {lb}\nCB: {cb1}\nCB: {cb2}\nRB: {rb}\nCM: {cm1}\nCM: {cm2}\nCM: {cm3}\nLW: {lw}\nST: {st_p}\nRW: {rw}"
 
     # --- GÖRSEL SAHA TASARIMI ---
     players_html = ""
@@ -293,18 +291,20 @@ with tabs[2]:
     # PNG İndirme Scripti ve Saha HTML
     saha_html = f"""
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <div id="capture" style="position:relative; background:#238636; background-image:linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px); background-size:40px 40px; border:4px solid #ffffff; border-radius:15px; width:360px; height:530px; margin:auto; overflow:hidden;">
+    <div id="capture" style="position:relative; background:#238636; border:3px solid #ffffff; border-radius:15px; width:360px; height:530px; margin:auto; overflow:hidden;">
         <div style="position:absolute; top:50%; left:0; width:100%; border-top:2px solid rgba(255,255,255,0.3);"></div>
         <div style="position:absolute; top:41%; left:30%; width:40%; height:18%; border:2px solid rgba(255,255,255,0.3); border-radius:50%;"></div>
         {players_html}
-        <div style="position:absolute; bottom:5px; right:10px; color:rgba(255,255,255,0.5); font-size:10px; font-weight:bold;">SOMEKU ELITE SCOUT</div>
+        <div style="position:absolute; bottom:5px; right:10px; color:rgba(255,255,255,0.4); font-size:9px; font-weight:bold;">SOMEKU ELITE SCOUT</div>
     </div>
-    <button onclick="downloadImage()" style="width:100%; margin-top:10px; padding:10px; background:#f2cc60; color:black; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">📸 KADROYU PNG OLARAK İNDİR</button>
+    <div style="display:flex; gap:10px; margin-top:15px;">
+        <button onclick="downloadImage()" style="flex:1; padding:10px; background:#238636; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">📸 RESİM (PNG) İNDİR</button>
+    </div>
     <script>
         function downloadImage() {{
             html2canvas(document.querySelector("#capture")).then(canvas => {{
                 let link = document.createElement('a');
-                link.download = 'mermi-kadro.png';
+                link.download = 'elite-kadro.png';
                 link.href = canvas.toDataURL();
                 link.click();
             }});
@@ -319,20 +319,14 @@ with tabs[2]:
     
     st.components.v1.html(saha_html, height=600)
 
-    # --- VERİTABANINA KAYDETME ---
-    if st.button("💾 KADROYU SİSTEME KAYDET", use_container_width=True):
-        try:
-            kadro_data = {{
-                "taktik": tactic,
-                "oyuncular": p_list
-            }}
-            supabase.table("kadrolar").insert({{
-                "taktik": tactic,
-                "oyuncular": kadro_data
-            }}).execute()
-            st.success("🎯 Kadro mermi gibi kaydedildi! Admin panelinden görebilirsin.")
-        except Exception as e:
-            st.error(f"Kayıt Hatası: {e}")
+    # --- METİN OLARAK İNDİR BUTONU ---
+    st.download_button(
+        label="📄 KADRO LİSTESİNİ (.TXT) İNDİR",
+        data=kadro_txt,
+        file_name="mermi-kadro-listesi.txt",
+        mime="text/plain",
+        use_container_width=True
+    )
 
 # --- 4. FAVORİLER (V149 - GÜNCEL TABLO UYUMLU) ---
 with tabs[3]:
