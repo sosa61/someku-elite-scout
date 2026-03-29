@@ -108,23 +108,107 @@ with tabs[0]:
         if c1.button("⬅️ Geri") and st.session_state.page > 0: st.session_state.page -= 1; st.rerun()
         if c2.button("İleri ➡️"): st.session_state.page += 1; st.rerun()
 
-# --- 2. RULET ---
+# --- 2. RULET (V131 - ANİMASYONLU SİSTEM) ---
 with tabs[1]:
-    if st.button("🎰 ÇEVİR!"):
-        l = supabase.table("oyuncular").select("*").gte("pa", 150).lte("yas", 21).limit(100).execute()
-        if l.data: st.session_state.roulette_player = random.choice(l.data); st.balloons()
-    if st.session_state.roulette_player:
-        p = st.session_state.roulette_player
-        is_f = p['oyuncu_adi'] in st.session_state.get('fav_list', [])
-        tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
-        st.markdown(f'''<div class="player-card {"fav-active" if is_f else ""}">
-            <span class="pa-badge">PA: {p["pa"]}</span><h2>🌟 {p["oyuncu_adi"]}</h2>
-            <p>{p["kulup"]} | {p["mevki"]} | Yaş: {p["yas"]} | 💰 {p.get("deger","-")}</p>
-            <a href="{tm_url}" target="_blank" class="tm-link">Transfermarkt ➔</a></div>''', unsafe_allow_html=True)
-        if st.button(f"{'⭐ Favoriden Çıkar' if is_f else '⭐ Favorilere Ekle'}", key="roul_fav_v114"):
-            if is_f: supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", p['oyuncu_adi']).execute(); st.session_state.fav_list.remove(p['oyuncu_adi'])
-            else: supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": p['oyuncu_adi']}).execute(); st.session_state.fav_list.append(p['oyuncu_adi'])
-            st.rerun()
+    st.markdown('<h2 style="text-align:center;">🎰 SCOUT RULETİ</h2>', unsafe_allow_html=True)
+    st.write("Butona bas ve şanslı merminin düşmesini bekle!")
+
+    # CSS ANİMASYONU: Kartların kayma efekti
+    st.markdown("""
+        <style>
+        @keyframes roulette-spin {
+            0% { transform: translateX(0); }
+            80% { transform: translateX(-1500px); }
+            100% { transform: translateX(-1450px); }
+        }
+        .roulette-container {
+            overflow: hidden;
+            width: 100%;
+            background: #0d1117;
+            border: 2px solid #30363d;
+            border-radius: 15px;
+            padding: 20px;
+            position: relative;
+            white-space: nowrap;
+        }
+        .roulette-track {
+            display: inline-block;
+            animation: roulette-spin 3s cubic-bezier(0.15, 0, 0.15, 1) forwards;
+        }
+        .rulet-card {
+            display: inline-block;
+            width: 150px;
+            height: 200px;
+            background: #161b22;
+            border: 2px solid #58a6ff;
+            border-radius: 10px;
+            margin-right: 15px;
+            text-align: center;
+            vertical-align: top;
+            padding-top: 60px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .winner-card {
+            border: 3px solid #f2cc60 !important;
+            box-shadow: 0 0 20px #f2cc60 !important;
+            transform: scale(1.1);
+        }
+        .pointer {
+            position: absolute;
+            top: 0; left: 50%;
+            width: 4px; height: 100%;
+            background: #f2cc60;
+            z-index: 10;
+            transform: translateX(-50%);
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    if st.button("🎰 RULETİ ÇEVİR", use_container_width=True):
+        # Veritabanından rastgele 20 oyuncu çekiyoruz (Görsellik için)
+        res = supabase.table("oyuncular").select("*").limit(20).execute()
+        if res.data:
+            import random
+            dummy_players = res.data
+            winner = random.choice(dummy_players) # Gerçek kazanan
+            
+            # Animasyonlu track oluşturma
+            track_html = '<div class="roulette-container"><div class="pointer"></div><div class="roulette-track">'
+            
+            # Önce 15 tane rastgele kart (kayma efekti için)
+            for i in range(15):
+                p = random.choice(dummy_players)
+                track_html += f'<div class="roulette-card"><p style="font-size:10px; color:#8b949e;">{p["kulup"]}</p><b style="font-size:12px;">{p["oyuncu_adi"]}</b></div>'
+            
+            # 16. Kart KAZANAN OYUNCU (Tam merkeze gelecek şekilde ayarladım)
+            track_html += f'<div class="roulette-card winner-card"><p style="color:#f2cc60; font-size:12px;">🎯 HEDEF</p><b>{winner["oyuncu_adi"]}</b><br><small>{winner["kulup"]}</small></div>'
+            
+            # Sonuna 4 tane daha kart ekle ki boşluk kalmasın
+            for i in range(4):
+                p = random.choice(dummy_players)
+                track_html += f'<div class="roulette-card"><p style="font-size:10px; color:#8b949e;">{p["kulup"]}</p><b>{p["oyuncu_adi"]}</b></div>'
+                
+            track_html += '</div></div>'
+            
+            st.markdown(track_html, unsafe_allow_html=True)
+            
+            # Kazananın detaylarını animasyon bitince (3 sn sonra) göster
+            import time
+            time.sleep(3)
+            
+            st.balloons()
+            st.success(f"🎯 Şanslı Mermi: **{winner['oyuncu_adi']}** ({winner['kulup']})")
+            
+            # Detaylı Kart
+            st.markdown(f"""
+                <div style="background:#161b22; padding:20px; border-radius:15px; border-left:5px solid #f2cc60; text-align:center;">
+                    <h3>{winner['oyuncu_adi']}</h3>
+                    <p>🏟️ {winner['kulup']} | 📍 {winner['mevki']} | 🎂 {winner['yas']} Yaş</p>
+                    <p>💎 PA: {winner['pa']} | 💰 Değer: {winner['deger']}</p>
+                </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.error("Veritabanı boş, mermi bulunamadı!")
 
 # Dosyanın en başına şunu ekle: import streamlit.components.v1 as components
 
