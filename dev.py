@@ -140,40 +140,48 @@ with tabs[3]:
         c1, c2 = st.columns([5, 1]); c1.markdown(f'<div class="player-card fav-active" style="padding:10px;"><b>{f}</b></div>', unsafe_allow_html=True)
         if c2.button("🗑️", key=f"del_{f}"): supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", f).execute(); st.rerun()
             
-# --- 5. BARROW AI (V117 - KESİN YAŞ VE BÜTÇE KONTROLÜ) ---
+# --- 5. BARROW AI (V118 - YAŞ ARALIĞI VE BÜTÇE ZEKASI) ---
 with tabs[4]:
     st.markdown('<div style="text-align:center;"><h1 style="color:#ef4444;">🤵 BARROW AI</h1></div>', unsafe_allow_html=True)
-    b_in = st.text_input("Barrow'a emir ver (Örn: '20 yaş defans', '5m forvet', '18 yaş 2m orta saha'):", key="b_in_v117")
+    b_in = st.text_input("Barrow'a emir ver (Örn: '16-19 yaş arası defans', '17 yaş 5m forvet'):", key="b_in_v118")
     
     if st.button("BARROWA SOR"):
         if b_in:
             st.markdown(f'<div class="barrow-box"><p class="barrow-text">{random.choice(BARROW_INSULTS)}</p></div>', unsafe_allow_html=True)
             
-            # --- NUMERİK AYIKLAMA MANTIĞI ---
+            # --- GELİŞMİŞ NUMERİK AYIKLAMA ---
             nums = re.findall(r'\d+', b_in)
-            req_age = None
+            req_min_age = None
+            req_max_age = None
             req_price = None
             
-            # Eğer cümlede 'yaş' kelimesi geçiyorsa yanındaki sayıyı yaş al
-            age_match = re.search(r'(\d+)\s*yaş', b_in.lower())
-            if age_match:
-                req_age = int(age_match.group(1))
+            # Yaş aralığı kontrolü (Örn: 16-19 veya 16 ile 19)
+            range_match = re.search(r'(\d+)\s*(?:-|ve|ile|ila|arasında|arası)\s*(\d+)\s*yaş', b_in.lower())
+            single_age_match = re.search(r'(\d+)\s*yaş', b_in.lower())
             
-            # Eğer cümlede 'm' veya 'milyon' veya 'euro' geçiyorsa yanındaki sayıyı bütçe al
+            if range_match:
+                req_min_age = int(range_match.group(1))
+                req_max_age = int(range_match.group(2))
+            elif single_age_match:
+                req_max_age = int(single_age_match.group(1))
+            
+            # Bütçe kontrolü
             price_match = re.search(r'(\d+)\s*(m|milyon|euro|para)', b_in.lower())
             if price_match:
                 req_price = float(price_match.group(1))
 
-            # Başlangıç Sorgusu (PA 135+ Her Zaman)
+            # Başlangıç Sorgusu
             bq = supabase.table("oyuncular").select("*").gte("pa", 135)
             
-            # 1. YAŞ FİLTRESİ (KESİN): Eğer yaş belirtilmişse o yaş ve altını getir
-            if req_age:
-                bq = bq.lte("yas", req_age)
+            # --- YAŞ FİLTRELEME (KESİN) ---
+            if req_min_age and req_max_age:
+                bq = bq.gte("yas", req_min_age).lte("yas", req_max_age)
+            elif req_max_age:
+                bq = bq.lte("yas", req_max_age)
             else:
-                bq = bq.lte("yas", 26) # Varsayılan genç sınırı
+                bq = bq.lte("yas", 26)
                 
-            # 2. MEVKİ ANALİZİ
+            # --- MEVKİ ANALİZİ ---
             low_in = b_in.lower()
             t_m_list = []
             if "defans" in low_in or "stoper" in low_in or "bek" in low_in: t_m_list.extend(["D C", "D L", "D R"])
@@ -189,10 +197,10 @@ with tabs[4]:
                 or_filters = ",".join([f'mevki.ilike.%{m}%' for m in set(t_m_list)])
                 bq = bq.or_(or_filters)
             
-            res_b = bq.order("pa", desc=True).limit(800).execute()
+            res_b = bq.order("pa", desc=True).limit(900).execute()
             
             if res_b.data:
-                # 3. FİYAT ANALİZİ (KESİN rakamsal kontrol)
+                # Fiyat rakamsal kontrol
                 def get_val(x):
                     val_str = str(x.get("deger", "0")).replace(",", ".")
                     val_nums = re.findall(r"[-+]?\d*\.\d+|\d+", val_str)
@@ -206,7 +214,6 @@ with tabs[4]:
                 if req_price:
                     final_b = [x for x in res_b.data if get_val(x) <= req_price]
                 
-                # Eğer hem yaş hem fiyat varsa ikisini de sağlayanları göster
                 if final_b:
                     p_b = random.choice(final_b)
                     is_f = p_b['oyuncu_adi'] in st.session_state.get('fav_list', [])
@@ -217,7 +224,7 @@ with tabs[4]:
                         <p style="font-family:'JetBrains Mono'; color:#00ff41;">🏟️ {p_b["kulup"]} | 👟 {p_b["mevki"]} | 📊 PA: {p_b["pa"]} | 🎂 YAŞ: {p_b["yas"]} | 💰 {p_b.get("deger","-")}</p>
                         <a href="{tm_url}" target="_blank" class="tm-link">Transfermarkt ➔</a></div>''', unsafe_allow_html=True)
                     
-                    if st.button(f"{'⭐ Listeden At' if is_f else '⭐ Listeye Al'}", key=f"bf_v117_{p_b['oyuncu_adi']}"):
+                    if st.button(f"{'⭐ Listeden At' if is_f else '⭐ Listeye Al'}", key=f"bf_v118_{p_b['oyuncu_adi']}"):
                         if is_f:
                             supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", p_b['oyuncu_adi']).execute()
                             st.session_state.fav_list.remove(p_b['oyuncu_adi'])
@@ -226,9 +233,9 @@ with tabs[4]:
                             st.session_state.fav_list.append(p_b['oyuncu_adi'])
                         st.rerun()
                 else:
-                    st.error(f"Barrow: '{req_price if req_price else ''}M bütçeye ve {req_age if req_age else ''} yaş altına oyuncu mu olur hıyarto? Kriterleri biraz gevşet!'")
+                    st.error(f"Barrow: 'O fiyata ve o yaş aralığında adam mı olur hıyarto? Bütçeni artır ya da yaşlılara bak!'")
             else:
-                st.warning("Barrow: 'Aradığın mermiyi bulamadım, siktir git kendin ara.'")
+                st.warning("Barrow: 'İstediğin mermiyi bulamadım, özürrrr'")
 
 # --- 6. ADMIN ---
 with tabs[5]:
