@@ -33,8 +33,8 @@ st.markdown("""
 def get_announcement():
     try:
         res = supabase.table("sistem").select("duyuru").eq("id", 1).execute()
-        return res.data[0]['duyuru'] if res.data else "🔥 SOMEKU SCOUT V89 Yayında!"
-    except: return "🔥 SOMEKU SCOUT V89 Yayında!"
+        return res.data[0]['duyuru'] if res.data else "🔥 SOMEKU SCOUT V90 Yayında!"
+    except: return "🔥 SOMEKU SCOUT V90 Yayında!"
 
 def get_user_favs(username):
     try:
@@ -80,37 +80,33 @@ with st.sidebar:
     st.write(f"👤 **{st.session_state.user}**")
     if st.button("🚪 Çıkış"): st.session_state.user = None; st.session_state.pop('lottie_shown', None); st.rerun()
 
-tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🏟️ KARİYER RULETİ", "💡 ÖNERİLER", "🛠️ ADMIN"])
+tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🏟️ KARİYER RULETİ", "🛠️ ADMIN"])
 
 # --- 1. SCOUT ---
 with tabs[0]:
     POS_TR = {"Hepsi": "Hepsi", "Kaleci": "GK", "Stoper": "D C", "Sol Bek": "D L", "Sağ Bek": "D R", "Ön Libero": "DM", "Merkez Orta Saha": "M C", "Sol Kanat": "AM L", "Sağ Kanat": "AM R", "Ofansif Orta Saha": "AM C", "Forvet": "ST"}
-    REG_TR = {
-        "Hepsi": [], 
-        "Avrupa": ["Türkiye", "Almanya", "Fransa", "İngiltere", "İtalya", "İspanya", "Hollanda", "Portekiz", "Belçika"],
-        "Kuzey Avrupa": ["Norveç", "İsveç", "Danimarka", "Finlandiya", "İzlanda"],
-        "Balkanlar": ["Hırvatistan", "Sırbistan", "Yunanistan", "Bulgaristan", "Slovenya", "Bosna Hersek"],
-        "Güney Amerika": ["Brezilya", "Arjantin", "Uruguay", "Kolombiya", "Ekvador"],
-        "Afrika": ["Nijerya", "Senegal", "Mısır", "Fildişi Sahili", "Fas", "Cezayir"]
-    }
+    REG_TR = {"Hepsi": [], "Avrupa": ["Türkiye", "Almanya", "Fransa", "İngiltere", "İtalya", "İspanya", "Hollanda"], "Kuzey Avrupa": ["Norveç", "İsveç", "Danimarka", "Finlandiya"], "Balkanlar": ["Hırvatistan", "Sırbistan", "Yunanistan", "Bulgaristan"]}
     
-    f1, f2, f3, f4 = st.columns(4)
+    f1, f2, f3 = st.columns(3)
     with f1: name_f = st.text_input("👤 Oyuncu Ara:"); team_f = st.text_input("🏟️ Takım Ara:")
-    with f2: reg_f = st.selectbox("🌍 Bölge:", list(REG_TR.keys())); pos_f = st.selectbox("👟 Mevki:", list(POS_TR.keys()))
-    with f3: age_f = st.slider("🎂 Yaş:", 14, 50, (14, 25)); pa_f = st.slider("📊 PA:", 0, 200, (140, 200))
-    with f4: 
-        val_limit = st.number_input("💰 Max Değer (M€):", value=300)
-        sort_f = st.selectbox("🔃 Sıralama:", ["Potansiyel (PA)", "Yetenek (CA)", "Yaş (Genç)", "Değer"])
-
-    sort_map = {"Potansiyel (PA)": "pa", "Yetenek (CA)": "ca", "Yaş (Genç)": "yas", "Değer": "deger"}
+    with f2: reg_f = st.selectbox("🌍 Bölge:", list(REG_TR.keys())); country_f = st.text_input("🏳️ Ülke Ara (Örn: Brazil):")
+    with f3: pos_f = st.selectbox("👟 Mevki:", list(POS_TR.keys())); sort_f = st.selectbox("🔃 Sıralama:", ["pa", "ca", "yas"])
+    
+    v1, v2 = st.columns(2)
+    with v1: age_f = st.slider("🎂 Yaş:", 14, 50, (14, 25))
+    with v2: pa_f = st.slider("📊 PA:", 0, 200, (140, 200))
+    
+    # Piyasa Değeri Filtresi (Sayısal Giriş)
+    max_val = st.number_input("💰 Max Piyasa Değeri (M€):", value=300, min_value=0, max_value=500)
     
     query = supabase.table("oyuncular").select("*").gte("yas", age_f[0]).lte("yas", age_f[1]).gte("pa", pa_f[0]).lte("pa", pa_f[1])
     if name_f: query = query.ilike("oyuncu_adi", f"%{name_f}%")
     if team_f: query = query.ilike("kulup", f"%{team_f}%")
+    if country_f: query = query.ilike("ulke", f"%{country_f}%")
     if pos_f != "Hepsi": query = query.ilike("mevki", f"%{POS_TR[pos_f]}%")
     if reg_f != "Hepsi": query = query.in_("ulke", REG_TR[reg_f])
     
-    res = query.order(sort_map[sort_f], desc=True).range(st.session_state.page*12, (st.session_state.page*12)+11).execute()
+    res = query.order(sort_f, desc=True).range(st.session_state.page*12, (st.session_state.page*12)+11).execute()
     
     if res.data:
         cols = st.columns(2)
@@ -122,8 +118,8 @@ with tabs[0]:
                     <div class="player-card {"fav-active" if is_fav else ""}">
                         <span class="pa-badge">PA: {p["pa"]}</span>
                         <h3 style="margin:0;">{p["oyuncu_adi"]}</h3>
-                        <p style="color:#8b949e; font-size:0.9rem; margin:5px 0;">📍 {p.get("ulke","")} | 🏟️ {p["kulup"]} | 📊 CA: {p["ca"]} | 🎂 Yaş: {p["yas"]}</p>
-                        <p style="color:#238636; font-weight:bold;">💰 Değer: {p.get("deger", "Bilinmiyor")}</p>
+                        <p style="color:#8b949e; font-size:0.9rem; margin:5px 0;">📍 {p.get("ulke","")} | 🏟️ {p["kulup"]} | 👟 {p["mevki"]}</p>
+                        <p style="font-size:0.95rem;">📊 CA: {p["ca"]} | 🎂 Yaş: {p["yas"]} | 💰 Değer: {p.get("deger", "Bilinmiyor")}</p>
                         <a href="{tm_url}" target="_blank" class="tm-link">Transfermarkt ➔</a>
                     </div>
                 ''', unsafe_allow_html=True)
@@ -149,15 +145,9 @@ with tabs[1]:
     if st.session_state.roulette_player:
         p = st.session_state.roulette_player
         is_fav = p['oyuncu_adi'] in st.session_state.fav_list
-        st.markdown(f'''
-            <div class="player-card fav-active">
-                <span class="pa-badge">PA: {p["pa"]}</span>
-                <h2>🌟 {p["oyuncu_adi"]}</h2>
-                <p>🏟️ {p["kulup"]} | CA: {p["ca"]} | Yaş: {p["yas"]} | 💰 {p.get("deger", "-")}</p>
-            </div>
-        ''', unsafe_allow_html=True)
+        st.markdown(f'<div class="player-card fav-active"><h2>🌟 {p["oyuncu_adi"]}</h2><p>{p["kulup"]} | PA: {p["pa"]} | Yaş: {p["yas"]}</p></div>', unsafe_allow_html=True)
         st.code(p['oyuncu_adi'])
-        if st.button("⭐ Rulet Yıldızını Favorile", key="roul_fav_btn"):
+        if st.button("⭐ Rulet Yıldızını Favorile"):
             if not is_fav:
                 supabase.table("favoriler").insert({"kullanici_adi": st.session_state.user, "oyuncu_adi": p['oyuncu_adi']}).execute()
                 st.session_state.fav_list.append(p['oyuncu_adi']); st.rerun()
@@ -166,26 +156,17 @@ with tabs[1]:
 with tabs[2]:
     st.subheader("📋 Taktik Tahtası")
     formasyon = st.selectbox("Diziliş Seç:", ["4-3-3", "4-4-2", "3-5-2", "4-2-3-1", "5-3-2"])
-    f_names = st.session_state.fav_list if st.session_state.fav_list else ["Favoriler Boş"]
-    
-    st.markdown('<div class="section-header">🧤 KALECİ</div>', unsafe_allow_html=True)
-    gk = st.selectbox("GK:", f_names, key="k_gk")
-    
+    f_names = st.session_state.fav_list if st.session_state.fav_list else ["Boş"]
+    st.markdown('<div class="section-header">🧤 KALECİ</div>', unsafe_allow_html=True); gk = st.selectbox("GK:", f_names, key="k_gk")
     st.markdown('<div class="section-header">🛡️ DEFANS HATTI</div>', unsafe_allow_html=True)
-    d_cols = st.columns(4)
-    d1 = d_cols[0].selectbox("LB:", f_names); d2 = d_cols[1].selectbox("CB1:", f_names); d3 = d_cols[2].selectbox("CB2:", f_names); d4 = d_cols[3].selectbox("RB:", f_names)
-    
+    d_cols = st.columns(4); d1 = d_cols[0].selectbox("LB:", f_names); d2 = d_cols[1].selectbox("CB1:", f_names); d3 = d_cols[2].selectbox("CB2:", f_names); d4 = d_cols[3].selectbox("RB:", f_names)
     st.markdown('<div class="section-header">⚙️ ORTA SAHA</div>', unsafe_allow_html=True)
-    m_cols = st.columns(3)
-    m1 = m_cols[0].selectbox("LM/LW:", f_names); m2 = m_cols[1].selectbox("CM/DM:", f_names); m3 = m_cols[2].selectbox("RM/RW:", f_names)
-    
+    m_cols = st.columns(3); m1 = m_cols[0].selectbox("LM/LW:", f_names); m2 = m_cols[1].selectbox("CM/DM:", f_names); m3 = m_cols[2].selectbox("RM/RW:", f_names)
     st.markdown('<div class="section-header">🎯 FORVET</div>', unsafe_allow_html=True)
-    s_cols = st.columns(2)
-    s1 = s_cols[0].selectbox("ST1:", f_names); s2 = s_cols[1].selectbox("ST2:", f_names)
-    
+    s_cols = st.columns(2); s1 = s_cols[0].selectbox("ST1:", f_names); s2 = s_cols[1].selectbox("ST2:", f_names)
     if st.button("Kadro Savaşçılarını Kaydet"): st.success("Elite 11 Hazır!")
 
-# --- 4. FAVORİLER (TAMİR EDİLDİ) ---
+# --- 4. FAVORİLER ---
 with tabs[3]:
     st.subheader("⭐ Senin Kalıcı Favorilerin")
     db_favs = get_user_favs(st.session_state.user)
@@ -197,39 +178,31 @@ with tabs[3]:
                 supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", f_name).execute()
                 if f_name in st.session_state.fav_list: st.session_state.fav_list.remove(f_name)
                 st.rerun()
-    else: st.info("Favori listen boş. Scout'tan yıldızları ekle!")
+    else: st.info("Favori listen boş.")
 
 # --- 5. KARİYER RULETİ ---
 with tabs[4]:
     st.subheader("🏟️ Takım Bulma Çarkı")
-    lig_c = st.selectbox("Lig Seç:", ["Hepsi", "Türkiye", "İngiltere", "Almanya", "İspanya", "İtalya", "Fransa", "Hollanda", "Portekiz"])
+    lig_c = st.selectbox("Ülke/Lig Filtresi:", ["Hepsi", "Türkiye", "İngiltere", "Almanya", "İspanya", "Fransa", "İtalya", "Hollanda", "Portekiz"])
     if st.button("🏟️ ÇARK-I TAKIM!"):
         try:
-            t_query = supabase.table("oyuncular").select("kulup").limit(3000).execute()
-            t_havuz = list(set([x['kulup'] for x in t_query.data]))
-            secilen = random.choice(t_havuz)
-            st.markdown(f'<div class="player-card fav-active" style="text-align:center;"><h3>Yeni Görev Yeri:</h3><h1>🏟️ {secilen}</h1></div>', unsafe_allow_html=True)
-        except: st.error("Takım verisi çekilemedi.")
+            query_t = supabase.table("oyuncular").select("kulup")
+            if lig_c != "Hepsi": query_t = query_t.ilike("ulke", f"%{lig_c}%")
+            t_res = query_t.limit(1000).execute()
+            if t_res.data:
+                t_havuz = list(set([x['kulup'] for x in t_res.data]))
+                secilen = random.choice(t_havuz)
+                st.markdown(f'<div class="player-card fav-active" style="text-align:center;"><h3>Yolculuk Başlıyor:</h3><h1>🏟️ {secilen}</h1></div>', unsafe_allow_html=True)
+            else: st.warning("Bu filtreye uygun profesyonel takım bulunamadı.")
+        except: st.error("Bağlantı hatası.")
 
-# --- 6. ÖNERİLER (FİXED) ---
+# --- 6. ADMIN ---
 with tabs[5]:
-    st.subheader("💡 Geliştirme")
-    with st.form("o_form"):
-        o_t = st.selectbox("Konu:", ["Hata", "Tasarım", "Özellik İsteği"])
-        o_m = st.text_area("Mesaj:")
-        if st.form_submit_button("Gönder"):
-            try:
-                supabase.table("oneriler").insert({"ad": st.session_state.user, "konu": o_t, "mesaj": o_m}).execute()
-                st.success("Admin'e iletildi!")
-            except: st.error("Tablo ismi 'oneriler' mi? Lütfen Supabase'den kontrol et.")
-
-# --- 7. ADMIN ---
-with tabs[6]:
     if st.session_state.user == "someku":
         st.subheader("🛠️ Admin Paneli")
-        a1, a2 = st.tabs(["✏️ Veri Düzenle", "📢 Duyuru"])
-        with a1:
-            e_s = st.text_input("Düzenlenecek Oyuncu:")
+        adm1, adm2, adm3 = st.tabs(["✏️ Veri", "📢 Duyuru", "👥 Üyeler"])
+        with adm1:
+            e_s = st.text_input("Oyuncu Ara:")
             if e_s:
                 e_r = supabase.table("oyuncular").select("*").ilike("oyuncu_adi", f"%{e_s}%").limit(5).execute()
                 if e_r.data:
@@ -238,8 +211,12 @@ with tabs[6]:
                     if st.button("Güncelle"):
                         supabase.table("oyuncular").update({"pa": n_pa}).eq("oyuncu_adi", target).execute()
                         st.success("PA Güncellendi!")
-        with a2:
+        with adm2:
             n_msg = st.text_area("Yeni Duyuru:", value=get_announcement())
             if st.button("Duyuruyu Yayınla"):
                 supabase.table("sistem").update({"duyuru": n_msg}).eq("id", 1).execute(); st.rerun()
-    else: st.error("Yetki Yok.")
+        with adm3:
+            st.write("👥 **Kayıtlı Üyeler ve Şifreleri**")
+            u_l = supabase.table("users").select("*").execute()
+            if u_l.data: st.table(pd.DataFrame(u_l.data))
+    else: st.error("Admin Yetkisi Yok.")
