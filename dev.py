@@ -34,8 +34,8 @@ st.markdown("""
 def get_announcement():
     try:
         res = supabase.table("sistem").select("duyuru").eq("id", 1).execute()
-        return res.data[0]['duyuru'] if res.data else "🔥 SOMEKU SCOUT V93 Yayında!"
-    except: return "🔥 SOMEKU SCOUT V93 Yayında!"
+        return res.data[0]['duyuru'] if res.data else "🔥 SOMEKU SCOUT V94 Yayında!"
+    except: return "🔥 SOMEKU SCOUT V94 Yayında!"
 
 def get_user_favs(username):
     try:
@@ -87,7 +87,7 @@ with st.sidebar:
         st.session_state.pop('lottie_shown', None)
         st.rerun()
 
-tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🛠️ ADMIN"])
+tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🏟️ LİG SEÇ", "🛠️ ADMIN"])
 
 # --- 1. SCOUT ---
 with tabs[0]:
@@ -208,8 +208,24 @@ with tabs[3]:
                 st.rerun()
     else: st.info("Favori listen boş.")
 
-# --- 5. ADMIN ---
+# --- 5. LİG SEÇ (KARİYER RULETİ) ---
 with tabs[4]:
+    st.subheader("🏟️ Takım Bulma Çarkı")
+    lig_sec = st.selectbox("Ülke Seç:", ["Hepsi", "Türkiye", "İngiltere", "Almanya", "İspanya", "İtalya", "Fransa", "Hollanda", "Portekiz"])
+    if st.button("🏟️ ÇARK-I TAKIM!"):
+        try:
+            query_t = supabase.table("oyuncular").select("kulup")
+            if lig_sec != "Hepsi": query_t = query_t.ilike("ulke", f"%{lig_sec}%")
+            t_res = query_t.limit(1000).execute()
+            if t_res.data:
+                t_havuz = list(set([x['kulup'] for x in t_res.data]))
+                secilen = random.choice(t_havuz)
+                st.markdown(f'<div class="player-card fav-active" style="text-align:center;"><h3>Yeni Macera:</h3><h1>🏟️ {secilen}</h1></div>', unsafe_allow_html=True)
+            else: st.warning("Filtreye uygun takım bulunamadı.")
+        except: st.error("Bağlantı hatası.")
+
+# --- 6. ADMIN ---
+with tabs[5]:
     if st.session_state.user == "someku":
         adm1, adm2, adm3 = st.tabs(["✏️ Veri", "📢 Duyuru", "👥 Üyeler"])
         with adm1:
