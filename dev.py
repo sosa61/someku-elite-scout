@@ -16,6 +16,7 @@ st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️"
 # --- TASARIM (CSS) ---
 st.markdown("""
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
     .stApp { background-color: #0d1117; color: white; }
     .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 70vh; }
     .magnifier { font-size: 80px; animation: bounce 2s infinite ease-in-out; }
@@ -25,28 +26,32 @@ st.markdown("""
     .pa-badge { background: #238636; color: white; padding: 4px 12px; border-radius: 8px; font-weight: bold; float: right; font-size: 1.1rem; }
     .ann-box { background: #1c2128; border: 1px solid #30363d; padding: 15px; border-radius: 10px; color: #58a6ff; text-align: center; margin-bottom: 20px; border-bottom: 3px solid #3b82f6; font-weight: bold; }
     .section-header { background: #21262d; padding: 10px; border-radius: 8px; margin: 20px 0 10px 0; border-left: 5px solid #58a6ff; font-weight: bold; }
-    .barrow-box { background: #1f2937; border: 2px solid #ef4444; border-radius: 15px; padding: 20px; margin: 20px 0; border-left: 10px solid #ef4444; }
-    .barrow-text { font-family: 'Courier New', monospace; color: #f87171; font-weight: bold; font-size: 1.1rem; }
+    .barrow-box { background: #000000; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 15px 0; border-left: 5px solid #ef4444; position: relative; }
+    .barrow-text { font-family: 'JetBrains Mono', monospace; color: #00ff41; font-size: 1.05rem; line-height: 1.5; }
+    .barrow-name { color: #ef4444; font-weight: bold; margin-bottom: 10px; display: block; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 2px; }
     .tm-link { color: #58a6ff !important; text-decoration: none; border: 1px solid #58a6ff; padding: 3px 10px; border-radius: 5px; font-size: 12px; display: inline-block; margin-top: 10px; }
     .page-indicator { background: #3b82f6; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; margin: 10px 0; display: inline-block; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- BARROW SÖZLÜĞÜ ---
+# --- BARROW SÖZLÜĞÜ (GENİŞLETİLMİŞ) ---
 BARROW_QUOTES = [
-    "Lan hıyarto, cebinde 3 kuruş para var hala Mbappe peşinde koşuyorsun. Al sana şunu, hadi yine iyisin...",
-    "Ulan 2 milyona anca pazarın kapısından girersin ama bugün keyfim yerinde. Al şu aşağıdaki çocuğu, 2 sene sonra Real Madrid kapında yatmazsa gel yüzüme tükür.",
-    "Bana bak evlat, futbolu FM'den ibaret sanma. Al şu oyuncuyu, kadrona bir nebze kalite gelsin amk.",
-    "Yine mi geldin baş belası? Al sana mermi gibi bir herif, git başka yerde oyna.",
-    "Scout dedin geldik, cebindeki parayı söyle de ona göre çöp önermeyeyim sana hıyar herif."
+    "Lan hıyarto, cebinde 3 kuruş para var hala Mbappe peşinde koşuyorsun. Al sana şunu, hadi yine iyisin... 2 seneye Real Madrid'e itelersin.",
+    "Bana bak evlat, futbolu oynamayı bilmiyorsun bari düzgün adam al. Al şu aşağıdaki mermiyi, kadrona bir nebze haysiyet gelsin amk.",
+    "Ulan 2 milyona anca pazarın kapısından girersin ama bugün keyfim yerinde. Al şu aşağıdaki çocuğu, 2 sene sonra kapında yatmazlarsa gel yüzüme tükür. Hadi kaybol şimdi!",
+    "Yine mi geldin baş belası? Senin o taktik anlayışına tüküreyim. Al sana mermi gibi bir herif, git başka yerde oyna.",
+    "Bak buraya, bu çocuk FM tarihinin en büyük mermilerinden biri olacak. Almazsan senin vizyonuna yazıklar olsun.",
+    "Scout dedin geldik, cebindeki parayı söyle de ona göre çöp önermeyeyim sana hıyar herif. Şu adama bi göz at, beğenmezsen git kumda oyna.",
+    "Ulan şu oyuncuyu ben keşfettim diye demiyorum, topu ayağına aldığında stattaki büfeci bile ayağa kalkar. Al şunu da akıllan.",
+    "Cebinde akrep mi var lan? Al sana en ucuzundan ama en kalitelisinden bir canavar. Değerini bil."
 ]
 
 # --- VERİ FONKSİYONLARI ---
 def get_announcement():
     try:
         res = supabase.table("sistem").select("duyuru").eq("id", 1).execute()
-        return res.data[0]['duyuru'] if res.data else "🔥 SOMEKU SCOUT V99 Yayında!"
-    except: return "🔥 SOMEKU SCOUT V99 Yayında!"
+        return res.data[0]['duyuru'] if res.data else "🔥 SOMEKU SCOUT V100 Yayında!"
+    except: return "🔥 SOMEKU SCOUT V100 Yayında!"
 
 def get_user_favs(username):
     try:
@@ -116,27 +121,21 @@ with tabs[0]:
         "Afrika": ["Nijerya", "Senegal", "Mısır", "Fildişi Sahili", "Fas", "Cezayir"],
         "Asya": ["Japonya", "Güney Kore", "Suudi Arabistan", "Katar", "Avustralya", "Çin"]
     }
-    
     f1, f2, f3 = st.columns(3)
     with f1: name_f = st.text_input("👤 Oyuncu Ara:"); team_f = st.text_input("🏟️ Takım Ara:")
     with f2: reg_f = st.selectbox("🌍 Bölge:", list(REG_TR.keys())); country_f = st.text_input("🏳️ Uyruk Ara:")
     with f3: pos_f = st.selectbox("👟 Mevki:", list(POS_TR.keys())); sort_f = st.selectbox("🔃 Sıralama:", ["pa", "ca", "yas", "deger"])
-    
     v1, v2 = st.columns(2)
     with v1: age_f = st.slider("🎂 Yaş:", 14, 50, (14, 25))
     with v2: pa_f = st.slider("📊 PA Aralığı:", 0, 200, (140, 200))
-
     query = supabase.table("oyuncular").select("*").gte("yas", age_f[0]).lte("yas", age_f[1]).gte("pa", pa_f[0]).lte("pa", pa_f[1])
     if name_f: query = query.ilike("oyuncu_adi", f"%{name_f}%")
     if team_f: query = query.ilike("kulup", f"%{team_f}%")
     if country_f: query = query.ilike("ulke", f"%{country_f}%")
     if pos_f != "Hepsi": query = query.ilike("mevki", f"%{POS_TR[pos_f]}%")
     if reg_f != "Hepsi": query = query.in_("ulke", REG_TR[reg_f])
-    
     res = query.order(sort_f, desc=True).range(st.session_state.page*12, (st.session_state.page*12)+11).execute()
-    
     st.markdown(f'<div class="page-indicator">Sayfa: {st.session_state.page + 1}</div>', unsafe_allow_html=True)
-
     if res.data:
         cols = st.columns(2)
         for i, p in enumerate(res.data):
@@ -197,24 +196,47 @@ with tabs[3]:
 
 # --- 5. BARROW AI ---
 with tabs[4]:
-    st.markdown('<div class="barrow-box"><h1 style="margin:0;">🤵 Barrow AI Scout</h1><p style="color:#9ca3af;">Huysuz ama işinin ehli scout seni bekliyor.</p></div>', unsafe_allow_html=True)
-    chat_input = st.text_input("Barrow'a bir şeyler yaz (Örn: 'Ucuz Mbappe', 'Mermi Stoper'):", key="barrow_chat")
-    if st.button("Barrow'u Konuştur"):
+    st.markdown('<div style="text-align:center; padding: 20px;"><h1 style="color:#ef4444; margin:0;">🤵 BARROW AI</h1><p style="color:#9ca3af;">Huysuz, küfürlü ama mermi gibi scout önerileri.</p></div>', unsafe_allow_html=True)
+    
+    chat_input = st.text_input("Barrow'a emir ver (Örn: 'Ucuz Mbappe', 'Genç Mermi Stoper'):", key="barrow_chat")
+    
+    if st.button("Barrow'u Uyandır"):
         if chat_input:
-            st.markdown(f'<div class="barrow-box"><p class="barrow-text">{random.choice(BARROW_QUOTES)}</p></div>', unsafe_allow_html=True)
-            b_query = supabase.table("oyuncular").select("*").gte("pa", 155)
-            if "mbappe" in chat_input.lower() or "forvet" in chat_input.lower(): b_query = b_query.ilike("mevki", "%ST%")
-            elif "stoper" in chat_input.lower() or "defans" in chat_input.lower(): b_query = b_query.ilike("mevki", "%D C%")
-            elif "mermi" in chat_input.lower() or "hızlı" in chat_input.lower(): b_query = b_query.gte("pa", 165)
-            res_b = b_query.limit(5).execute()
+            st.markdown(f'<div class="barrow-box"><span class="barrow-name">Barrow Mesajı</span><p class="barrow-text">{random.choice(BARROW_QUOTES)}</p></div>', unsafe_allow_html=True)
+            
+            # --- GELİŞMİŞ BARROW FİLTRELEME MANTIĞI ---
+            # MBAPPE ve GENÇ OYUNCU İSTEĞİ (Kritik: Yaş <= 22 ve PA >= 155)
+            b_query = supabase.table("oyuncular").select("*")
+            
+            is_mbappe_req = "mbappe" in chat_input.lower()
+            is_youth_req = "genç" in chat_input.lower() or "genç" in chat_input.lower()
+            
+            if is_mbappe_req or is_youth_req:
+                b_query = b_query.lte("yas", 22).gte("pa", 155)
+                if "mbappe" in chat_input.lower() or "forvet" in chat_input.lower():
+                    b_query = b_query.ilike("mevki", "%ST%")
+            elif "stoper" in chat_input.lower() or "defans" in chat_input.lower():
+                b_query = b_query.ilike("mevki", "%D C%").gte("pa", 150)
+            elif "mermi" in chat_input.lower():
+                b_query = b_query.gte("pa", 165).lte("yas", 24)
+            else:
+                b_query = b_query.gte("pa", 150).limit(50)
+
+            res_b = b_query.execute()
             if res_b.data:
-                p_b = random.choice(res_b.data)
-                st.markdown(f'''<div class="player-card fav-active" style="border-left-color: #ef4444;">
-                    <span class="pa-badge" style="background:#ef4444;">BARROW ÖNERİSİ</span>
-                    <h3>🔥 {p_b["oyuncu_adi"]}</h3>
-                    <p>{p_b["kulup"]} | PA: {p_b["pa"]} | Yaş: {p_b["yas"]} | Mevki: {p_b["mevki"]}</p>
-                    <p style="color:#f87171; font-style:italic;">"Bunu al da biraz top oynasın takım."</p></div>''', unsafe_allow_html=True)
-            else: st.warning("Barrow: 'Aradığın şeyi bulamadım, git kendin ara hıyar!'")
+                # Mbappe istenmişse Mbappe'nin kendisini listeden çıkar (alternatif bulmak için)
+                clean_list = [x for x in res_b.data if "Mbappé" not in x["oyuncu_adi"]]
+                if clean_list:
+                    p_b = random.choice(clean_list)
+                    tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p_b['oyuncu_adi'])}"
+                    st.markdown(f'''<div class="player-card fav-active" style="border-left: 10px solid #ef4444; background: #000;">
+                        <span class="pa-badge" style="background:#ef4444;">BARROW SEÇİMİ</span>
+                        <h3 style="color:#ef4444;">🔥 {p_b["oyuncu_adi"]}</h3>
+                        <p style="font-family: 'JetBrains Mono'; color:#00ff41;">🏟️ {p_b["kulup"]} | 📊 PA: {p_b["pa"]} | 🎂 YAŞ: {p_b["yas"]} | 👟 {p_b["mevki"]}</p>
+                        <p style="color:#8b949e; font-style:italic;">"Bunu almazsan git bu oyunu sil amk."</p>
+                        <a href="{tm_url}" target="_blank" class="tm-link">Transfermarkt ➔</a></div>''', unsafe_allow_html=True)
+                else: st.warning("Barrow: 'O kadar iyi adam yok piyasada, git kendin bul hıyar!'")
+            else: st.warning("Barrow: 'Aradığın şeyi veritabanında bulamadım, bozuk herhalde!'")
 
 # --- 6. ADMIN ---
 with tabs[5]:
