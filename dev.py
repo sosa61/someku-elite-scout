@@ -34,8 +34,8 @@ st.markdown("""
 def get_announcement():
     try:
         res = supabase.table("sistem").select("duyuru").eq("id", 1).execute()
-        return res.data[0]['duyuru'] if res.data else "🔥 SOMEKU SCOUT V96 Yayında!"
-    except: return "🔥 SOMEKU SCOUT V96 Yayında!"
+        return res.data[0]['duyuru'] if res.data else "🔥 SOMEKU SCOUT V97 Yayında!"
+    except: return "🔥 SOMEKU SCOUT V97 Yayında!"
 
 def get_user_favs(username):
     try:
@@ -43,21 +43,17 @@ def get_user_favs(username):
         return [f['oyuncu_adi'] for f in res.data]
     except: return []
 
-# --- YÜKLEME EKRANI ---
-if 'lottie_shown' not in st.session_state:
-    st.markdown('<div class="loader-container"><div class="magnifier">🕵️‍♂️</div><h2 style="color: #58a6ff;">Elite Veritabanı Hazırlanıyor...</h2></div>', unsafe_allow_html=True)
-    time.sleep(1.5); st.session_state.lottie_shown = True; st.rerun()
-
-# --- OTURUM YÖNETİMİ (BENİ HATIRLA) ---
+# --- OTURUM VE BENİ HATIRLA ---
 if 'user' not in st.session_state:
-    saved_user = st.query_params.get("user")
-    if saved_user:
-        st.session_state.user = saved_user
-    else:
-        st.session_state.user = None
+    st.session_state.user = st.query_params.get("user", None)
 
 if st.session_state.user and 'fav_list' not in st.session_state:
     st.session_state.fav_list = get_user_favs(st.session_state.user)
+
+# --- YÜKLEME EKRANI ---
+if 'lottie_shown' not in st.session_state:
+    st.markdown('<div class="loader-container"><div class="magnifier">🕵️‍♂️</div><h2 style="color: #58a6ff;">Elite Veritabanı Hazırlanıyor...</h2></div>', unsafe_allow_html=True)
+    time.sleep(1.2); st.session_state.lottie_shown = True; st.rerun()
 
 if 'page' not in st.session_state: st.session_state.page = 0
 if 'roulette_player' not in st.session_state: st.session_state.roulette_player = None
@@ -75,15 +71,14 @@ if st.session_state.user is None:
             if res.data or (u_id == "someku" and u_pw == "28616128Ok"):
                 st.session_state.user = u_id
                 st.session_state.fav_list = get_user_favs(u_id)
-                if remember: 
-                    st.query_params["user"] = u_id
+                if remember: st.query_params["user"] = u_id
                 st.rerun()
             else: st.error("Hatalı Giriş!")
     with t2:
         n_u = st.text_input("Yeni Kullanıcı:", key="r_u"); n_p = st.text_input("Yeni Şifre:", type="password", key="r_p")
         if st.button("Kayıt Ol", use_container_width=True):
             try: supabase.table("users").insert({"username": n_u, "password": n_p}).execute(); st.success("Kayıt Başarılı!")
-            except: st.error("Hata!")
+            except: st.error("Hata! Bu kullanıcı adı alınmış olabilir.")
     st.stop()
 
 # --- ÜST PANEL ---
@@ -93,8 +88,7 @@ with st.sidebar:
     if st.button("🚪 Çıkış"): 
         st.session_state.user = None
         st.query_params.clear()
-        st.session_state.pop('fav_list', None)
-        st.session_state.pop('lottie_shown', None)
+        st.session_state.clear()
         st.rerun()
 
 tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🛠️ ADMIN"])
@@ -103,38 +97,18 @@ tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "�
 with tabs[0]:
     POS_TR = {"Hepsi": "Hepsi", "Kaleci": "GK", "Stoper": "D C", "Sol Bek": "D L", "Sağ Bek": "D R", "Ön Libero": "DM", "Merkez Orta Saha": "M C", "Sol Kanat": "AM L", "Sağ Kanat": "AM R", "Ofansif Orta Saha": "AM C", "Forvet": "ST"}
     
-    # Lig Filtresi için kulüp eşleşmeleri (Takım bazlı arama yapacak şekilde yapılandırıldı)
-    LIG_TAKIMLARI = {
-        "Hepsi": "",
-        "Türkiye (Süper Lig)": ["Galatasaray", "Fenerbahçe", "Beşiktaş", "Trabzonspor", "Samsunspor", "Göztepe", "Eyüpspor", "Kasımpaşa", "Başakşehir"],
-        "İngiltere (Premier League)": ["Man City", "Arsenal", "Liverpool", "Chelsea", "Man Utd", "Tottenham", "Aston Villa", "Newcastle", "Brighton"],
-        "İspanya (LaLiga)": ["Real Madrid", "Barcelona", "Atletico", "Girona", "Real Sociedad", "Villareal", "Athletic"],
-        "Almanya (Bundesliga)": ["Bayern", "Leverkusen", "Dortmund", "Leipzig", "Stuttgart", "Frankfurt", "Gladbach"],
-        "İtalya (Serie A)": ["Inter", "Milan", "Juventus", "Napoli", "Roma", "Lazio", "Atalanta", "Fiorentina"],
-        "Fransa (Ligue 1)": ["PSG", "Monaco", "Marseille", "Lille", "Lyon", "Nice", "Lens"],
-        "Hollanda (Eredivisie)": ["PSV", "Feyenoord", "Ajax", "AZ Alkmaar", "Twente"],
-        "Portekiz (Liga Portugal)": ["Sporting", "Benfica", "Porto", "Braga", "Vitoria"]
-    }
-
     f1, f2, f3 = st.columns(3)
-    with f1: name_f = st.text_input("👤 Oyuncu Ara:"); team_f = st.text_input("🏟️ Takım Ara (Manuel):")
-    with f2: lig_f = st.selectbox("🌍 Lig Seçimi (Takımlara Göre):", list(LIG_TAKIMLARI.keys())); country_f = st.text_input("🏳️ Uyruk (Ülke):")
-    with f3: pos_f = st.selectbox("👟 Mevki:", list(POS_TR.keys())); sort_f = st.selectbox("🔃 Sıralama:", ["pa", "ca", "yas", "deger"])
+    with f1: name_f = st.text_input("👤 Oyuncu Ara:"); team_f = st.text_input("🏟️ Takım Ara:")
+    with f2: country_f = st.text_input("🏳️ Uyruk/Ülke Ara:"); pos_f = st.selectbox("👟 Mevki:", list(POS_TR.keys()))
+    with f3: sort_f = st.selectbox("🔃 Sıralama:", ["pa", "ca", "yas", "deger"]); age_f = st.slider("🎂 Yaş:", 14, 50, (14, 25))
     
-    v1, v2 = st.columns(2)
-    with v1: age_f = st.slider("🎂 Yaş:", 14, 50, (14, 25))
-    with v2: pa_f = st.slider("📊 PA:", 0, 200, (140, 200))
+    pa_f = st.slider("📊 PA Aralığı:", 0, 200, (140, 200))
 
     query = supabase.table("oyuncular").select("*").gte("yas", age_f[0]).lte("yas", age_f[1]).gte("pa", pa_f[0]).lte("pa", pa_f[1])
-    
     if name_f: query = query.ilike("oyuncu_adi", f"%{name_f}%")
     if team_f: query = query.ilike("kulup", f"%{team_f}%")
     if country_f: query = query.ilike("ulke", f"%{country_f}%")
     if pos_f != "Hepsi": query = query.ilike("mevki", f"%{POS_TR[pos_f]}%")
-    
-    # LİG FİLTRESİ: Seçilen ligdeki takımları 'in' operatörüyle sorgula
-    if lig_f != "Hepsi":
-        query = query.in_("kulup", LIG_TAKIMLARI[lig_f])
     
     res = query.order(sort_f, desc=True).range(st.session_state.page*12, (st.session_state.page*12)+11).execute()
     
@@ -143,7 +117,8 @@ with tabs[0]:
     if res.data:
         cols = st.columns(2)
         for i, p in enumerate(res.data):
-            is_fav = p['oyuncu_adi'] in st.session_state.get('fav_list', [])
+            fav_list = st.session_state.get('fav_list', [])
+            is_fav = p['oyuncu_adi'] in fav_list
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
             with cols[i % 2]:
                 st.markdown(f'''
@@ -151,7 +126,7 @@ with tabs[0]:
                         <span class="pa-badge">PA: {p["pa"]}</span>
                         <h3 style="margin:0;">{p["oyuncu_adi"]}</h3>
                         <p style="color:#8b949e; font-size:0.9rem; margin:5px 0;">📍 {p.get("ulke","")} | 🏟️ {p["kulup"]} | 👟 {p["mevki"]}</p>
-                        <p style="font-size:0.95rem;">📊 CA: {p["ca"]} | 🎂 Yaş: {p["yas"]} | 💰 Değer: {p.get("deger", "Bilinmiyor")}</p>
+                        <p style="font-size:0.95rem;">📊 CA: {p["ca"]} | 🎂 Yaş: {p["yas"]} | 💰 Değer: {p.get("deger", "-")}</p>
                         <a href="{tm_url}" target="_blank" class="tm-link">Transfermarkt ➔</a>
                     </div>
                 ''', unsafe_allow_html=True)
@@ -184,7 +159,7 @@ with tabs[1]:
             <div class="player-card {"fav-active" if is_fav else ""}">
                 <span class="pa-badge">PA: {p["pa"]}</span>
                 <h2>🌟 {p["oyuncu_adi"]}</h2>
-                <p>🏟️ {p["kulup"]} | CA: {p["ca"]} | Yaş: {p["yas"]} | 💰 {p.get("deger", "Bilinmiyor")}</p>
+                <p>🏟️ {p["kulup"]} | CA: {p["ca"]} | Yaş: {p["yas"]} | 💰 {p.get("deger", "-")}</p>
                 <a href="{tm_url}" target="_blank" class="tm-link">Transfermarkt ➔</a>
             </div>
         ''', unsafe_allow_html=True)
