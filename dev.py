@@ -139,7 +139,58 @@ with tabs[3]:
     for f in get_user_favs(st.session_state.user):
         c1, c2 = st.columns([5, 1]); c1.markdown(f'<div class="player-card fav-active" style="padding:10px;"><b>{f}</b></div>', unsafe_allow_html=True)
         if c2.button("🗑️", key=f"del_{f}"): supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", f).execute(); st.rerun()
+
+# --- 6. SCOUT CHAT (V123 - AKILLI SOHBET SİSTEMİ) ---
+with tabs[5]: # Tab numarasını kendi sımana göre ayarla (Örn: tabs[5])
+    st.subheader("💬 Scout Chat (Canlı)")
+    st.markdown('<p style="color:#8b949e; font-size:12px;">Sadece son 50 mesaj gösterilir. Sayfayı yenileyerek güncel mesajları görebilirsin.</p>', unsafe_allow_html=True)
+
+    # MESAJ GÖNDERME ALANI
+    with st.container():
+        c1, c2 = st.columns([5, 1])
+        yeni_mesaj = c1.text_input("Mesajın...", key="chat_input", placeholder="Mermi gibi bir oyuncu buldum!")
+        if c2.button("GÖNDER", use_container_width=True):
+            if yeni_mesaj.strip():
+                try:
+                    supabase.table("sohbet").insert({
+                        "username": st.session_state.user,
+                        "mesaj": yeni_mesaj
+                    }).execute()
+                    st.rerun() # Mesaj gidince sayfayı yenile ki hemen görüksün
+                except:
+                    st.error("Mesaj gönderilemedi!")
+
+    st.markdown("---")
+
+    # MESAJLARI ÇEKME VE GÖSTERME
+    try:
+        # Sadece son 50 mesajı çekiyoruz (Hız için kritik!)
+        mesajlar_res = supabase.table("sohbet").select("*").order("created_at", desc=True).limit(50).execute()
+        
+        if mesajlar_res.data:
+            # Mesaj kutusu için scrollable alan (CSS ile)
+            chat_html = '<div style="background:#0d1117; border:1px solid #30363d; border-radius:10px; padding:15px; max-height:400px; overflow-y:auto; display:flex; flex-direction:column-reverse;">'
             
+            for m in mesajlar_res.data:
+                # Kendi mesajların farklı renk, başkasınınki farklı renk olabilir
+                is_me = m['username'] == st.session_state.user
+                color = "#58a6ff" if is_me else "#238636"
+                name_style = f"color:{color}; font-weight:bold; font-size:13px;"
+                
+                chat_html += f'''
+                <div style="margin-bottom:10px; padding:8px; background:#161b22; border-radius:8px; border-left:3px solid {color};">
+                    <span style="{name_style}">{m['username']}</span> 
+                    <span style="color:#8b949e; font-size:10px;">({m['created_at'][11:16]})</span><br>
+                    <span style="color:white; font-size:14px;">{m['mesaj']}</span>
+                </div>
+                '''
+            chat_html += '</div>'
+            st.markdown(chat_html, unsafe_allow_html=True)
+        else:
+            st.info("Henüz mesaj yok. İlk mermiyi sen sür!")
+    except:
+        st.warning("Sohbet yüklenirken bir hata oluştu. Tabloyu kontrol et!")
+
 # --- 5. BARROW AI (V122 - BİN VE MİLYON BÜTÇE ZEKASI) ---
 with tabs[4]:
     st.markdown('<div style="text-align:center;"><h1 style="color:#ef4444;">🤵 BARROW AI</h1></div>', unsafe_allow_html=True)
