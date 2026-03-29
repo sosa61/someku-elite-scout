@@ -321,61 +321,84 @@ with tabs[4]:
 
 
 
-with tabs[5]:
-    if st.session_state.get('user') == "someku": # <-- BURASI İÇERİDE OLACAK
-        st.markdown("### YÖNETİM PANELİ") # <-- BU DA DAHA İÇERİDE
-        # ... diğer tüm admin kodları da bu hizada devam etmeli ...
+# --- 6. ADMIN (V130 - TAM YETKİ VE DENETİM) ---
+with tabs[5]: 
+    if st.session_state.get('user') == "someku":
+        st.markdown('<h1 style="color:#ff4b4b; text-align:center;">🛡️ YÖNETİM MERKEZİ</h1>', unsafe_allow_html=True)
         
-        # Üst İstatistik Barı
-        c1, c2, c3 = st.columns(3)
+        # 1. GERÇEK SAYIM (470 BİN OYUNCU İÇİN)
         try:
-            total_players = len(supabase.table("oyuncular").select("id").execute().data)
-            total_users = len(supabase.table("users").select("id").execute().data)
-            c1.metric("Toplam Oyuncu", total_players)
+            res_count = supabase.table("oyuncular").select("*", count="exact").limit(1).execute()
+            actual_count = res_count.count
+            u_res = supabase.table("users").select("*").execute()
+            total_users = len(u_res.data)
+            
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Toplam Oyuncu", f"{actual_count:,}".replace(",", "."))
             c2.metric("Kayıtlı Kullanıcı", total_users)
-            c3.success("Sistem Aktif")
+            c3.success("Sistem Çevrimiçi")
         except:
-            st.warning("Veri bağlantısı kontrol ediliyor...")
+            st.warning("Veri bağlantısı kuruluyor...")
 
         st.markdown("---")
+        adm_tabs = st.tabs(["✏️ Oyuncu Düzenle/Ekle", "👥 Kullanıcı & Ban & Şifre", "🛠️ Sistem"])
 
-        # --- ADMIN İŞLEMLERİ ---
-        adm_tabs = st.tabs(["🏃 Oyuncu Ekle", "🗑️ Oyuncu Sil", "👥 Kullanıcı Listesi"])
-
+        # --- A. OYUNCU DÜZENLEME VE EKLEME ---
         with adm_tabs[0]:
-            st.write("### Yeni Oyuncu Girişi")
-            with st.form("add_player_v129"):
-                ad = st.text_input("Oyuncu Adı")
-                klb = st.text_input("Kulüp")
-                mvk = st.text_input("Mevki")
-                ys = st.number_input("Yaş", min_value=14, max_value=45, value=20)
-                pa_v = st.number_input("PA", min_value=1, max_value=200, value=150)
-                dgr = st.text_input("Değer (Örn: 2M €)")
-                if st.form_submit_button("KAYDET"):
-                    if ad:
-                        supabase.table("oyuncular").insert({
-                            "oyuncu_adi": ad, "kulup": klb, "mevki": mvk, 
-                            "yas": ys, "pa": pa_v, "deger": dgr
-                        }).execute()
-                        st.success(f"{ad} başarıyla eklendi.")
+            st.write("### ✍️ Oyuncu Verilerini Düzenle")
+            search_edit = st.text_input("Düzenlenecek Oyuncu Adı:", key="search_edit")
+            if search_edit:
+                res_e = supabase.table("oyuncular").select("*").ilike("oyuncu_adi", f"%{search_edit}%").limit(5).execute()
+                for p in res_e.data:
+                    with st.expander(f"DÜZENLE: {p['oyuncu_adi']} ({p['kulup']})"):
+                        with st.form(f"edit_form_{p['id']}"):
+                            n_ad = st.text_input("Ad", value=p['oyuncu_adi'])
+                            n_klb = st.text_input("Kulüp", value=p['kulup'])
+                            n_mvk = st.text_input("Mevki", value=p['mevki'])
+                            n_ys = st.number_input("Yaş", value=int(p['yas']))
+                            n_pa = st.number_input("PA", value=int(p['pa']))
+                            n_dgr = st.text_input("Değer", value=p['deger'])
+                            
+                            if st.form_submit_button("GÜNCELLE"):
+                                supabase.table("oyuncular").update({
+                                    "oyuncu_adi": n_ad, "kulup": n_klb, "mevki": n_mvk,
+                                    "yas": n_ys, "pa": n_pa, "deger": n_dgr
+                                }).eq("id", p['id']).execute()
+                                st.success(f"{n_ad} güncellendi!")
+                                st.rerun()
+                        if st.button(f"🗑️ BU OYUNCUYU SİL", key=f"del_{p['id']}"):
+                            supabase.table("oyuncular").delete().eq("id", p['id']).execute()
+                            st.error("Oyuncu silindi.")
+                            st.rerun()
 
+        # --- B. KULLANICI & BAN & ŞİFRE PANELİ ---
         with adm_tabs[1]:
-            st.write("### Oyuncu Verisi Sil")
-            search_del = st.text_input("Oyuncu Ara:")
-            if search_del:
-                res_del = supabase.table("oyuncular").select("*").ilike("oyuncu_adi", f"%{search_del}%").execute()
-                for p in res_del.data:
-                    if st.button(f"SİL: {p['oyuncu_adi']}", key=f"d_{p['id']}"):
-                        supabase.table("oyuncular").delete().eq("id", p['id']).execute()
-                        st.info("Kayıt silindi.")
-                        st.rerun()
+            st.write("### 👥 Kullanıcı Denetimi")
+            if u_res.data:
+                for u in u_res.data:
+                    with st.container():
+                        col1, col2, col3 = st.columns([2, 2, 1])
+                        col1.write(f"**Kullanıcı:** {u['username']}")
+                        # Şifreleri maskelemeden gösteriyoruz (İstediğin gibi)
+                        col2.write(f"🔑 **Şifre:** `{u.get('password', 'N/A')}`") 
+                        # IP adresi (Eğer sütun varsa)
+                        ip = u.get('ip_adresi', 'Bilinmiyor')
+                        col1.caption(f"🌐 IP: {ip}")
+                        
+                        if u['username'] != "someku":
+                            if col3.button("BANLA / SİL", key=f"ban_{u['id']}"):
+                                supabase.table("users").delete().eq("id", u['id']).execute()
+                                st.warning(f"{u['username']} sistemden atıldı.")
+                                st.rerun()
+                    st.markdown("---")
 
+        # --- C. SİSTEM BAKIMI ---
         with adm_tabs[2]:
-            st.write("### Kullanıcı Denetimi")
-            u_list = supabase.table("users").select("*").execute()
-            if u_list.data:
-                for u in u_list.data:
-                    st.write(f"👤 {u['username']} (ID: {u['id']})")
+            st.write("### 🛠️ Kritik İşlemler")
+            if st.button("TÜM FAVORİLERİ SIFIRLA"):
+                st.warning("Emin misiniz? Geri dönüşü yok!")
+                if st.checkbox("Evet, tüm favorileri temizle"):
+                    supabase.table("favoriler").delete().neq("id", 0).execute()
+                    st.success("Tüm favori verileri silindi.")
     else:
-        # Diğer kullanıcılar buraya tıklasa bile boş bir sayfa ve bu mesajı görür
-        st.warning("Bu alana erişim yetkiniz bulunmamaktadır.")
+        st.warning("Bu bölgeye erişim izniniz yok.")
