@@ -126,12 +126,107 @@ with tabs[1]:
             st.rerun()
 
 # --- 3. 11 KUR ---
+# --- 📋 İLK 11 (V123 - GÖRSEL SAHA DİZİLİŞİ) ---
 with tabs[2]:
+    st.subheader("📋 Elite 11 Görsel Diziliş (4-4-2)")
     f_n = st.session_state.fav_list if st.session_state.fav_list else ["Boş"]
-    k1, k2, k3, k4, k5 = st.columns(5)
-    gk = k1.selectbox("GK:", f_n, key="gk_v"); lb = k2.selectbox("LB:", f_n, key="lb_v"); cb1 = k3.selectbox("CB1:", f_n, key="cb1_v"); cb2 = k4.selectbox("CB2:", f_n, key="cb2_v"); rb = k5.selectbox("RB:", f_n, key="rb_v")
-    m1, m2, m3 = st.columns(3); dm = m1.selectbox("DM:", f_n, key="dm_v"); cm = m2.selectbox("CM:", f_n, key="cm_v"); amc = m3.selectbox("AMC:", f_n, key="amc_v")
-    s1, s2, s3 = st.columns(3); lw = s1.selectbox("LW:", f_n, key="lw_v"); rw = s2.selectbox("RW:", f_n, key="rw_v"); stp = s3.selectbox("ST:", f_n, key="stp_v")
+    
+    # Sporx görseline benzer, lines (çizgi) olan yeşil saha CSS'i
+    st.markdown("""
+        <style>
+        .football-pitch {
+            background-color: #238636;
+            background-image: linear-gradient(rgba(255,255,255,.3) 2px, transparent 2px), linear-gradient(90deg, rgba(255,255,255,.3) 2px, transparent 2px);
+            background-size: 50px 50px;
+            border: 5px solid white;
+            border-radius: 15px;
+            padding: 20px;
+            position: relative;
+            min-height: 600px;
+        }
+        .player-position {
+            background: rgba(22, 27, 34, 0.9);
+            border: 2px solid #58a6ff;
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            width: 100px;
+            position: absolute;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        .position-label { color: #8b949e; font-size: 11px; font-weight: bold; margin-bottom: 5px; }
+        .player-name { font-size: 13px; font-weight: bold; }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # SAHA KONTEYNERI BAŞLANGICI
+    st.markdown('<div class="football-pitch">', unsafe_allow_html=True)
+
+    # --- OYUNCU SEÇİM VE KONUMLANDIRMA ALANI ---
+
+    # Görseldeki gibi her pozisyon için bir selectbox yapıyoruz
+    
+    # KALECİ
+    gk = st.selectbox("🧤 GK:", f_n, key="gk_v")
+    
+    # DEFANS Hatti
+    lb = st.selectbox("🛡️ LB:", f_n, key="lb_v")
+    cb1 = st.selectbox("🛡️ CB1:", f_n, key="cb1_v")
+    cb2 = st.selectbox("🛡️ CB2:", f_n, key="cb2_v")
+    rb = st.selectbox("🛡️ RB:", f_n, key="rb_v")
+    
+    # ORTA SAHA HATTI
+    lm = st.selectbox("⚙️ LM:", f_n, key="lm_v")
+    cm1 = st.selectbox("⚙️ CM1:", f_n, key="cm1_v")
+    cm2 = st.selectbox("⚙️ CM2:", f_n, key="cm2_v")
+    rm = st.selectbox("⚙️ RM:", f_n, key="rm_v")
+    
+    # FORVET HATTI
+    st1 = st.selectbox("🎯 ST1:", f_n, key="st1_v")
+    st2 = st.selectbox("🎯 ST2:", f_n, key="st2_v")
+
+    st.markdown("---")
+    st.markdown("### GÖRSEL KADRO (Aşağıda)")
+
+    # --- CSS KOORDİNATLARI İLE GÖRSEL YERLEŞİM ---
+
+    # Pozisyonları görseldeki koordinatlara (top, left) yerleştiriyoruz
+
+    # KALECİ (GK)
+    st.markdown(f'''<div class="player-position" style="top:500px; left:45%;">
+        <div class="position-label">GK</div><div class="player-name">{gk}</div></div>''', unsafe_allow_html=True)
+    
+    # DEFANS (LB-CB-CB-RB)
+    st.markdown(f'''<div class="player-position" style="top:380px; left:10%;">
+        <div class="position-label">LB</div><div class="player-name">{lb}</div></div>''', unsafe_allow_html=True)
+    st.markdown(f'''<div class="player-position" style="top:380px; left:33%;">
+        <div class="position-label">CB</div><div class="player-name">{cb1}</div></div>''', unsafe_allow_html=True)
+    st.markdown(f'''<div class="player-position" style="top:380px; left:57%;">
+        <div class="position-label">CB</div><div class="player-name">{cb2}</div></div>''', unsafe_allow_html=True)
+    st.markdown(f'''<div class="player-position" style="top:380px; left:80%;">
+        <div class="position-label">RB</div><div class="player-name">{rb}</div></div>''', unsafe_allow_html=True)
+
+    # ORTA SAHA (LM-CM-CM-RM)
+    st.markdown(f'''<div class="player-position" style="top:220px; left:10%;">
+        <div class="position-label">LM</div><div class="player-name">{lm}</div></div>''', unsafe_allow_html=True)
+    st.markdown(f'''<div class="player-position" style="top:220px; left:33%;">
+        <div class="position-label">CM</div><div class="player-name">{cm1}</div></div>''', unsafe_allow_html=True)
+    st.markdown(f'''<div class="player-position" style="top:220px; left:57%;">
+        <div class="position-label">CM</div><div class="player-name">{cm2}</div></div>''', unsafe_allow_html=True)
+    st.markdown(f'''<div class="player-position" style="top:220px; left:80%;">
+        <div class="position-label">RM</div><div class="player-name">{rm}</div></div>''', unsafe_allow_html=True)
+
+    # FORVET (ST-ST)
+    st.markdown(f'''<div class="player-position" style="top:60px; left:33%;">
+        <div class="position-label">ST</div><div class="player-name">{st1}</div></div>''', unsafe_allow_html=True)
+    st.markdown(f'''<div class="player-position" style="top:60px; left:57%;">
+        <div class="position-label">ST</div><div class="player-name">{st2}</div></div>''', unsafe_allow_html=True)
+
+    # SAHA KONTEYNERI SONU
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.download_button("📸 KADROYU LİSTE OLARAK İNDİR", kadro_txt, file_name="kadro.txt")
 
 # --- 4. FAVORİLER ---
 with tabs[3]:
