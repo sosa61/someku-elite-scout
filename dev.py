@@ -128,111 +128,98 @@ with tabs[1]:
 
 # Dosyanın en başına şunu ekle: import streamlit.components.v1 as components
 
-# --- 📋 İLK 11 (V126 - GÖRSEL YERLEŞİM VE SEÇİM) ---
+# --- 📋 İLK 11 (V127 - DİNAMİK DİZİLİŞ VE DİKEY SAHA) ---
 with tabs[2]:
-    st.subheader("📋 Elite 11 Görsel Diziliş (4-4-2)")
-    
-    # Kullanıcının favori listesinden isimleri çek (Boşsa 'Boş' yaz)
+    st.subheader("📋 Stratejik İlk 11")
     f_n = st.session_state.fav_list if st.session_state.fav_list else ["Boş"]
     
-    # --- OYUNCU SEÇİM ALANI ---
-    # Yukarıdaki Sporx görseli 4-4-2 olduğu için seçimleri de ona göre yapıyoruz
+    # 1. DİZİLİŞ SEÇİMİ
+    tactic = st.selectbox("🏟️ Saha Dizilişi Seç:", ["4-4-2", "4-3-3"], key="tactic_sel")
     
-    st.markdown('<div class="section-header">🧤 KALE & DEFANS</div>', unsafe_allow_html=True)
+    # 2. OYUNCU SEÇİMLERİ (Dizilişe Göre Dinamik)
+    st.markdown('<div class="section-header">🧤 KALECİ VE DEFANS</div>', unsafe_allow_html=True)
     c1, c2, c3, c4, c5 = st.columns(5)
-    gk = c1.selectbox("GK:", f_n, key="vGK_s")
-    lb = c2.selectbox("LB:", f_n, key="vLB_s")
-    cb1 = c3.selectbox("CB1:", f_n, key="vCB1_s")
-    cb2 = c4.selectbox("CB2:", f_n, key="vCB2_s")
-    rb = c5.selectbox("RB:", f_n, key="vRB_s")
-    
-    st.markdown('<div class="section-header">⚙️ ORTA SAHA</div>', unsafe_allow_html=True)
-    m1, m2, m3, m4 = st.columns(4)
-    lm = m1.selectbox("LM:", f_n, key="vLM_s")
-    cm1 = m2.selectbox("CM1:", f_n, key="vCM1_s")
-    cm2 = m3.selectbox("CM2:", f_n, key="vCM2_s")
-    rm = m4.selectbox("RM:", f_n, key="vRM_s")
-    
-    st.markdown('<div class="section-header">🎯 FORVET</div>', unsafe_allow_html=True)
-    s1, s2 = st.columns(2)
-    st1 = s1.selectbox("ST1:", f_n, key="vST1_s")
-    st2 = s2.selectbox("ST2:", f_n, key="vST2_s")
+    gk = c1.selectbox("GK", f_n, key="sl_gk"); lb = c2.selectbox("LB", f_n, key="sl_lb")
+    cb1 = c3.selectbox("CB1", f_n, key="sl_cb1"); cb2 = c4.selectbox("CB2", f_n, key="sl_cb2"); rb = c5.selectbox("sl_rb", f_n)
 
-    st.markdown("---")
-    st.markdown("### 🏟️ GÖRSEL SAHA (4-4-2)")
+    st.markdown('<div class="section-header">⚙️ ORTA SAHA VE FORVET</div>', unsafe_allow_html=True)
+    if tactic == "4-4-2":
+        m1, m2, m3, m4 = st.columns(4)
+        lm = m1.selectbox("LM", f_n, key="sl_lm"); cm1 = m2.selectbox("CM1", f_n, key="sl_cm1")
+        cm2 = m3.selectbox("CM2", f_n, key="sl_cm2"); rm = m4.selectbox("RM", f_n, key="sl_rm")
+        f1, f2 = st.columns(2)
+        st1 = f1.selectbox("ST1", f_n, key="sl_st1"); st2 = f2.selectbox("ST2", f_n, key="sl_st2")
+    else: # 4-3-3
+        m1, m2, m3 = st.columns(3)
+        cm1 = m1.selectbox("LCM", f_n, key="sl_lcm"); cm2 = m2.selectbox("CM", f_n, key="sl_cmm"); cm3 = m3.selectbox("RCM", f_n, key="sl_rcm")
+        f1, f2, f3 = st.columns(3)
+        lw = f1.selectbox("LW", f_n, key="sl_lw"); st_p = f2.selectbox("ST", f_n, key="sl_st"); rw = f3.selectbox("RW", f_n, key="sl_rw")
 
-    # --- SAHA GÖRSELLEŞTİRME (HTML/CSS) ---
-    # senin attığın görselin yapısını (koordinatlar, renkler, çizgiler) koda döktüm.
-    # st.components.v1.html kullanarak Streamlit'in render etmesini sağladım.
-    
-    pitch_html = f"""
+    # 3. GÖRSEL SAHA TASARIMI (DİKEY VE DAR)
+    # Oyuncu yerleşim koordinatları dizilişe göre değişir
+    players_html = ""
+    if tactic == "4-4-2":
+        players_html = f"""
+            <div class="player" style="top:85%; left:42%; border-color:#f2cc60;"><div class="pos">GK</div><div class="name">{gk}</div></div>
+            <div class="player" style="top:68%; left:5%;"><div class="pos">LB</div><div class="name">{lb}</div></div>
+            <div class="player" style="top:68%; left:30%;"><div class="pos">CB</div><div class="name">{cb1}</div></div>
+            <div class="player" style="top:68%; left:55%;"><div class="pos">CB</div><div class="name">{cb2}</div></div>
+            <div class="player" style="top:68%; left:80%;"><div class="pos">RB</div><div class="name">{rb}</div></div>
+            <div class="player" style="top:42%; left:5%;"><div class="pos">LM</div><div class="name">{lm}</div></div>
+            <div class="player" style="top:42%; left:30%;"><div class="pos">CM</div><div class="name">{cm1}</div></div>
+            <div class="player" style="top:42%; left:55%;"><div class="pos">CM</div><div class="name">{cm2}</div></div>
+            <div class="player" style="top:42%; left:80%;"><div class="pos">RM</div><div class="name">{rm}</div></div>
+            <div class="player" style="top:15%; left:30%;"><div class="pos">ST</div><div class="name">{st1}</div></div>
+            <div class="player" style="top:15%; left:55%;"><div class="pos">ST</div><div class="name">{st2}</div></div>
+        """
+    else: # 4-3-3
+        players_html = f"""
+            <div class="player" style="top:85%; left:42%; border-color:#f2cc60;"><div class="pos">GK</div><div class="name">{gk}</div></div>
+            <div class="player" style="top:68%; left:5%;"><div class="pos">LB</div><div class="name">{lb}</div></div>
+            <div class="player" style="top:68%; left:30%;"><div class="pos">CB</div><div class="name">{cb1}</div></div>
+            <div class="player" style="top:68%; left:55%;"><div class="pos">CB</div><div class="name">{cb2}</div></div>
+            <div class="player" style="top:68%; left:80%;"><div class="pos">RB</div><div class="name">{rb}</div></div>
+            <div class="player" style="top:45%; left:15%;"><div class="pos">CM</div><div class="name">{cm1}</div></div>
+            <div class="player" style="top:45%; left:42%;"><div class="pos">CM</div><div class="name">{cm2}</div></div>
+            <div class="player" style="top:45%; left:70%;"><div class="pos">CM</div><div class="name">{cm3}</div></div>
+            <div class="player" style="top:15%; left:10%;"><div class="pos">LW</div><div class="name">{lw}</div></div>
+            <div class="player" style="top:12%; left:42%;"><div class="pos">ST</div><div class="name">{st_p}</div></div>
+            <div class="player" style="top:15%; left:75%;"><div class="pos">RW</div><div class="name">{rw}</div></div>
+        """
+
+    pitch_css = """
     <style>
-        body {{ background-color: #0d1117; margin: 0; padding: 0; overflow: hidden; }}
-        .football-pitch {{
-            position: relative;
-            background-color: #238636;
-            background-image: radial-gradient(circle, rgba(255,255,255,0.2) 2px, transparent 2px);
-            background-size: 30px 30px;
-            border: 4px solid #ffffff;
-            border-radius: 15px;
-            width: 100%;
-            height: 520px;
-            margin: auto;
-            overflow: hidden;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
-        }}
-        .mid-line {{ position: absolute; top: 50%; left: 0; width: 100%; border-top: 2px solid rgba(255,255,255,0.3); }}
-        .mid-circle {{ position: absolute; top: 40%; left: 40%; width: 20%; height: 20%; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; }}
-        .penalty-box-top {{ position: absolute; top: -2px; left: 25%; width: 50%; height: 15%; border: 2px solid rgba(255,255,255,0.3); border-top: none; }}
-        .penalty-box-bot {{ position: absolute; bottom: -2px; left: 25%; width: 50%; height: 15%; border: 2px solid rgba(255,255,255,0.3); border-bottom: none; }}
-        
-        /* Oyuncu Kartı Tasarımı */
-        .player-card-on-pitch {{
-            position: absolute;
-            background: rgba(13, 17, 23, 0.95);
-            border: 2px solid #58a6ff;
-            border-radius: 6px;
-            color: white;
-            width: 85px;
-            padding: 4px;
-            text-align: center;
-            font-family: 'JetBrains Mono', monospace;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            z-index: 10;
-        }}
-        .pos-label {{ font-size: 8px; color: #58a6ff; font-weight: bold; text-transform: uppercase; }}
-        .player-name-pitch {{ font-size: 10px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+        .pitch {
+            position: relative; background-color: #238636;
+            background-image: radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px);
+            background-size: 20px 20px;
+            border: 4px solid #ffffff; border-radius: 15px;
+            width: 380px; height: 550px; margin: auto; overflow: hidden;
+        }
+        .mid-line { position: absolute; top: 50%; left: 0; width: 100%; border-top: 2px solid rgba(255,255,255,0.4); }
+        .mid-circle { position: absolute; top: 41%; left: 30%; width: 40%; height: 18%; border: 2px solid rgba(255,255,255,0.4); border-radius: 50%; }
+        .player {
+            position: absolute; background: rgba(13, 17, 23, 0.95);
+            border: 2px solid #58a6ff; border-radius: 6px; color: white;
+            width: 75px; padding: 3px; text-align: center; box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+        }
+        .pos { font-size: 8px; color: #58a6ff; font-weight: bold; }
+        .name { font-size: 9px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     </style>
-    
-    <div class="football-pitch">
-        <div class="mid-line"></div><div class="mid-circle"></div>
-        <div class="penalty-box-top"></div><div class="penalty-box-bot"></div>
-        
-        <div class="player-card-on-pitch" style="top:85%; left:43%; border-color:#f2cc60;">
-            <div class="pos-label" style="color:#f2cc60;">GK</div><div class="player-name-pitch">{gk}</div>
-        </div>
-        
-        <div class="player-card-on-pitch" style="top:68%; left:8%;"><div class="pos-label">LB</div><div class="player-name-pitch">{lb}</div></div>
-        <div class="player-card-on-pitch" style="top:68%; left:33%;"><div class="pos-label">CB</div><div class="player-name-pitch">{cb1}</div></div>
-        <div class="player-card-on-pitch" style="top:68%; left:57%;"><div class="pos-label">CB</div><div class="player-name-pitch">{cb2}</div></div>
-        <div class="player-card-on-pitch" style="top:68%; left:82%;"><div class="pos-label">RB</div><div class="player-name-pitch">{rb}</div></div>
-        
-        <div class="player-card-on-pitch" style="top:42%; left:8%;"><div class="pos-label">LM</div><div class="player-name-pitch">{lm}</div></div>
-        <div class="player-card-on-pitch" style="top:42%; left:33%;"><div class="pos-label">CM</div><div class="player-name-pitch">{cm1}</div></div>
-        <div class="player-card-on-pitch" style="top:42%; left:57%;"><div class="pos-label">CM</div><div class="player-name-pitch">{cm2}</div></div>
-        <div class="player-card-on-pitch" style="top:42%; left:82%;"><div class="pos-label">RM</div><div class="player-name-pitch">{rm}</div></div>
-        
-        <div class="player-card-on-pitch" style="top:15%; left:33%;"><div class="pos-label">ST</div><div class="player-name-pitch">{st1}</div></div>
-        <div class="player-card-on-pitch" style="top:15%; left:57%;"><div class="pos-label">ST</div><div class="player-name-pitch">{st2}</div></div>
-    </div>
     """
     
-    # HTML Olarak Render Et (Streamlit'in kodu metin olarak basmasını önler)
-    components.html(pitch_html, height=540)
+    st.components.v1.html(f"{pitch_css}<div class='pitch'><div class='mid-line'></div><div class='mid-circle'></div>{players_html}</div>", height=570)
     
-    # Hatalı olan indirme kısmını düzelttik
-    kadro_txt = f"Kadro (4-4-2): {gk}-{lb}-{cb1}-{cb2}-{rb}-{lm}-{cm1}-{cm2}-{rm}-{st1}-{st2}"
-    st.download_button("📩 KADRO LİSTESİNİ İNDİR", kadro_txt, file_name="elite_kadro.txt")
+    # İndirme Metni
+    kadro_txt = f"Diziliş: {tactic}\nKadro: {gk}, {lb}, {cb1}, {cb2}, {rb}..."
+    st.download_button("📩 KADRO LİSTESİNİ İNDİR", kadro_txt, file_name="kadro.txt")
+
+# --- 4. FAVORİLER ---
+with tabs[3]:
+    st.subheader("⭐ Kalıcı Favorilerin")
+    for f in get_user_favs(st.session_state.user):
+        c1, c2 = st.columns([5, 1]); c1.markdown(f'<div class="player-card fav-active" style="padding:10px;"><b>{f}</b></div>', unsafe_allow_html=True)
+        if c2.button("🗑️", key=f"del_{f}"): supabase.table("favoriler").delete().eq("kullanici_adi", st.session_state.user).eq("oyuncu_adi", f).execute(); st.rerun()
 
 # --- 5. BARROW AI (V122 - BİN VE MİLYON BÜTÇE ZEKASI) ---
 with tabs[4]:
