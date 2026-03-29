@@ -321,7 +321,7 @@ with tabs[4]:
 
 
 
-# --- 7. ADMIN (V129 - GİZLİ VE SAYGILI PANEL) ---
+# --- 6. ADMIN (V129 - GİZLİ VE SAYGILI PANEL) ---
 with tabs[4]: # Tab sırasını kontrol et
     if st.session_state.get('user') == "someku":
         st.markdown('<h1 style="color:#ff4b4b; text-align:center;">🛡️ YÖNETİM PANELİ</h1>', unsafe_allow_html=True)
