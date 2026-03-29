@@ -108,19 +108,18 @@ with tabs[0]:
         if c1.button("⬅️ Geri") and st.session_state.page > 0: st.session_state.page -= 1; st.rerun()
         if c2.button("İleri ➡️"): st.session_state.page += 1; st.rerun()
 
-# --- 2. RULET (V141 - KART GÖRÜNÜMÜ VE FAVORİLEME) ---
+# --- 2. RULET (V142 - SİNEMATİK KAYMA VE GECİKMELİ KART) ---
 with tabs[1]:
     st.markdown('<h2 style="text-align:center;">🎰 SCOUT RULETİ</h2>', unsafe_allow_html=True)
     
-    # Veritabanından rastgele 135+ PA oyuncuları çek
+    # 135 PA Üstü Havuzdan 100 Kişi Çek
     import random
-    r_offset = random.randint(0, 1000)
+    r_offset = random.randint(0, 500)
     res = supabase.table("oyuncular").select("*").gte("pa", 135).range(r_offset, r_offset + 100).execute()
     
     if res.data:
-        # Session State ile kazananı tutalım ki buton basıldığında kaybolmasın
-        if 'rulet_kazanan' not in st.session_state:
-            st.session_state.rulet_kazanan = None
+        # Sonuçları göstermek için bir boş alan (placeholder) yaratıyoruz
+        result_placeholder = st.empty()
 
         if st.button("🎰 RULETİ ÇEVİR (135+ PA MERMİSİ SÜR)", use_container_width=True):
             all_p = res.data
@@ -128,11 +127,11 @@ with tabs[1]:
             winner_index = 38
             winner = random.choice(all_p)
             strip_players[winner_index] = winner
-            st.session_state.rulet_kazanan = winner # Kazananı hafızaya al
             
             import json
             players_json = json.dumps(strip_players)
             
+            # RULET ANİMASYONU (JS)
             roulette_html = f"""
             <div id="roulette-root">
                 <style>
@@ -195,7 +194,37 @@ with tabs[1]:
             </script>
             """
             st.components.v1.html(roulette_html, height=270)
-            st.rerun() # Teknik detay kutusunu tetiklemek için
+            
+            # --- DETAYLARI GÖSTERMEK İÇİN BEKLE VE BAS ---
+            import time
+            time.sleep(5.5) # Ruletin durmasını bekliyoruz
+            
+            with result_placeholder.container():
+                st.markdown("---")
+                c1, c2 = st.columns([1, 2])
+                with c1:
+                    st.markdown(f"""
+                    <div style="background: rgba(255,255,255,0.05); border: 2px solid #238636; border-radius: 20px; padding: 20px; text-align: center; backdrop-filter: blur(10px);">
+                        <div style="font-size: 40px;">👤</div>
+                        <h3 style="margin:0;">{winner['oyuncu_adi']}</h3>
+                        <p style="color: #238636; font-weight: bold;">{winner['mevki']}</p>
+                        <div style="display: flex; justify-content: space-around; margin-top: 15px; border-top: 1px solid #30363d; padding-top: 10px;">
+                            <div><small style="display:block; color:#8b949e;">YAŞ</small><b>{winner['yas']}</b></div>
+                            <div><small style="display:block; color:#8b949e;">PA</small><b style="color:#238636;">{winner['pa']}</b></div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with c2:
+                    st.subheader("🕵️ Scout Notları")
+                    st.write(f"🏟️ **Kulüp:** {winner['kulup']}")
+                    st.write(f"💰 **Değer:** {winner['deger']}")
+                    if st.button("⭐ FAVORİLERİME EKLE", use_container_width=True):
+                        supabase.table("favoriler").insert({
+                            "oyuncu_adi": winner['oyuncu_adi'], "kulup": winner['kulup'], "pa": winner['pa']
+                        }).execute()
+                        st.success("Listeye eklendi!")
+    else:
+        st.error("135+ PA oyuncu havuzu yüklenemedi.")
 
         # --- TEKNİK DETAY VE FAVORİLEME ALANI ---
         if st.session_state.rulet_kazanan:
