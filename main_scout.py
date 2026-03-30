@@ -143,35 +143,55 @@ with st.sidebar:
 tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🕵️ YETENEK AVI", "🤖 BARROW AI", "🛠️ ADMIN"])
 
 
-# --- 1. SCOUT (V173 - VIP KİLİTLİ VE KİŞİYE ÖZEL FAVORİ) ---
+# --- 1. SCOUT (V174 - FİLTRELEME FİX & ZENGİN KART) ---
 with tabs[0]:
     import urllib.parse
+    import re
+
     POS_TR = {"Hepsi": "Hepsi", "Kaleci": "GK", "Stoper": "D C", "Sol Bek": "D L", "Sağ Bek": "D R", "Ön Libero": "DM", "Merkez Orta Saha": "M C", "Sol Kanat": "AM L", "Sağ Kanat": "AM R", "Ofansif Orta Saha": "AM C", "Forvet": "ST"}
-    REG_TR = {"Hepsi": [], "Avrupa": ["Türkiye", "Almanya", "Fransa", "İngiltere", "İtalya", "İspanya", "Hollanda", "Portekiz", "Belçika"], "Kuzey Avrupa": ["Norveç", "İsveç", "Danimarka", "Finlandiya", "İzlanda"], "Balkanlar": ["Hırvatistan", "Sırbistan", "Yunanistan", "Bulgaristan", "Slovenya", "Bosna Hersek"], "Güney Amerika": ["Brezilya", "Arjantin", "Uruguay", "Kolombiya", "Ekvador"], "Afrika": ["Nijerya", "Senegal", "Mısır", "Fildişi Sahili", "Fas", "Cezayir"], "Asya": ["Japonya", "Güney Kore", "Suudi Arabistan", "Katar", "Avustralya", "Çin"]}
     
-    # Aktif kullanıcıyı al
+    # Bölgeleri veritabanı uyumlu hale getirdik
+    REG_TR = {
+        "Hepsi": [], 
+        "Avrupa": ["Türkiye", "Almanya", "Fransa", "İngiltere", "İtalya", "İspanya", "Hollanda", "Portekiz", "Belçika", "Avusturya", "İsviçre"], 
+        "Kuzey Avrupa": ["Norveç", "İsveç", "Danimarka", "Finlandiya", "İzlanda"], 
+        "Balkanlar": ["Hırvatistan", "Sırbistan", "Yunanistan", "Bulgaristan", "Slovenya", "Bosna Hersek", "Romanya"], 
+        "Güney Amerika": ["Brezilya", "Arjantin", "Uruguay", "Kolombiya", "Ekvador", "Şili", "Paraguay"], 
+        "Afrika": ["Nijerya", "Senegal", "Mısır", "Fildişi Sahili", "Fas", "Cezayir", "Gana", "Kamerun"], 
+        "Asya": ["Japonya", "Güney Kore", "Suudi Arabistan", "Katar", "Avustralya", "Çin"]
+    }
+    
     curr_user = st.session_state.get('user')
     
     f1, f2, f3 = st.columns(3)
-    with f1: name_f = st.text_input("👤 Oyuncu:"); team_f = st.text_input("Takım Ara:")
-    with f2: reg_f = st.selectbox("🌍 Bölge:", list(REG_TR.keys())); country_f = st.text_input("Uyruk:")
-    with f3: pos_f = st.selectbox("👟 Mevki:", list(POS_TR.keys())); sort_f = st.selectbox("🔃 Sıralama Ölçütü:", ["pa", "ca", "yas", "deger"])
+    with f1: 
+        name_f = st.text_input("👤 Oyuncu Ara:")
+        team_f = st.text_input("Takım Ara:")
+    with f2: 
+        reg_f = st.selectbox("🌍 Bölge Seç:", list(REG_TR.keys()))
+        country_f = st.text_input("Uyruk (Direkt Ülke):")
+    with f3: 
+        pos_f = st.selectbox("👟 Mevki Seç:", list(POS_TR.keys()))
+        sort_f = st.selectbox("🔃 Sıralama:", ["pa", "ca", "yas", "deger"])
     
     v1, v2 = st.columns(2)
-    with v1: age_f = st.slider("🎂 Yaş:", 14, 50, (14, 25))
-    with v2: pa_f = st.slider("📊 PA:", 135, 200, (135, 200))
+    with v1: age_f = st.slider("🎂 Yaş Aralığı:", 14, 50, (14, 25))
+    with v2: pa_f = st.slider("📊 PA Aralığı:", 100, 200, (135, 200))
     
     if "page" not in st.session_state: st.session_state.page = 0
     
-    # --- 🛡️ DÜZELTME: Favorileri SADECE aktif kullanıcı için çek ---
+    # Favorileri Taze Çek
     f_res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", curr_user).execute()
     st.session_state.fav_list = [x['oyuncu_adi'] for x in f_res.data] if f_res.data else []
 
-    # Dinamik Sorgu
+    # --- 🚀 DİNAMİK SORGULAMA MOTORU ---
     query = supabase.table("oyuncular").select("*").gte("yas", age_f[0]).lte("yas", age_f[1]).gte("pa", pa_f[0]).lte("pa", pa_f[1])
+    
     if name_f: query = query.ilike("oyuncu_adi", f"%{name_f}%")
     if team_f: query = query.ilike("kulup", f"%{team_f}%")
+    if country_f: query = query.ilike("ulke", f"%{country_f}%") # Ülke araması burada düzeldi
     if pos_f != "Hepsi": query = query.ilike("mevki", f"%{POS_TR[pos_f]}%")
+    if reg_f != "Hepsi": query = query.in_("ulke", REG_TR[reg_f]) # Bölge araması burada düzeldi
     
     res = query.order(sort_f, desc=True).range(st.session_state.page*12, (st.session_state.page*12)+11).execute()
     
@@ -183,6 +203,11 @@ with tabs[0]:
             is_fav = p['oyuncu_adi'] in st.session_state.fav_list
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
             pa_val = p.get("pa", 0)
+            ca_val = p.get("ca", "-")
+            
+            # Değer Filtresi
+            raw_val = str(p.get('deger', ''))
+            display_val = "❌ Satılık Değil" if "300.000.000" in raw_val else (raw_val if raw_val not in ["0","£0","None",""] else "💎 Paha Biçilemez")
 
             with cols[i%2]:
                 if pa_val > 150 and user_is_vip is False:
@@ -195,42 +220,55 @@ with tabs[0]:
                     </div>
                     ''', unsafe_allow_html=True)
                 else:
-                    card_style = "border: 2px solid #238636; background: rgba(35, 134, 54, 0.05);" if is_fav else "border: 1px solid #30363d;"
+                    card_border = "#238636" if is_fav else "#30363d"
+                    bg_effect = "rgba(35, 134, 54, 0.08)" if is_fav else "rgba(255, 255, 255, 0.02)"
+                    
                     st.markdown(f'''
-                    <div style="padding:15px; border-radius:12px; margin-bottom:10px; {card_style} position:relative;">
-                        <span style="position:absolute; top:10px; right:10px; background:#238636; color:white; padding:2px 8px; border-radius:5px; font-size:11px; font-weight:bold;">PA: {p["pa"]}</span>
-                        <h4 style="margin:0;">{p["oyuncu_adi"]}</h4>
-                        <p style="font-size:11px; color:#8b949e; margin:5px 0;">🏟️ {p.get("kulup","Serbest")} | 👟 {p["mevki"]}</p>
-                        <a href="{tm_url}" target="_blank" style="color:#58a6ff; font-size:11px; text-decoration:none;">Transfermarkt ➔</a>
+                    <div style="padding:15px; border-radius:15px; margin-bottom:10px; border: 2px solid {card_border}; background: {bg_effect}; position:relative;">
+                        <div style="display:flex; justify-content:space-between;">
+                            <div>
+                                <h4 style="margin:0; font-size:16px;">{p["oyuncu_adi"]}</h4>
+                                <p style="font-size:11px; color:#8b949e; margin:2px 0;">🌍 {p.get("ulke","Bilinmiyor")} | 🎂 {p["yas"]} Yaş</p>
+                            </div>
+                            <div style="text-align:right;">
+                                <span style="background:#238636; color:white; padding:2px 8px; border-radius:5px; font-size:11px; font-weight:bold;">PA: {p["pa"]}</span>
+                                <p style="font-size:10px; color:#58a6ff; margin-top:3px;">CA: {ca_val}</p>
+                            </div>
+                        </div>
+                        <div style="border-top:1px solid #30363d; margin-top:10px; padding-top:10px; font-size:12px;">
+                            <p style="margin:0;">🏟️ <b>Kulüp:</b> {p.get("kulup","Serbest")}</p>
+                            <p style="margin:0;">👟 <b>Mevki:</b> {p.get("mevki","--")}</p>
+                            <p style="margin:0; color:#00ff41;">💰 <b>Değer:</b> {display_val}</p>
+                        </div>
+                        <div style="margin-top:10px;">
+                            <a href="{tm_url}" target="_blank" style="color:#58a6ff; font-size:11px; text-decoration:none; font-weight:bold;">Transfermarkt Profili ➔</a>
+                        </div>
                     </div>
                     ''', unsafe_allow_html=True)
                     
                     btn_txt = "⭐ FAVORİDEN ÇIKAR" if is_fav else "☆ FAVORİLERE EKLE"
-                    if st.button(btn_txt, key=f"v173_btn_{p['oyuncu_adi']}_{i}", use_container_width=True):
+                    if st.button(btn_txt, key=f"scout_btn_{p['oyuncu_adi']}_{i}", use_container_width=True):
                         if is_fav:
-                            # --- 🛡️ DÜZELTME: Sadece BU kullanıcının favorisini sil ---
                             supabase.table("favoriler").delete().eq("oyuncu_adi", p['oyuncu_adi']).eq("kullanici_adi", curr_user).execute()
-                            st.session_state.fav_list.remove(p['oyuncu_adi'])
                         else:
-                            # --- 🛡️ DÜZELTME: Favoriye eklerken KULLANICIYI kaydet ---
                             supabase.table("favoriler").insert({
-                                "oyuncu_adi": p['oyuncu_adi'], 
-                                "kulup": p.get('kulup', 'Serbest'), 
-                                "pa": p['pa'], 
-                                "mevki": p['mevki'], 
-                                "ca": p.get('ca', 0),
+                                "oyuncu_adi": p['oyuncu_adi'], "kulup": p.get('kulup', 'Serbest'), 
+                                "pa": p['pa'], "mevki": p['mevki'], "ca": p.get('ca', 0),
                                 "kullanici_adi": curr_user 
                             }).execute()
-                            st.session_state.fav_list.append(p['oyuncu_adi'])
                         st.rerun()
 
-        c1, c2 = st.columns(2)
+        st.markdown("---")
+        c1, c2, c3 = st.columns([1, 2, 1])
         if c1.button("⬅️ Geri", use_container_width=True) and st.session_state.page > 0:
             st.session_state.page -= 1; st.rerun()
-        if c2.button("İleri ➡️", use_container_width=True):
+        with c2: st.markdown(f"<p style='text-align:center;'>Sayfa: {st.session_state.page + 1}</p>", unsafe_allow_html=True)
+        if c3.button("İleri ➡️", use_container_width=True):
             st.session_state.page += 1; st.rerun()
+    else:
+        st.warning("Aradığın kriterlerde mermi bulunamadı hıyarto! Filtreleri biraz gevşet.")
 
-# --- 2. RULET (V187 - ZENGİN KART & KARIŞIK HAVUZ) ---
+# --- 2. RULET (V187 - HATASIZ VE KİŞİYE ÖZEL) ---
 with tabs[1]:
     st.markdown('<h2 style="text-align:center;">🎰 SCOUT RULETİ</h2>', unsafe_allow_html=True)
     
@@ -242,6 +280,7 @@ with tabs[1]:
     user_is_vip = st.session_state.get('is_vip', False)
     curr_user = st.session_state.get('user')
 
+    # VIP Durumuna Göre PA Aralığı
     if user_is_vip:
         st.markdown('<div style="text-align:center; padding:10px; background:#f2cc60; color:black; border-radius:15px; font-weight:bold; margin-bottom:15px;">🌟 ALTIN RULET MODU AKTİF (PA 155-200)</div>', unsafe_allow_html=True)
         min_pa, max_pa = 155, 200
@@ -256,34 +295,28 @@ with tabs[1]:
     if 'animasyon_tamam' not in st.session_state:
         st.session_state.animasyon_tamam = False
 
-    # --- KARIŞIK OYUNCU HAVUZU ÇEKME ---
+    # Havuzu Karıştırarak Çek
     try:
         r_offset = random.randint(0, 150) 
-        res = supabase.table("oyuncular").select("*")\
-            .gte("pa", min_pa)\
-            .lte("pa", max_pa)\
-            .range(r_offset, r_offset + 90).execute()
-        
+        res = supabase.table("oyuncular").select("*").gte("pa", min_pa).lte("pa", max_pa).range(r_offset, r_offset + 80).execute()
         player_pool = res.data if res.data else []
-        if player_pool:
-            random.shuffle(player_pool) 
+        if player_pool: random.shuffle(player_pool)
     except:
         player_pool = []
 
     if player_pool:
         btn_label = "🎰 ALTIN RULETİ ÇEVİR" if user_is_vip else "🎰 STANDART RULETİ ÇEVİR"
-        if st.button(btn_label, use_container_width=True):
+        if st.button(btn_label, key="rulet_spin_btn", use_container_width=True):
             strip_players = [random.choice(player_pool) for _ in range(30)]
             winner = random.choice(player_pool)
-            
             st.session_state.rulet_winner = winner
             st.session_state.animasyon_tamam = False
             strip_players[25] = winner
             players_json = json.dumps(strip_players)
             
             roulette_html = f"""
-            <div id="slot-container" style="position:relative; width:100%; height:160px; background:#0d1117; border:3px solid {slot_border}; border-radius:15px; overflow:hidden; display:flex; justify-content:center; align-items:center;">
-                <div style="position:absolute; width:100%; height:60px; border-top:2px solid {slot_border}; border-bottom:2px solid {slot_border}; background:rgba(242, 204, 96, 0.05); z-index:10; pointer-events:none;"></div>
+            <div style="position:relative; width:100%; height:160px; background:#0d1117; border:3px solid {slot_border}; border-radius:15px; overflow:hidden; display:flex; justify-content:center; align-items:center;">
+                <div style="position:absolute; width:100%; height:60px; border-top:2px solid {slot_border}; border-bottom:2px solid {slot_border}; background:rgba(242, 204, 96, 0.05); z-index:10;"></div>
                 <div id="slot-track" style="display:flex; flex-direction:column; position:absolute; top:0; transition: top 4s cubic-bezier(0.1, 0, 0.1, 1); width:100%;"></div>
             </div>
             <script>
@@ -291,19 +324,8 @@ with tabs[1]:
                     const players = {players_json};
                     const track = document.getElementById('slot-track');
                     const itemH = 60; const contH = 160; const winI = 25;
-                    track.innerHTML = players.map((p, i) => `
-                        <div id="si-${{i}}" style="height:${{itemH}}px; width:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; transition: opacity 0.5s;">
-                            <small style="color:#8b949e; font-size:10px;">${{p.kulup || 'Scout Agent'}}</small>
-                            <b style="color:white; font-size:13px;">${{p.oyuncu_adi}}</b>
-                        </div>
-                    `).join('');
-                    setTimeout(() => {{
-                        const finalY = (winI * itemH) - (contH / 2 - itemH / 2);
-                        track.style.top = "-" + finalY + "px";
-                        setTimeout(() => {{
-                            players.forEach((_, i) => {{ if(i !== winI) document.getElementById('si-'+i).style.opacity="0"; }});
-                        }}, 4000);
-                    }}, 100);
+                    track.innerHTML = players.map((p, i) => `<div style="height:${{itemH}}px; width:100%; display:flex; flex-direction:column; justify-content:center; align-items:center;"><small style="color:#8b949e; font-size:10px;">${{p.kulup || 'Scout Agent'}}</small><b style="color:white; font-size:13px;">${{p.oyuncu_adi}}</b></div>`).join('');
+                    setTimeout(() => {{ track.style.top = "-" + ((winI * itemH) - (contH / 2 - itemH / 2)) + "px"; }}, 100);
                 }})();
             </script>
             """
@@ -316,165 +338,129 @@ with tabs[1]:
             p = st.session_state.rulet_winner
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
             
-            raw_val = str(p.get('deger', ''))
-            if "300.000.000" in raw_val:
-                display_val = "❌ Satılık Değil"
-            elif raw_val in ["0", "£0", "", "None"]:
-                display_val = "💎 Paha Biçilemez"
-            else:
-                display_val = raw_val
-
-            if not user_is_vip:
-                st.info("💡 155-200 PA arası efsaneler için Altın Rulet'i açmalısın!")
-                st.markdown(f'''<a href="https://www.shopier.com/fmscout/45690641" target="_blank" style="text-decoration:none;"><button style="width:100%; background:#f2cc60; color:black; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer;">🌟 ALTIN RULETİ AÇ (VIP OL)</button></a>''', unsafe_allow_html=True)
-
             st.markdown("---")
-            col_k, col_n = st.columns([1, 1.2])
-            
-            with col_k:
-                card_color = "#f2cc60" if user_is_vip else "#238636"
-                st.markdown(f"""
-                <div style="background: rgba(255,255,255,0.03); border: 2px solid {card_color}; border-radius: 20px; padding: 20px; text-align:center; backdrop-filter: blur(5px);">
-                    <div style="font-size:40px; margin-bottom:10px;">👤</div>
-                    <h3 style="margin:0; font-size:20px; color:white;">{p['oyuncu_adi']}</h3>
-                    <p style="color:{card_color}; font-weight:bold; font-size:14px; margin-bottom:15px;">{p['mevki']}</p>
-                    <div style="display:flex; justify-content:space-around; border-top:1px solid #30363d; padding-top:15px;">
-                        <div><small style="display:block; color:#8b949e; font-size:10px;">YAŞ</small><b style="font-size:16px;">{p['yas']}</b></div>
-                        <div><small style="display:block; color:#8b949e; font-size:10px;">POTANSİYEL</small><b style="color:{card_color}; font-size:16px;">{p['pa']}</b></div>
-                    </div>
-                    <a href="{tm_url}" target="_blank" style="text-decoration:none;">
-                        <div style="background:#1a3151; color:white; border-radius:10px; padding:10px; margin-top:20px; font-size:12px; font-weight:bold;">🌐 TRANSFERMARKT PROFİLİ</div>
-                    </a>
-                </div>
-                """, unsafe_allow_html=True)
+            card_color = "#f2cc60" if user_is_vip else "#238636"
+            st.markdown(f"""
+            <div style="background: rgba(255,255,255,0.03); border: 2px solid {card_color}; border-radius: 20px; padding: 20px; text-align:center;">
+                <h3 style="margin:0; font-size:20px;">{p['oyuncu_adi']}</h3>
+                <p style="color:{card_color}; font-weight:bold;">{p['mevki']} | PA: {p['pa']}</p>
+                <a href="{tm_url}" target="_blank" style="text-decoration:none; color:#58a6ff; font-size:12px;">Transfermarkt Profili ➔</a>
+            </div>
+            """, unsafe_allow_html=True)
 
-            with col_n:
-                st.markdown(f"#### 🕵️ Scout Raporu")
-                st.write(f"🌍 **Ülke:** {p.get('ulke', 'Bilinmiyor')}")
-                st.write(f"🏟️ **Kulüp:** {p.get('kulup', 'Serbest')}")
-                st.write(f"💰 **Piyasa Değeri:** {display_val}")
-                st.write(f"📈 **CA (Mevcut):** {p.get('ca', '-')}")
-                
-                st.markdown("---")
-                # FAVORİ BUTONU ARTIK DOĞRU YERDE (Girintisi düzeltildi)
-                if st.button("⭐ FAVORİLERİME EKLE", use_container_width=True, key=f"rulet_fav_{p['oyuncu_adi']}"):
-                    supabase.table("favoriler").insert({
-                        "oyuncu_adi": p['oyuncu_adi'], 
-                        "kulup": p.get('kulup', 'Serbest'), 
-                        "pa": p['pa'], 
-                        "mevki": p['mevki'], 
-                        "ca": p.get('ca', '-'),
-                        "kullanici_adi": curr_user
-                    }).execute()
-                    st.success("✅ Mermi senin listene eklendi!")
+            if st.button("⭐ FAVORİLERİME EKLE", key=f"fav_btn_rulet_{p['oyuncu_adi']}", use_container_width=True):
+                supabase.table("favoriler").insert({"oyuncu_adi": p['oyuncu_adi'], "kulup": p.get('kulup','Serbest'), "pa": p['pa'], "mevki": p['mevki'], "kullanici_adi": curr_user}).execute()
+                st.success("✅ Mermi listeye eklendi!")
     else:
-        st.warning("Kriterlere uygun mermi bulunamadı.")
-
-
-# --- 3. İLK 11 (V163 - PNG VE METİN ÇIKTISI) ---
+        st.warning("Mermi bulunamadı hıyarto!")
+        
+     # --- 3. İLK 11 (V165 - SÜRÜKLE BIRAK FIX) ---
 with tabs[2]:
-    st.markdown('<h2 style="text-align:center;">🏟️ ELITE ARENA - KADRO KUR</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 style="text-align:center;">🏟️ ELITE ARENA - TAKTİK TAHTASI</h2>', unsafe_allow_html=True)
     
-    # --- FAVORİLERİ ÇEK ---
+    curr_user = st.session_state.get('user')
     try:
-        res_fav = supabase.table("favoriler").select("*").order("pa", desc=True).execute()
-        f_n = [f"{p['oyuncu_adi']} ({p['pa']})" for p in res_fav.data] if res_fav.data else ["Henüz Favorin Yok"]
+        res_fav = supabase.table("favoriler").select("*").eq("kullanici_adi", curr_user).order("pa", desc=True).execute()
+        f_n = [f"{p['oyuncu_adi']} ({p['pa']})" for p in res_fav.data] if res_fav.data else ["Favori Mermi Yok"]
     except:
         f_n = ["Bağlantı Hatası"]
 
-    tactic = st.selectbox("🏟️ Diziliş Seç:", ["4-4-2", "4-3-3"], key="tactic_sel")
+    tactic = st.selectbox("🏟️ Ana Diziliş Seç:", 
+                         ["4-3-3", "4-4-2", "4-2-3-1", "3-5-2", "5-3-2", "4-1-2-1-2"], key="tactic_sel")
     
-    # --- OYUNCU SEÇİMLERİ ---
+    st.info("💡 İpucu: Oyuncuları farenizle veya parmağınızla saha üzerinde özgürce hareket ettirebilirsiniz!")
+
     st.markdown('<div style="color:#58a6ff; font-weight:bold; font-size:12px;">🛡️ DEFANS</div>', unsafe_allow_html=True)
     c1, c2, c3, c4, c5 = st.columns(5)
     gk = c1.selectbox("GK", f_n, key="sl_gk"); lb = c2.selectbox("LB", f_n, key="sl_lb")
     cb1 = c3.selectbox("CB1", f_n, key="sl_cb1"); cb2 = c4.selectbox("CB2", f_n, key="sl_cb2"); rb = c5.selectbox("RB", f_n, key="sl_rb")
 
     st.markdown('<div style="color:#238636; font-weight:bold; font-size:12px;">⚡ HÜCUM</div>', unsafe_allow_html=True)
+    
+    # Mevki koordinatlarını mermi gibi ayarlıyoruz
     if tactic == "4-4-2":
         m1, m2, m3, m4 = st.columns(4)
-        lm = m1.selectbox("LM", f_n, key="sl_lm"); cm1 = m2.selectbox("CM1", f_n, key="sl_cm1")
-        cm2 = m3.selectbox("CM2", f_n, key="sl_cm2"); rm = m4.selectbox("RM", f_n, key="sl_rm")
+        lm = m1.selectbox("LM", f_n); cm1 = m2.selectbox("CM1", f_n); cm2 = m3.selectbox("CM2", f_n); rm = m4.selectbox("RM", f_n)
         f1, f2 = st.columns(2)
-        st1 = f1.selectbox("ST1", f_n, key="sl_st1"); st2 = f2.selectbox("ST2", f_n, key="sl_st2")
-        kadro_txt = f"Diziliş: 4-4-2\nGK: {gk}\nLB: {lb}\nCB: {cb1}\nCB: {cb2}\nRB: {rb}\nLM: {lm}\nCM: {cm1}\nCM: {cm2}\nRM: {rm}\nST: {st1}\nST: {st2}"
-    else:
+        st1 = f1.selectbox("ST1", f_n); st2 = f2.selectbox("ST2", f_n)
+        positions = [("GK",gk,82,39), ("LB",lb,65,2), ("CB",cb1,65,26), ("CB",cb2,65,51), ("RB",rb,65,75), ("LM",lm,40,2), ("CM",cm1,40,26), ("CM",cm2,40,51), ("RM",rm,40,75), ("ST",st1,13,26), ("ST",st2,13,51)]
+    
+    elif tactic == "4-2-3-1":
+        m1, m2, m3, m4, m5 = st.columns(5)
+        dm1 = m1.selectbox("CDM1", f_n); dm2 = m2.selectbox("CDM2", f_n); aml = m3.selectbox("LAM", f_n); amc = m4.selectbox("CAM", f_n); amr = m5.selectbox("RAM", f_n)
+        st1 = st.selectbox("ST", f_n)
+        positions = [("GK",gk,82,39), ("LB",lb,65,2), ("CB",cb1,65,26), ("CB",cb2,65,51), ("RB",rb,65,75), ("DM",dm1,52,26), ("DM",dm2,52,51), ("AM",aml,28,5), ("AM",amc,25,39), ("AM",amr,28,72), ("ST",st1,8,39)]
+
+    elif tactic == "3-5-2":
+        m1, m2, m3, m4, m5 = st.columns(5)
+        lwb = m1.selectbox("LWB", f_n); cm1 = m2.selectbox("CM1", f_n); cdm = m3.selectbox("CDM", f_n); cm2 = m4.selectbox("CM2", f_n); rwb = m5.selectbox("RWB", f_n)
+        f1, f2 = st.columns(2)
+        st1 = f1.selectbox("ST1", f_n); st2 = f2.selectbox("ST2", f_n)
+        positions = [("GK",gk,82,39), ("CB",lb,70,12), ("CB",cb1,70,39), ("CB",cb2,70,66), ("LWB",lwb,45,2), ("DM",cdm,52,39), ("CM",cm1,43,23), ("CM",cm2,43,55), ("RWB",rwb,45,75), ("ST",st1,13,26), ("ST",st2,13,51)]
+
+    else: # Default 4-3-3
         m1, m2, m3 = st.columns(3)
-        cm1 = m1.selectbox("LCM", f_n, key="sl_lcm"); cm2 = m2.selectbox("CM", f_n, key="sl_cmm"); cm3 = m3.selectbox("RCM", f_n, key="sl_rcm")
+        cm1 = m1.selectbox("LCM", f_n); cm2 = m2.selectbox("CM", f_n); cm3 = m3.selectbox("RCM", f_n)
         f1, f2, f3 = st.columns(3)
-        lw = f1.selectbox("LW", f_n, key="sl_lw"); st_p = f2.selectbox("ST", f_n, key="sl_st"); rw = f3.selectbox("RW", f_n, key="sl_rw")
-        kadro_txt = f"Diziliş: 4-3-3\nGK: {gk}\nLB: {lb}\nCB: {cb1}\nCB: {cb2}\nRB: {rb}\nCM: {cm1}\nCM: {cm2}\nCM: {cm3}\nLW: {lw}\nST: {st_p}\nRW: {rw}"
+        lw = f1.selectbox("LW", f_n); st_p = f2.selectbox("ST", f_n); rw = f3.selectbox("RW", f_n)
+        positions = [("GK",gk,82,39), ("LB",lb,65,2), ("CB",cb1,65,26), ("CB",cb2,65,51), ("RB",rb,65,75), ("CM",cm1,43,10), ("CM",cm2,43,38), ("CM",cm3,43,66), ("LW",lw,14,5), ("ST",st_p,11,38), ("RW",rw,14,71)]
 
-    # --- GÖRSEL SAHA TASARIMI ---
-    players_html = ""
-    if tactic == "4-4-2":
-        players_html = f"""
-            <div class="player" style="top:84%; left:39%; border-color:#f2cc60;"><div class="pos">GK</div><div class="name">{gk}</div></div>
-            <div class="player" style="top:67%; left:2%;"><div class="pos">LB</div><div class="name">{lb}</div></div>
-            <div class="player" style="top:67%; left:26%;"><div class="pos">CB</div><div class="name">{cb1}</div></div>
-            <div class="player" style="top:67%; left:51%;"><div class="pos">CB</div><div class="name">{cb2}</div></div>
-            <div class="player" style="top:67%; left:75%;"><div class="pos">RB</div><div class="name">{rb}</div></div>
-            <div class="player" style="top:40%; left:2%;"><div class="pos">LM</div><div class="name">{lm}</div></div>
-            <div class="player" style="top:40%; left:26%;"><div class="pos">CM</div><div class="name">{cm1}</div></div>
-            <div class="player" style="top:40%; left:51%;"><div class="pos">CM</div><div class="name">{cm2}</div></div>
-            <div class="player" style="top:40%; left:75%;"><div class="pos">RM</div><div class="name">{rm}</div></div>
-            <div class="player" style="top:13%; left:26%;"><div class="pos">ST</div><div class="name">{st1}</div></div>
-            <div class="player" style="top:13%; left:51%;"><div class="pos">ST</div><div class="name">{st2}</div></div>
-        """
-    else:
-        players_html = f"""
-            <div class="player" style="top:84%; left:39%; border-color:#f2cc60;"><div class="pos">GK</div><div class="name">{gk}</div></div>
-            <div class="player" style="top:67%; left:2%;"><div class="pos">LB</div><div class="name">{lb}</div></div>
-            <div class="player" style="top:67%; left:26%;"><div class="pos">CB</div><div class="name">{cb1}</div></div>
-            <div class="player" style="top:67%; left:51%;"><div class="pos">CB</div><div class="name">{cb2}</div></div>
-            <div class="player" style="top:67%; left:75%;"><div class="pos">RB</div><div class="name">{rb}</div></div>
-            <div class="player" style="top:43%; left:10%;"><div class="pos">CM</div><div class="name">{cm1}</div></div>
-            <div class="player" style="top:43%; left:38%;"><div class="pos">CM</div><div class="name">{cm2}</div></div>
-            <div class="player" style="top:43%; left:66%;"><div class="pos">CM</div><div class="name">{cm3}</div></div>
-            <div class="player" style="top:14%; left:5%;"><div class="pos">LW</div><div class="name">{lw}</div></div>
-            <div class="player" style="top:11%; left:38%;"><div class="pos">ST</div><div class="name">{st_p}</div></div>
-            <div class="player" style="top:14%; left:71%;"><div class="pos">RW</div><div class="name">{rw}</div></div>
-        """
+    # --- HTML & SÜRÜKLEME MOTORU ---
+    players_divs = "".join([f'<div class="player draggable" style="top:{y}%; left:{x}%;" onmousedown="startDrag(event)" ontouchstart="startDrag(event)"><div class="pos">{p}</div><div class="name">{n}</div></div>' for p, n, y, x in positions])
 
-    # PNG İndirme Scripti ve Saha HTML
-    saha_html = f"""
+    tahta_html = f"""
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <div id="capture" style="position:relative; background:#238636; border:3px solid #ffffff; border-radius:15px; width:360px; height:530px; margin:auto; overflow:hidden;">
-        <div style="position:absolute; top:50%; left:0; width:100%; border-top:2px solid rgba(255,255,255,0.3);"></div>
-        <div style="position:absolute; top:41%; left:30%; width:40%; height:18%; border:2px solid rgba(255,255,255,0.3); border-radius:50%;"></div>
-        {players_html}
-        <div style="position:absolute; bottom:5px; right:10px; color:rgba(255,255,255,0.4); font-size:9px; font-weight:bold;">SOMEKU ELITE SCOUT</div>
+    <div id="capture" style="position:relative; background:#1e4620; border:4px solid #ffffff; border-radius:15px; width:360px; height:540px; margin:auto; overflow:hidden;">
+        <div style="position:absolute; top:50%; left:0; width:100%; border-top:2px solid rgba(255,255,255,0.4);"></div>
+        <div style="position:absolute; top:40%; left:30%; width:40%; height:20%; border:2px solid rgba(255,255,255,0.4); border-radius:50%;"></div>
+        {players_divs}
+        <div style="position:absolute; bottom:5px; right:10px; color:rgba(255,255,255,0.3); font-size:9px;">SOMEKU ELITE SCOUT</div>
     </div>
-    <div style="display:flex; gap:10px; margin-top:15px;">
-        <button onclick="downloadImage()" style="flex:1; padding:10px; background:#238636; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">📸 RESİM (PNG) İNDİR</button>
-    </div>
+    
+    <button onclick="downloadImage()" style="width:100%; padding:12px; background:#238636; color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer; margin-top:15px;">📸 KADROYU PNG KAYDET</button>
+
     <script>
+        let activeEl = null;
+        function startDrag(e) {{
+            activeEl = e.target.closest('.draggable');
+            document.onmousemove = drag;
+            document.ontouchmove = drag;
+            document.onmouseup = endDrag;
+            document.ontouchend = endDrag;
+        }}
+        function drag(e) {{
+            if (!activeEl) return;
+            e.preventDefault();
+            let clientX = e.clientX || e.touches[0].clientX;
+            let clientY = e.clientY || e.touches[0].clientY;
+            let rect = document.getElementById('capture').getBoundingClientRect();
+            let x = ((clientX - rect.left - 39) / rect.width) * 100;
+            let y = ((clientY - rect.top - 20) / rect.height) * 100;
+            activeEl.style.left = x + "%";
+            activeEl.style.top = y + "%";
+        }}
+        function endDrag() {{ activeEl = null; }}
         function downloadImage() {{
             html2canvas(document.querySelector("#capture")).then(canvas => {{
                 let link = document.createElement('a');
-                link.download = 'elite-kadro.png';
+                link.download = 'mermi-kadro.png';
                 link.href = canvas.toDataURL();
                 link.click();
             }});
         }}
     </script>
     <style>
-        .player {{ position:absolute; background:rgba(13,17,23,0.95); border:1.5px solid #58a6ff; border-radius:6px; color:white; width:78px; padding:3px; text-align:center; box-shadow:0 4px 10px rgba(0,0,0,0.5); }}
-        .pos {{ font-size:8px; color:#58a6ff; font-weight:bold; }}
-        .name {{ font-size:9px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
+        .player {{ position:absolute; background:rgba(13,17,23,0.9); border:1.5px solid #58a6ff; border-radius:8px; color:white; width:78px; padding:4px; text-align:center; cursor:grab; z-index:100; user-select:none; touch-action:none; }}
+        .player:active {{ cursor:grabbing; border-color:#f2cc60; transform: scale(1.05); }}
+        .pos {{ font-size:9px; color:#58a6ff; font-weight:bold; pointer-events:none; }}
+        .name {{ font-size:10px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none; }}
     </style>
     """
-    
-    st.components.v1.html(saha_html, height=600)
+    st.components.v1.html(tahta_html, height=630)
 
-    # --- METİN OLARAK İNDİR BUTONU ---
-    st.download_button(
-        label="📄 KADRO LİSTESİNİ (.TXT) İNDİR",
-        data=kadro_txt,
-        file_name="mermi-kadro-listesi.txt",
-        mime="text/plain",
-        use_container_width=True
-    )
+    kadro_txt = f"Diziliş: {tactic}\n" + "\n".join([f"{p[0]}: {p[1]}" for p in positions])
+    st.download_button(label="📄 TXT İNDİR", data=kadro_txt, file_name="mermi-kadro.txt", use_container_width=True)
+
 
 # --- 4. FAVORİLER (V149 - GÜNCEL TABLO UYUMLU) ---
 with tabs[3]:
