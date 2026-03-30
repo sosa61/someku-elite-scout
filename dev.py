@@ -77,6 +77,35 @@ if st.session_state.user is None:
         else:
             st.error("Hatalı kullanıcı adı veya şifre!")
     st.stop()
+    
+        # --- KAYIT OLMA BÖLÜMÜ ---
+    st.markdown("---") # Araya bir çizgi çekelim
+    with st.expander("✨ Hesabın yok mu? Hemen Kayıt Ol"):
+        new_user = st.text_input("Yeni Kullanıcı Adı:", key="reg_user")
+        new_email = st.text_input("E-posta Adresi:", key="reg_email")
+        new_pw = st.text_input("Yeni Şifre:", type="password", key="reg_pw")
+        
+        if st.button("Kayıt Ol", use_container_width=True):
+            if new_user and new_email and new_pw:
+                # Kullanıcı adı veya email zaten var mı kontrol et
+                check = supabase.table("users").select("*").or_(f"username.eq.{new_user},email.eq.{new_email}").execute()
+                
+                if check.data:
+                    st.error("❌ Bu kullanıcı adı veya e-posta zaten kullanılıyor!")
+                else:
+                    # Yeni kullanıcıyı her şeyiyle mermi gibi kaydet
+                    data = {
+                        "username": new_user,
+                        "email": new_email,
+                        "password": new_pw,
+                        "is_vip": False, # Başlangıçta herkes normal üye
+                        "puan": 0
+                    }
+                    supabase.table("users").insert(data).execute()
+                    st.success("✅ Kayıt başarılı! Şimdi yukarıdan giriş yapabilirsin.")
+            else:
+                st.warning("⚠️ Lütfen tüm alanları doldur!")
+
 
 tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🕵️ YETENEK AVI", "🤖 BARROW AI", "🛠️ ADMIN"])
 
