@@ -392,7 +392,7 @@ with tabs[3]:
     else:
         st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
         
-# --- 5. GİZLİ YETENEK AVI (V435 - İSİM İPUCU KALDIRILDI) ---
+# --- 5. GİZLİ YETENEK AVI (V440 - HATA DÜZELTİLDİ) ---
 with tabs[4]:
     import unicodedata
     st.markdown('<h2 style="text-align:center; color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h2>', unsafe_allow_html=True)
@@ -439,7 +439,8 @@ with tabs[4]:
     # --- 3. OYUN ALANI ---
     if st.session_state.game_active and st.session_state.target_p:
         p = st.session_state.target_p
-        kalan = max(0, int(30 - (time.time() - st.session_state.state.game_start_time)))
+        # HATA BURADAYDI: .state kaldırıldı
+        kalan = max(0, int(30 - (time.time() - st.session_state.game_start_time)))
         yuzde = (kalan / 30) * 100
 
         if kalan > 0:
