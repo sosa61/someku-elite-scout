@@ -354,39 +354,73 @@ with tabs[2]:
         use_container_width=True
     )
 
-# --- 4. FAVORİLER (V149 - GÜNCEL TABLO UYUMLU) ---
+# --- 4. FAVORİLER (V180 - ANALİZ PANELLİ SÜRÜM) ---
 with tabs[3]:
-    st.markdown('<h2 style="text-align:center;">⭐ KALICI FAVORİLERİN</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 style="text-align:center; color:#f2cc60;">⭐ FAVORİ SCOUT LİSTEM</h2>', unsafe_allow_html=True)
     
-    # Yeni tablo yapısına göre verileri çekiyoruz
-    res = supabase.table("favoriler").select("*").order("created_at", desc=True).execute()
+    # Favori Verilerini Çek
+    res_f = supabase.table("favoriler").select("*").order("pa", desc=True).execute()
     
-    if res.data:
-        # Favorileri şık kartlar halinde gösterelim
-        for p in res.data:
-            with st.container():
-                st.markdown(f"""
-                <div style="background: rgba(255,255,255,0.05); border-left: 5px solid #238636; border-radius: 10px; padding: 15px; margin-bottom: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <h4 style="margin:0; color: white;">{p['oyuncu_adi']}</h4>
-                            <small style="color: #8b949e;">🏟️ {p.get('kulup', 'Serbest')} | 📍 {p.get('mevki', '-')}</small>
-                        </div>
-                        <div style="text-align: right;">
-                            <span style="background: #238636; color: white; padding: 2px 8px; border-radius: 5px; font-size: 12px;">PA: {p['pa']}</span>
-                            <span style="background: #1a3151; color: white; padding: 2px 8px; border-radius: 5px; font-size: 12px; margin-left: 5px;">CA: {p.get('ca', '-')}</span>
-                        </div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+    if res_f.data:
+        df_fav = pd.DataFrame(res_f.data)
+        
+        # --- ÜST ANALİZ PANELİ (GRAFİKLER) ---
+        with st.expander("📊 LİSTE ANALİZİNİ GÖR (Mevki ve Potansiyel)", expanded=True):
+            c1, c2 = st.columns(2)
+            
+            with c1:
+                # 1. Mevki Dağılımı Grafiği
+                m_counts = df_fav['mevki'].value_counts()
+                fig_pie, ax_pie = plt.subplots(figsize=(5, 5))
+                fig_pie.patch.set_facecolor('#0e1117') # Arka plan uyumu
                 
-                # Silme Butonu (Her oyuncunun altına küçük bir buton)
-                if st.button(f"🗑️ Sil: {p['oyuncu_adi']}", key=f"del_{p['id']}"):
-                    supabase.table("favoriler").delete().eq("id", p['id']).execute()
-                    st.success("Mermi listeden çıkarıldı!")
+                colors = ['#ff4b4b', '#58a6ff', '#238636', '#f2cc60', '#8e44ad']
+                ax_pie.pie(m_counts, labels=m_counts.index, autopct='%1.1f%%', 
+                          startangle=140, colors=colors, textprops={'color':"w", 'fontsize':10})
+                ax_pie.set_title("Mevki Dağılımı", color="white", fontsize=12)
+                st.pyplot(fig_pie)
+            
+            with c2:
+                # 2. Ortalama PA Göstergesi
+                avg_pa = round(df_fav['pa'].mean(), 1)
+                st.metric("Ortalama Potansiyel (PA)", f"{avg_pa}")
+                
+                # Potansiyel Grafiği (Sütun)
+                pa_bins = pd.cut(df_fav['pa'], bins=[130, 150, 170, 190, 200], 
+                                labels=['Yedek', 'As', 'Elite', 'Legend'])
+                pa_counts = pa_bins.value_counts().sort_index()
+                
+                fig_bar, ax_bar = plt.subplots(figsize=(5, 4))
+                fig_bar.patch.set_facecolor('#0e1117')
+                ax_bar.set_facecolor('#1a1a1a')
+                
+                pa_counts.plot(kind='bar', color='#238636', ax=ax_bar)
+                ax_bar.tick_params(colors='white', labelsize=10)
+                ax_bar.set_title("Kalite Seviyeleri", color="white")
+                plt.xticks(rotation=0)
+                st.pyplot(fig_bar)
+
+        st.markdown("---")
+        
+        # --- FAVORİ OYUNCU LİSTESİ (ESKİ SİSTEM) ---
+        cols = st.columns(2)
+        for i, p in enumerate(res_f.data):
+            tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
+            with cols[i%2]:
+                st.markdown(f'''
+                <div style="padding:15px; border-radius:12px; border:1px solid #238636; background:rgba(35,134,54,0.05); margin-bottom:10px; position:relative;">
+                    <span style="position:absolute; top:10px; right:10px; background:#238636; color:white; padding:2px 8px; border-radius:5px; font-size:11px; font-weight:bold;">PA: {p["pa"]}</span>
+                    <h4 style="margin:0;">{p["oyuncu_adi"]}</h4>
+                    <p style="font-size:11px; color:#8b949e; margin:5px 0;">🏟️ {p.get("kulup","Serbest")} | 👟 {p["mevki"]}</p>
+                    <a href="{tm_url}" target="_blank" style="color:#58a6ff; font-size:11px; text-decoration:none;">Transfermarkt ➔</a>
+                </div>
+                ''', unsafe_allow_html=True)
+                
+                if st.button("🗑️ Listeden Çıkar", key=f"fav_del_{p['oyuncu_adi']}_{i}", use_container_width=True):
+                    supabase.table("favoriler").delete().eq("oyuncu_adi", p['oyuncu_adi']).execute()
                     st.rerun()
     else:
-        st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
+        st.info("Listen şu an boş Ömer. Scout merkezinden mermi toplamaya başla!")
 
 # --- 5. BARROW AI (V178 - ÖRNEK OYUNCU VE GENÇ YETENEK ZEKASI) ---
 with tabs[4]:
