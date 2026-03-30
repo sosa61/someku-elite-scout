@@ -471,60 +471,6 @@ with tabs[4]:
             st.error(f"⏱️ SÜRE BİTTİ! Aranan mermi: {p['oyuncu_adi']} (-1 Puan)")
             if st.button("Yeniden Dene"): st.rerun()
 
-    # --- LİDERLİK TABLOSU (KESİN ÇALIŞAN VERSİYON) ---
-    st.markdown("---")
-    st.markdown("### 🏆 TOP 10 ELITE SCOUTS")
-    
-    try:
-        # Puan sütununa göre en yüksek 10 kullanıcıyı çek
-        leaders = supabase.table("users").select("username, puan").order("puan", desc=True).limit(10).execute()
-        
-        if leaders.data:
-            # HTML ve CSS Tasarımı
-            table_html = """
-            <style>
-                .scout-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-family: 'JetBrains Mono', monospace; }
-                .scout-table th { color: #8b949e; text-align: left; padding: 12px; border-bottom: 2px solid #30363d; font-size: 13px; }
-                .scout-table td { padding: 12px; border-bottom: 1px solid #30363d; font-size: 14px; color: #e6edf3; }
-                .rank-1 { color: #f2cc60 !important; font-weight: bold; } /* 1. Sıra Altın */
-                .rank-2 { color: #c0c0c0 !important; } /* 2. Sıra Gümüş */
-                .rank-3 { color: #cd7f32 !important; } /* 3. Sıra Bronz */
-                .puan-badge { background: #238636; color: white; padding: 2px 8px; border-radius: 5px; font-weight: bold; font-size: 12px; }
-            </style>
-            <table class="scout-table">
-                <tr>
-                    <th>SIRA</th>
-                    <th>SCOUT</th>
-                    <th>PUAN</th>
-                </tr>
-            """
-            
-            for i, user in enumerate(leaders.data):
-                rank = i + 1
-                # Dereceye göre stil ve ikon belirle
-                row_class = f"rank-{rank}" if rank <= 3 else ""
-                icon = "👑" if rank == 1 else ("🥈" if rank == 2 else ("🥉" if rank == 3 else "🏃"))
-                
-                table_html += f"""
-                <tr>
-                    <td>{icon} {rank}</td>
-                    <td class="{row_class}">{user['username']}</td>
-                    <td><span class="puan-badge">{user.get('puan', 0)} PT</span></td>
-                </tr>
-                """
-            
-            table_html += "</table>"
-            
-            # KRİTİK: unsafe_allow_html=True olmazsa kodlar ekranda yazı olarak görünür!
-            st.markdown(table_html, unsafe_allow_html=True)
-            
-        else:
-            st.info("Puan tablosu şu an boş. İlk puanı sen al!")
-            
-    except Exception as e:
-        st.error("Liderlik tablosu şu an yüklenemiyor. Lütfen 'puan' sütununu kontrol et.")
-
-
     st.markdown("---")
     
 # --- 5. BARROW AI (V178 - ÖRNEK OYUNCU VE GENÇ YETENEK ZEKASI) ---
