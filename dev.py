@@ -473,39 +473,62 @@ with tabs[4]:
 
     st.markdown("---")
     
-    # --- LİDERLİK TABLOSU (TAMİR EDİLDİ) ---
+     # --- LİDERLİK TABLOSU (PREMIUM TASARIM) ---
+    st.markdown("---")
     st.markdown("### 🏆 TOP 10 ELITE SCOUTS")
+    
     try:
-        # Puan sütununa göre büyükten küçüğe ilk 10'u çek
+        # Veritabanından en yüksek 10 puanı çek
         leaders = supabase.table("users").select("username, puan").order("puan", desc=True).limit(10).execute()
         
         if leaders.data:
-            # Tabloyu daha şık göstermek için Markdown Table kullanıyoruz
+            # Tablo Başlangıcı ve CSS
             table_html = """
-            <table style="width:100%; color:white; border-collapse: collapse;">
-                <tr style="background-color: #21262d; text-align: left;">
-                    <th style="padding: 10px; border-bottom: 2px solid #30363d;">Sıra</th>
-                    <th style="padding: 10px; border-bottom: 2px solid #30363d;">Kullanıcı</th>
-                    <th style="padding: 10px; border-bottom: 2px solid #30363d;">Puan</th>
+            <style>
+                .scout-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-family: 'JetBrains Mono', monospace; }
+                .scout-table tr { border-bottom: 1px solid #30363d; transition: 0.3s; }
+                .scout-table tr:hover { background-color: rgba(88, 166, 255, 0.05); }
+                .scout-table th { text-align: left; padding: 12px; color: #8b949e; border-bottom: 2px solid #30363d; font-size: 14px; }
+                .scout-table td { padding: 12px; font-size: 14px; }
+                .rank-1 { color: #f2cc60 !important; font-weight: bold; } /* Altın rengi (1. Sıra) */
+                .rank-2 { color: #c0c0c0 !important; font-weight: bold; } /* Gümüş rengi (2. Sıra) */
+                .rank-3 { color: #cd7f32 !important; font-weight: bold; } /* Bronz rengi (3. Sıra) */
+                .puan-style { background: #238636; color: white; padding: 2px 10px; border-radius: 5px; font-weight: bold; }
+            </style>
+            <table class="scout-table">
+                <tr>
+                    <th>SIRA</th>
+                    <th>SCOUT KULLANICI</th>
+                    <th>PUAN</th>
                 </tr>
             """
+            
             for idx, user in enumerate(leaders.data):
-                color = "#f2cc60" if idx == 0 else "white" # Birinciyi altın rengi yap
+                rank = idx + 1
+                # Dereceye göre renk sınıfı ata
+                rank_class = f"rank-{rank}" if rank <= 3 else ""
+                u_name = user['username']
+                u_puan = user.get('puan', 0)
+                
+                # İkonlar
+                icon = "👑" if rank == 1 else ("🥈" if rank == 2 else ("🥉" if rank == 3 else "🏃"))
+                
                 table_html += f"""
-                <tr style="border-bottom: 1px solid #30363d;">
-                    <td style="padding: 10px;">{idx+1}</td>
-                    <td style="padding: 10px; color: {color}; font-weight: bold;">{user['username']}</td>
-                    <td style="padding: 10px; font-weight: bold;">{user.get('puan', 0)}</td>
+                <tr>
+                    <td>{icon} {rank}</td>
+                    <td class="{rank_class}">{u_name}</td>
+                    <td><span class="puan-style">{u_puan} PT</span></td>
                 </tr>
                 """
+            
             table_html += "</table>"
             st.markdown(table_html, unsafe_allow_html=True)
         else:
-            st.info("Henüz puanı olan scout yok. İlk sen ol!")
+            st.info("Puan tablosu şu an boş. İlk puanı sen al!")
+            
     except Exception as e:
-        st.error(f"Liderlik tablosu şu an güncellenemiyor. (Hata: {e})")
+        st.error(f"Liderlik tablosu yüklenemedi. Adminin 'puan' sütununu kontrol etmesi lazım.")
 
-        
           
 # --- 5. BARROW AI (V178 - ÖRNEK OYUNCU VE GENÇ YETENEK ZEKASI) ---
 with tabs[5]:
