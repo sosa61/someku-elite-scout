@@ -473,61 +473,66 @@ with tabs[4]:
 
     st.markdown("---")
     
-     # --- LİDERLİK TABLOSU (PREMIUM TASARIM) ---
+       # --- LİDERLİK TABLOSU (KESİN ÇÖZÜM) ---
     st.markdown("---")
     st.markdown("### 🏆 TOP 10 ELITE SCOUTS")
     
     try:
-        # Veritabanından en yüksek 10 puanı çek
         leaders = supabase.table("users").select("username, puan").order("puan", desc=True).limit(10).execute()
         
+        # Kullanıcının kendi puanını her zaman çek
+        user_data = supabase.table("users").select("puan").eq("username", st.session_state.user).execute()
+        my_score = user_data.data[0].get("puan", 0) if user_data.data else 0
+
         if leaders.data:
-            # Tablo Başlangıcı ve CSS
             table_html = """
             <style>
-                .scout-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-family: 'JetBrains Mono', monospace; }
-                .scout-table tr { border-bottom: 1px solid #30363d; transition: 0.3s; }
-                .scout-table tr:hover { background-color: rgba(88, 166, 255, 0.05); }
-                .scout-table th { text-align: left; padding: 12px; color: #8b949e; border-bottom: 2px solid #30363d; font-size: 14px; }
-                .scout-table td { padding: 12px; font-size: 14px; }
-                .rank-1 { color: #f2cc60 !important; font-weight: bold; } /* Altın rengi (1. Sıra) */
-                .rank-2 { color: #c0c0c0 !important; font-weight: bold; } /* Gümüş rengi (2. Sıra) */
-                .rank-3 { color: #cd7f32 !important; font-weight: bold; } /* Bronz rengi (3. Sıra) */
-                .puan-style { background: #238636; color: white; padding: 2px 10px; border-radius: 5px; font-weight: bold; }
+                .scout-table { width: 100%; border-collapse: collapse; font-family: sans-serif; }
+                .scout-table th { color: #8b949e; text-align: left; padding: 10px; border-bottom: 2px solid #30363d; }
+                .scout-table td { padding: 10px; border-bottom: 1px solid #30363d; }
+                .rank-1 { color: #f2cc60; font-weight: bold; }
+                .rank-2 { color: #c0c0c0; }
+                .rank-3 { color: #cd7f32; }
+                .my-row { background: rgba(88, 166, 255, 0.1); border: 1px solid #58a6ff !important; }
+                .puan-tag { background: #238636; color: white; padding: 2px 8px; border-radius: 5px; font-weight: bold; }
             </style>
             <table class="scout-table">
-                <tr>
-                    <th>SIRA</th>
-                    <th>SCOUT KULLANICI</th>
-                    <th>PUAN</th>
-                </tr>
+                <tr><th>SIRA</th><th>KULLANICI</th><th>PUAN</th></tr>
             """
             
             for idx, user in enumerate(leaders.data):
                 rank = idx + 1
-                # Dereceye göre renk sınıfı ata
-                rank_class = f"rank-{rank}" if rank <= 3 else ""
-                u_name = user['username']
-                u_puan = user.get('puan', 0)
-                
-                # İkonlar
+                r_class = f"rank-{rank}" if rank <= 3 else ""
                 icon = "👑" if rank == 1 else ("🥈" if rank == 2 else ("🥉" if rank == 3 else "🏃"))
                 
+                # Eğer bu satır sensen vurgula
+                row_style = 'class="my-row"' if user['username'] == st.session_state.user else ""
+                
                 table_html += f"""
-                <tr>
+                <tr {row_style}>
                     <td>{icon} {rank}</td>
-                    <td class="{rank_class}">{u_name}</td>
-                    <td><span class="puan-style">{u_puan} PT</span></td>
+                    <td class="{r_class}">{user['username']}</td>
+                    <td><span class="puan-tag">{user.get('puan', 0)} PT</span></td>
+                </tr>
+                """
+            
+            # Eğer kullanıcı ilk 10'da değilse en alta "Senin Puanın" satırı ekle
+            in_top_10 = any(u['username'] == st.session_state.user for u in leaders.data)
+            if not in_top_10:
+                table_html += f"""
+                <tr class="my-row">
+                    <td>📍 -</td>
+                    <td style="color:#58a6ff;">{st.session_state.user} (SEN)</td>
+                    <td><span class="puan-tag">{my_score} PT</span></td>
                 </tr>
                 """
             
             table_html += "</table>"
+            # KRİTİK NOKTA: st.markdown içinde unsafe_allow_html=True olmalı!
             st.markdown(table_html, unsafe_allow_html=True)
-        else:
-            st.info("Puan tablosu şu an boş. İlk puanı sen al!")
             
     except Exception as e:
-        st.error(f"Liderlik tablosu yüklenemedi. Adminin 'puan' sütununu kontrol etmesi lazım.")
+        st.error(f"Tablo hatası: {e}")
 
           
 # --- 5. BARROW AI (V178 - ÖRNEK OYUNCU VE GENÇ YETENEK ZEKASI) ---
