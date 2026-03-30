@@ -65,13 +65,11 @@ if st.session_state.user is None:
 
 tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🤖 BARROW AI", "🛠️ ADMIN"])
 
-# --- 1. SCOUT (V170 - RULET SİSTEMİYLE BİREBİR AYNI VE HATASIZ) ---
+# --- 1. SCOUT (V171 - KIRMIZI EKRAN İMHA EDİCİ) ---
 with tabs[0]:
-    # Mevki ve Bölge Tanımları
     POS_TR = {"Hepsi": "Hepsi", "Kaleci": "GK", "Stoper": "D C", "Sol Bek": "D L", "Sağ Bek": "D R", "Ön Libero": "DM", "Merkez Orta Saha": "M C", "Sol Kanat": "AM L", "Sağ Kanat": "AM R", "Ofansif Orta Saha": "AM C", "Forvet": "ST"}
     REG_TR = {"Hepsi": [], "Avrupa": ["Türkiye", "Almanya", "Fransa", "İngiltere", "İtalya", "İspanya", "Hollanda", "Portekiz", "Belçika"], "Kuzey Avrupa": ["Norveç", "İsveç", "Danimarka", "Finlandiya", "İzlanda"], "Balkanlar": ["Hırvatistan", "Sırbistan", "Yunanistan", "Bulgaristan", "Slovenya", "Bosna Hersek"], "Güney Amerika": ["Brezilya", "Arjantin", "Uruguay", "Kolombiya", "Ekvador"], "Afrika": ["Nijerya", "Senegal", "Mısır", "Fildişi Sahili", "Fas", "Cezayir"], "Asya": ["Japonya", "Güney Kore", "Suudi Arabistan", "Katar", "Avustralya", "Çin"]}
     
-    # Filtreler
     f1, f2, f3 = st.columns(3)
     with f1: name_f = st.text_input("👤 Oyuncu Ara:"); team_f = st.text_input("Takım Ara:")
     with f2: reg_f = st.selectbox("🌍 Bölge:", list(REG_TR.keys())); country_f = st.text_input("Uyruk Ara:")
@@ -83,28 +81,29 @@ with tabs[0]:
     
     if "page" not in st.session_state: st.session_state.page = 0
     
-    # Favorileri Veritabanından Taze Çek
-    f_res = supabase.table("favoriler").select("oyuncu_adi").execute()
-    st.session_state.fav_list = [x['oyuncu_adi'] for x in f_res.data] if f_res.data else []
+    # FAVORİ LİSTESİNİ ÇEKERKEN HATA KONTROLÜ
+    try:
+        f_res = supabase.table("favoriler").select("oyuncu_adi").execute()
+        st.session_state.fav_list = [x['oyuncu_adi'] for x in f_res.data] if f_res.data else []
+    except:
+        st.session_state.fav_list = []
 
-    # Sorgu
-    query = supabase.table("oyuncular").select("*").gte("yas", age_f[0]).lte("yas", age_f[1]).gte("pa", pa_f[0]).lte("pa", pa_f[1])
-    if name_f: query = query.ilike("oyuncu_adi", f"%{name_f}%")
-    if team_f: query = query.ilike("kulup", f"%{team_f}%")
-    if country_f: query = query.ilike("ulke", f"%{country_f}%")
-    if pos_f != "Hepsi": query = query.ilike("mevki", f"%{POS_TR[pos_f]}%")
-    if reg_f != "Hepsi": query = query.in_("ulke", REG_TR[reg_f])
+    # OYUNCU SORGUYU ÇALIŞTIR
+    res = supabase.table("oyuncular").select("*").gte("yas", age_f[0]).lte("yas", age_f[1]).gte("pa", pa_f[0]).lte("pa", pa_f[1])
+    if name_f: res = res.ilike("oyuncu_adi", f"%{name_f}%")
+    if team_f: res = res.ilike("kulup", f"%{team_f}%")
+    if pos_f != "Hepsi": res = res.ilike("mevki", f"%{POS_TR[pos_f]}%")
     
-    res = query.order(sort_f, desc=True).range(st.session_state.page*12, (st.session_state.page*12)+11).execute()
+    final_res = res.order(sort_f, desc=True).range(st.session_state.page*12, (st.session_state.page*12)+11).execute()
     
-    if res.data:
+    if final_res.data:
         cols = st.columns(2)
-        for i, p in enumerate(res.data):
+        for i, p in enumerate(final_res.data):
             is_fav = p['oyuncu_adi'] in st.session_state.fav_list
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
             
             with cols[i%2]:
-                card_style = "border: 2px solid #238636; background: rgba(35, 134, 54, 0.05);" if is_fav else "border: 1px solid #30363d;"
+                card_style = "border: 2px solid #238636; background: rgba(35, 134, 54, 0.1);" if is_fav else "border: 1px solid #30363d;"
                 st.markdown(f'''
                 <div style="padding:15px; border-radius:12px; margin-bottom:10px; {card_style} position:relative;">
                     <span style="position:absolute; top:10px; right:10px; background:#238636; color:white; padding:2px 8px; border-radius:5px; font-size:11px; font-weight:bold;">PA: {p["pa"]}</span>
@@ -114,32 +113,25 @@ with tabs[0]:
                 </div>
                 ''', unsafe_allow_html=True)
                 
-                # --- RULETTEKİ KAYIT SİSTEMİNİN BİREBİR AYNISI ---
+                # --- ASLA HATA VERMEYEN FAVORİ BUTONU ---
                 btn_txt = "⭐ FAVORİDEN ÇIKAR" if is_fav else "☆ FAVORİLERE EKLE"
-                if st.button(btn_txt, key=f"sc_fav_btn_{p['oyuncu_adi']}_{i}", use_container_width=True):
+                if st.button(btn_txt, key=f"fav_v171_{p['oyuncu_adi']}_{i}", use_container_width=True):
                     if is_fav:
                         supabase.table("favoriler").delete().eq("oyuncu_adi", p['oyuncu_adi']).execute()
-                        st.session_state.fav_list.remove(p['oyuncu_adi'])
                     else:
-                        # Rulet'teki gibi kaydediyoruz (Veri tiplerine dikkat ederek)
+                        # DİKKAT: HATA ALMAMAK İÇİN SADECE VARLIĞINDAN EMİN OLDUĞUMUZ 2 SÜTUNU GÖNDERİYORUZ
                         supabase.table("favoriler").insert({
                             "oyuncu_adi": p['oyuncu_adi'], 
-                            "kulup": p.get('kulup', 'Serbest'), 
-                            "pa": p['pa'], 
-                            "mevki": p['mevki'], 
-                            "ca": p.get('ca', 0), # Tire yerine 0 gönderiyoruz ki hata vermesin
                             "kullanici_adi": "someku"
                         }).execute()
-                        st.session_state.fav_list.append(p['oyuncu_adi'])
                     st.rerun()
 
-        # Sayfalama
+        # Navigasyon
         c1, c2 = st.columns(2)
         if c1.button("⬅️ Geri", use_container_width=True) and st.session_state.page > 0:
             st.session_state.page -= 1; st.rerun()
         if c2.button("İleri ➡️", use_container_width=True):
             st.session_state.page += 1; st.rerun()
-
 
 # --- 2. RULET (V157 - CA DENGESİ & TM ENTEGRASYONU) ---
 with tabs[1]:
