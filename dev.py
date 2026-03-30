@@ -205,7 +205,7 @@ with tabs[0]:
         if c2.button("İleri ➡️", use_container_width=True):
             st.session_state.page += 1; st.rerun()
 
-# --- 2. RULET (V185 - ALTIN RULET & ANİMASYONLU & VIP) ---
+# --- 2. RULET (V186 - KARIŞIK HAVUZ & VIP) ---
 with tabs[1]:
     st.markdown('<h2 style="text-align:center;">🎰 SCOUT RULETİ</h2>', unsafe_allow_html=True)
     
@@ -214,47 +214,54 @@ with tabs[1]:
     import time
     import urllib.parse
 
-    # 1. VIP KONTROLÜ VE PA ARALIĞI BELİRLEME
     user_is_vip = st.session_state.get('is_vip', False)
     curr_user = st.session_state.get('user')
 
     if user_is_vip:
         st.markdown('<div style="text-align:center; padding:10px; background:#f2cc60; color:black; border-radius:15px; font-weight:bold; margin-bottom:15px;">🌟 ALTIN RULET MODU AKTİF (PA 155-200)</div>', unsafe_allow_html=True)
         min_pa, max_pa = 155, 200
-        slot_border = "#f2cc60" # Altın rengi çerçeve
+        slot_border = "#f2cc60"
     else:
-        st.markdown('<div style="text-align:center; padding:10px; background:#30363d; color:white; border-radius:15px; margin-bottom:15px;">🎰 STANDART RULET (PA 135-150)</div>', unsafe_allow_html=True)
-        min_pa, max_pa = 135, 150
-        slot_border = "#30363d" # Standart gri çerçeve
+        st.markdown('<div style="text-align:center; padding:10px; background:#30363d; color:white; border-radius:15px; margin-bottom:15px;">🎰 STANDART RULET (PA 130-150)</div>', unsafe_allow_html=True)
+        min_pa, max_pa = 130, 150 # Alt sınırı 130'a çektik ki çeşitlilik artsın
+        slot_border = "#30363d"
 
     if 'rulet_winner' not in st.session_state:
         st.session_state.rulet_winner = None
     if 'animasyon_tamam' not in st.session_state:
         st.session_state.animasyon_tamam = False
 
-    # --- OYUNCU HAVUZUNU VIP DURUMUNA GÖRE ÇEK ---
+    # --- KARIŞIK OYUNCU HAVUZU ÇEKME ---
     try:
-        # Rastgelelik için offset ekliyoruz
-        r_offset = random.randint(0, 50) 
+        # Havuzu karıştırmak için rastgele bir yerden (offset) okumaya başla
+        # Toplam oyuncu sayısına göre 0-100 arası bir yerden başla ki hep aynı 150'likler gelmesin
+        r_offset = random.randint(0, 100) 
+        
+        # Sorguyu yaparken sadece PA aralığına bakıyoruz, sıralamayı rastgele yapıyoruz
         res = supabase.table("oyuncular").select("*")\
             .gte("pa", min_pa)\
             .lte("pa", max_pa)\
-            .range(r_offset, r_offset + 60).execute()
+            .range(r_offset, r_offset + 80).execute() # 80 oyuncu çek içinden seç
+        
         player_pool = res.data if res.data else []
+        if player_pool:
+            random.shuffle(player_pool) # Python tarafında da listeyi mermi gibi karıştır
     except:
         player_pool = []
 
     if player_pool:
-        btn_label = "🎰 ALTIN RULETİ ÇEVİR (155+ PA)" if user_is_vip else "🎰 STANDART RULETİ ÇEVİR (135-150 PA)"
+        btn_label = "🎰 ALTIN RULETİ ÇEVİR (155+ PA)" if user_is_vip else "🎰 STANDART RULETİ ÇEVİR (130-150 PA)"
         if st.button(btn_label, use_container_width=True):
+            # Seçilecek 30 oyuncuyu tamamen rastgele karma yap
             strip_players = [random.choice(player_pool) for _ in range(30)]
             winner = random.choice(player_pool)
+            
             st.session_state.rulet_winner = winner
             st.session_state.animasyon_tamam = False
             strip_players[25] = winner
             players_json = json.dumps(strip_players)
             
-            # SLOT ANİMASYONU (Görsel çerçeve rengi VIP'ye göre değişir)
+            # SLOT ANİMASYONU
             roulette_html = f"""
             <div id="slot-container" style="position:relative; width:100%; height:160px; background:#0d1117; border:3px solid {slot_border}; border-radius:15px; overflow:hidden; display:flex; justify-content:center; align-items:center;">
                 <div style="position:absolute; width:100%; height:60px; border-top:2px solid {slot_border}; border-bottom:2px solid {slot_border}; background:rgba(242, 204, 96, 0.05); z-index:10; pointer-events:none;"></div>
@@ -291,45 +298,31 @@ with tabs[1]:
             p = st.session_state.rulet_winner
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
             
-            # VIP Reklamı (Standart kullanıcıya hatırlatma)
             if not user_is_vip:
-                st.info("💡 Bu standart ruletti. 155-200 PA arası efsaneler için **Altın Rulet**'i açmalısın!")
+                st.info("💡 155-200 PA arası efsaneler için Altın Rulet'i açmalısın!")
                 st.markdown(f'''<a href="https://www.shopier.com/fmscout/45690641" target="_blank" style="text-decoration:none;"><button style="width:100%; background:#f2cc60; color:black; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer;">🌟 ALTIN RULETİ AÇ (VIP OL)</button></a>''', unsafe_allow_html=True)
 
             st.markdown("---")
             col_k, col_n = st.columns([1, 1])
-            
             with col_k:
                 card_border = "#f2cc60" if user_is_vip else "#238636"
                 st.markdown(f"""
-                <div style="background: rgba(255,255,255,0.03); border: 2px solid {card_border}; border-radius: 20px; padding: 15px; text-align:center; backdrop-filter: blur(5px);">
-                    <div style="font-size:35px; margin-bottom:5px;">👤</div>
+                <div style="background: rgba(255,255,255,0.03); border: 2px solid {card_border}; border-radius: 20px; padding: 15px; text-align:center;">
                     <h3 style="margin:0; font-size:18px;">{p['oyuncu_adi']}</h3>
-                    <p style="color:{card_border}; font-weight:bold; font-size:12px; margin-bottom:10px;">{p['mevki']}</p>
+                    <p style="color:{card_border}; font-weight:bold;">{p['mevki']}</p>
                     <div style="display:flex; justify-content:space-around; border-top:1px solid #30363d; padding-top:10px;">
-                        <div><small style="display:block; color:#8b949e; font-size:10px;">YAŞ</small><b>{p['yas']}</b></div>
-                        <div><small style="display:block; color:#8b949e; font-size:10px;">CA</small><b style="color:#58a6ff;">{p.get('ca', '-')}</b></div>
-                        <div><small style="display:block; color:#8b949e; font-size:10px;">PA</small><b style="color:{card_border};">{p['pa']}</b></div>
+                        <div><small style="color:#8b949e; font-size:10px;">YAŞ</small><b>{p['yas']}</b></div>
+                        <div><small style="color:#8b949e; font-size:10px;">PA</small><b style="color:{card_border};">{p['pa']}</b></div>
                     </div>
-                    <a href="{tm_url}" target="_blank" style="text-decoration:none;">
-                        <div style="background:#1a3151; color:white; border-radius:8px; padding:8px; margin-top:15px; font-size:11px; font-weight:bold;">🌐 TRANSFERMARKT PROFİLİ</div>
-                    </a>
                 </div>
                 """, unsafe_allow_html=True)
 
             with col_n:
-                st.markdown(f"#### 🕵️ Scout Notları")
                 st.write(f"🌍 **Ülke:** {p.get('ulke', 'Bilinmiyor')}")
-                st.write(f"🏟️ **Kulüp:** {p.get('kulup', 'Serbest')}")
                 st.write(f"💰 **Değer:** {p.get('deger', '💎 Paha Biçilemez')}")
-                
                 if st.button("⭐ FAVORİLERİME EKLE", use_container_width=True):
-                    supabase.table("favoriler").insert({
-                        "oyuncu_adi": p['oyuncu_adi'], "kulup": p.get('kulup', 'Serbest'), 
-                        "pa": p['pa'], "mevki": p['mevki'], "ca": p.get('ca', '-'),
-                        "kullanici_adi": curr_user
-                    }).execute()
-                    st.success("✅ Listeye eklendi!")
+                    supabase.table("favoriler").insert({"oyuncu_adi": p['oyuncu_adi'], "pa": p['pa'], "mevki": p['mevki'], "kullanici_adi": curr_user}).execute()
+                    st.success("✅ Eklendi!")
     else:
         st.warning("Kriterlere uygun mermi bulunamadı.")
 
