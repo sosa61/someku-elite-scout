@@ -143,11 +143,14 @@ with st.sidebar:
 tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🕵️ YETENEK AVI", "🤖 BARROW AI", "🛠️ ADMIN"])
 
 
-# --- 1. SCOUT (V173 - VIP KİLİTLİ VE HATASIZ) ---
+# --- 1. SCOUT (V173 - VIP KİLİTLİ VE KİŞİYE ÖZEL FAVORİ) ---
 with tabs[0]:
     import urllib.parse
     POS_TR = {"Hepsi": "Hepsi", "Kaleci": "GK", "Stoper": "D C", "Sol Bek": "D L", "Sağ Bek": "D R", "Ön Libero": "DM", "Merkez Orta Saha": "M C", "Sol Kanat": "AM L", "Sağ Kanat": "AM R", "Ofansif Orta Saha": "AM C", "Forvet": "ST"}
     REG_TR = {"Hepsi": [], "Avrupa": ["Türkiye", "Almanya", "Fransa", "İngiltere", "İtalya", "İspanya", "Hollanda", "Portekiz", "Belçika"], "Kuzey Avrupa": ["Norveç", "İsveç", "Danimarka", "Finlandiya", "İzlanda"], "Balkanlar": ["Hırvatistan", "Sırbistan", "Yunanistan", "Bulgaristan", "Slovenya", "Bosna Hersek"], "Güney Amerika": ["Brezilya", "Arjantin", "Uruguay", "Kolombiya", "Ekvador"], "Afrika": ["Nijerya", "Senegal", "Mısır", "Fildişi Sahili", "Fas", "Cezayir"], "Asya": ["Japonya", "Güney Kore", "Suudi Arabistan", "Katar", "Avustralya", "Çin"]}
+    
+    # Aktif kullanıcıyı al
+    curr_user = st.session_state.get('user')
     
     f1, f2, f3 = st.columns(3)
     with f1: name_f = st.text_input("👤 Oyuncu:"); team_f = st.text_input("Takım Ara:")
@@ -160,8 +163,8 @@ with tabs[0]:
     
     if "page" not in st.session_state: st.session_state.page = 0
     
-    # Favorileri Veritabanından Taze Çek
-    f_res = supabase.table("favoriler").select("oyuncu_adi").execute()
+    # --- 🛡️ DÜZELTME: Favorileri SADECE aktif kullanıcı için çek ---
+    f_res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", curr_user).execute()
     st.session_state.fav_list = [x['oyuncu_adi'] for x in f_res.data] if f_res.data else []
 
     # Dinamik Sorgu
@@ -174,7 +177,6 @@ with tabs[0]:
     
     if res.data:
         cols = st.columns(2)
-        # Giriş yapan kişinin VIP durumunu alıyoruz
         user_is_vip = st.session_state.get('is_vip', False)
 
         for i, p in enumerate(res.data):
@@ -183,7 +185,6 @@ with tabs[0]:
             pa_val = p.get("pa", 0)
 
             with cols[i%2]:
-                # --- 🛡️ VIP KİLİT KONTROLÜ BAŞLIYOR ---
                 if pa_val > 150 and user_is_vip is False:
                     st.markdown(f'''
                     <div style="padding:15px; border-radius:12px; margin-bottom:10px; border: 2px dashed #f2cc60; background: rgba(242, 204, 96, 0.05); text-align:center;">
@@ -193,7 +194,6 @@ with tabs[0]:
                         <a href="https://www.shopier.com/fmscout/45690641" target="_blank" style="display:inline-block; background:#238636; color:white; padding:8px 15px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:13px;">KİLİDİ AÇ</a>
                     </div>
                     ''', unsafe_allow_html=True)
-                # --- 🛡️ VIP KİLİT KONTROLÜ BİTTİ ---
                 else:
                     card_style = "border: 2px solid #238636; background: rgba(35, 134, 54, 0.05);" if is_fav else "border: 1px solid #30363d;"
                     st.markdown(f'''
@@ -208,16 +208,18 @@ with tabs[0]:
                     btn_txt = "⭐ FAVORİDEN ÇIKAR" if is_fav else "☆ FAVORİLERE EKLE"
                     if st.button(btn_txt, key=f"v173_btn_{p['oyuncu_adi']}_{i}", use_container_width=True):
                         if is_fav:
-                            supabase.table("favoriler").delete().eq("oyuncu_adi", p['oyuncu_adi']).execute()
+                            # --- 🛡️ DÜZELTME: Sadece BU kullanıcının favorisini sil ---
+                            supabase.table("favoriler").delete().eq("oyuncu_adi", p['oyuncu_adi']).eq("kullanici_adi", curr_user).execute()
                             st.session_state.fav_list.remove(p['oyuncu_adi'])
                         else:
+                            # --- 🛡️ DÜZELTME: Favoriye eklerken KULLANICIYI kaydet ---
                             supabase.table("favoriler").insert({
                                 "oyuncu_adi": p['oyuncu_adi'], 
                                 "kulup": p.get('kulup', 'Serbest'), 
                                 "pa": p['pa'], 
                                 "mevki": p['mevki'], 
                                 "ca": p.get('ca', 0),
-                                "kullanici_adi": st.session_state.user # someku yerine aktif kullanıcıyı ekledik
+                                "kullanici_adi": curr_user 
                             }).execute()
                             st.session_state.fav_list.append(p['oyuncu_adi'])
                         st.rerun()
@@ -227,6 +229,7 @@ with tabs[0]:
             st.session_state.page -= 1; st.rerun()
         if c2.button("İleri ➡️", use_container_width=True):
             st.session_state.page += 1; st.rerun()
+
 # --- 2. RULET (V187 - ZENGİN KART & KARIŞIK HAVUZ) ---
 with tabs[1]:
     st.markdown('<h2 style="text-align:center;">🎰 SCOUT RULETİ</h2>', unsafe_allow_html=True)
