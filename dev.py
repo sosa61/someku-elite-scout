@@ -258,7 +258,6 @@ with tabs[1]:
 
     # --- KARIŞIK OYUNCU HAVUZU ÇEKME ---
     try:
-        # Havuzu iyice karıştırmak için offseti büyüttük
         r_offset = random.randint(0, 150) 
         res = supabase.table("oyuncular").select("*")\
             .gte("pa", min_pa)\
@@ -267,7 +266,6 @@ with tabs[1]:
         
         player_pool = res.data if res.data else []
         if player_pool:
-            # Python tarafında listeyi mermi gibi karıştırıyoruz ki hep aynı PA gelmesin
             random.shuffle(player_pool) 
     except:
         player_pool = []
@@ -314,12 +312,10 @@ with tabs[1]:
             st.session_state.animasyon_tamam = True
             st.rerun()
 
-        # --- GÜÇLENDİRİLMİŞ OYUNCU KARTI ---
         if st.session_state.rulet_winner and st.session_state.animasyon_tamam:
             p = st.session_state.rulet_winner
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
             
-            # Değer Kontrolü (300M Filtresi)
             raw_val = str(p.get('deger', ''))
             if "300.000.000" in raw_val:
                 display_val = "❌ Satılık Değil"
@@ -359,18 +355,18 @@ with tabs[1]:
                 st.write(f"💰 **Piyasa Değeri:** {display_val}")
                 st.write(f"📈 **CA (Mevcut):** {p.get('ca', '-')}")
                 
-                # --- RULET FAVORİ SİSTEMİ (KİŞİYE ÖZEL) ---
-if st.button("⭐ FAVORİLERİME EKLE", use_container_width=True, key=f"rulet_fav_{p['oyuncu_adi']}"):
-    supabase.table("favoriler").insert({
-        "oyuncu_adi": p['oyuncu_adi'], 
-        "kulup": p.get('kulup', 'Serbest'), 
-        "pa": p['pa'], 
-        "mevki": p['mevki'], 
-        "ca": p.get('ca', '-'),
-        "kullanici_adi": st.session_state.user # BURASI ÇOK KRİTİK
-    }).execute()
-    st.success("✅ Mermi senin listene eklendi!")
-
+                st.markdown("---")
+                # FAVORİ BUTONU ARTIK DOĞRU YERDE (Girintisi düzeltildi)
+                if st.button("⭐ FAVORİLERİME EKLE", use_container_width=True, key=f"rulet_fav_{p['oyuncu_adi']}"):
+                    supabase.table("favoriler").insert({
+                        "oyuncu_adi": p['oyuncu_adi'], 
+                        "kulup": p.get('kulup', 'Serbest'), 
+                        "pa": p['pa'], 
+                        "mevki": p['mevki'], 
+                        "ca": p.get('ca', '-'),
+                        "kullanici_adi": curr_user
+                    }).execute()
+                    st.success("✅ Mermi senin listene eklendi!")
     else:
         st.warning("Kriterlere uygun mermi bulunamadı.")
 
