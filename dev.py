@@ -392,70 +392,88 @@ with tabs[3]:
     else:
         st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
         
-        # --- 5. GİZLİ YETENEK AVI (V211 - SCOUT GUESSER) ---
+        # --- 5. GİZLİ YETENEK AVI (V215 - CANLI SÜRE & TAHMİN SİSTEMİ) ---
 with tabs[4]:
     st.markdown('<h2 style="text-align:center; color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h2>', unsafe_allow_html=True)
     
-    # Mevki Türkçeleştirme Sözlüğü
-    POS_TR_GAME = {
-        "GK": "Kaleci", "D C": "Stoper", "D L": "Sol Bek", "D R": "Sağ Bek",
-        "DM": "Ön Libero", "M C": "Merkez Orta Saha", "AM C": "On Numara",
-        "AM L": "Sol Kanat", "AM R": "Sağ Kanat", "ST": "Forvet"
-    }
+    # Detaylı Türkçe Mevki Dönüştürücü
+    def mevki_temizle_tr(m):
+        m = m.upper()
+        if "GK" in m: return "Kaleci"
+        if any(x in m for x in ["ST", "CF"]): return "Forvet"
+        if any(x in m for x in ["AM R", "M R"]): return "Sağ Kanat"
+        if any(x in m for x in ["AM L", "M L"]): return "Sol Kanat"
+        if "D C" in m: return "Stoper"
+        if "D R" in m: return "Sağ Bek"
+        if "D L" in m: return "Sol Bek"
+        if any(x in m for x in ["AM C", "M C", "DM"]): return "Orta Saha"
+        return "Joker"
 
-    # Oyun Verilerini Saklama
+    # Oyun Hafızası
     if 'game_active' not in st.session_state: st.session_state.game_active = False
     if 'target_p' not in st.session_state: st.session_state.target_p = None
+    if 'guess_correct' not in st.session_state: st.session_state.guess_correct = False
 
-    # Yeni Oyun Başlatma Butonu
+    # Yeni Oyun Başlat
     if st.button("🚀 YENİ AV BAŞLAT (30 SANİYE)", use_container_width=True):
-        # 165+ PA'lı elit oyunculardan birini çek
-        res_g = supabase.table("oyuncular").select("*").gte("pa", 165).limit(100).execute()
+        res_g = supabase.table("oyuncular").select("*").gte("pa", 165).limit(200).execute()
         if res_g.data:
             st.session_state.target_p = random.choice(res_g.data)
             st.session_state.game_active = True
             st.session_state.game_start_time = time.time()
+            st.session_state.guess_correct = False
             st.rerun()
 
-    # Oyun Başladıysa Ekrana Getir
     if st.session_state.game_active and st.session_state.target_p:
         p = st.session_state.target_p
         
-        # 30 Saniyelik Geri Sayım
-        gecen = time.time() - st.session_state.game_start_time
-        kalan = max(0, int(30 - gecen))
+        # CANLI SÜRE SİSTEMİ
+        elapsed = time.time() - st.session_state.game_start_time
+        kalan = int(30 - elapsed)
         
-        c1, c2 = st.columns([1, 3])
-        c1.metric("⏳ KALAN SÜRE", f"{kalan}s")
-        c2.info("Bu oyuncunun kim olduğunu bulabilir misin?")
+        if kalan > 0 and not st.session_state.guess_correct:
+            # Saniyenin düşmesini ekranda görmek için ufak bir tetikleyici
+            st.markdown(f"<h1 style='text-align:center; color:#ff4b4b;'>⏱️ {kalan}s</h1>", unsafe_allow_html=True)
+            time.sleep(0.1) # Sayfanın canlı kalmasına yardımcı olur
+            
+            # KART TASARIMI
+            m_tr = mevki_temizle_tr(p['mevki'])
 
-        # Mevkiyi Türkçeye Çevir
-        m_ham = p['mevki'].split(",")[0].strip()
-        m_tr = POS_TR_GAME.get(m_ham, m_ham)
-
-        # GİZLİ OYUNCU KARTI
-        st.markdown(f'''
-            <div style="padding:25px; border-radius:15px; border:2px dashed #f2cc60; background:rgba(242,204,96,0.05); text-align:center; margin-bottom:20px;">
-                <h1 style="color:#58a6ff; font-size:50px; letter-spacing: 10px;">??????</h1>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top:20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top:20px;">
-                    <div><small style="color:#8b949e;">MEVKİ</small><br><b>{m_tr}</b></div>
-                    <div><small style="color:#8b949e;">YAŞ</small><br><b>{p['yas']}</b></div>
-                    <div><small style="color:#8b949e;">KULÜP</small><br><b>{p.get('kulup', 'Serbest')}</b></div>
-                    <div><small style="color:#8b949e;">POTANSİYEL (PA)</small><br><b style="color:#238636;">{p['pa']}</b></div>
+            st.markdown(f'''
+                <div style="padding:20px; border-radius:15px; border:2px dashed #f2cc60; background:rgba(242,204,96,0.05); text-align:center;">
+                    <h1 style="color:#58a6ff; font-size:45px;">? ? ? ? ?</h1>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top:15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top:15px;">
+                        <div><small style="color:#8b949e;">MEVKİ</small><br><b>{m_tr}</b></div>
+                        <div><small style="color:#8b949e;">YAŞ</small><br><b>{p['yas']}</b></div>
+                        <div><small style="color:#8b949e;">KULÜP</small><br><b>{p.get('kulup', 'Serbest')}</b></div>
+                        <div><small style="color:#8b949e;">POTANSİYEL</small><br><b style="color:#238636;">{p['pa']}</b></div>
+                    </div>
                 </div>
-            </div>
-        ''', unsafe_allow_html=True)
+            ''', unsafe_allow_html=True)
 
-        if kalan > 0:
-            if st.button("🔓 KİMLİĞİ AÇIKLA / CEVABI GÖR", use_container_width=True):
-                st.session_state.game_active = False
-                st.balloons()
-                st.success(f"🎯 Tebrikler! Aranan oyuncu: **{p['oyuncu_adi']}**")
+            # TAHMİN KUTUSU
+            user_guess = st.text_input("Tahminini Buraya Yaz:", key="guess_input").strip().lower()
+            
+            if user_guess:
+                # İsmin içinde geçiyorsa doğru kabul et (Örn: Mbappe yazsa da Kylian Mbappe olsa da kabul)
+                if user_guess in p['oyuncu_adi'].lower():
+                    st.session_state.guess_correct = True
+                    st.balloons()
+                    st.rerun()
+            
+            # Saniyenin tık tık düşmesi için otomatik yenileme (Deneysel)
+            if kalan % 2 == 0: # Çok sık yenileyip kasmaması için
+                st.empty() 
+
+        elif st.session_state.guess_correct:
+            st.success(f"🎯 HELAL OLSUN! Doğru cevap: **{p['oyuncu_adi']}**")
+            st.session_state.game_active = False
+            if st.button("Harikayım, Yeni Bir Tane Ver!"): st.rerun()
+            
         else:
-            st.error(f"⏱️ SÜRE BİTTİ! Aranan oyuncu: **{p['oyuncu_adi']}** idi.")
-            if st.button("Tekrar Dene", use_container_width=True):
-                st.session_state.game_active = False
-                st.rerun()
+            st.error(f"⏱️ SÜRE BİTTİ! Aranan mermi şuydu: **{p['oyuncu_adi']}**")
+            st.session_state.game_active = False
+            if st.button("Tekrar Dene"): st.rerun()
 
 
 # --- 5. BARROW AI (V178 - ÖRNEK OYUNCU VE GENÇ YETENEK ZEKASI) ---
