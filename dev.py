@@ -20,28 +20,31 @@ supabase: Client = create_client(URL, KEY)
 # --- SAYFA AYARLARI ---
 st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️")
 
-# --- 🔄 TARİH BAZLI VIP KONTROLÜ (V185) ---
+# --- 🔄 VIP TAZELEME MOTORU (V190 - KESİN ÇÖZÜM) ---
 if "user" in st.session_state and st.session_state.user:
     try:
-        import datetime
+        # Veritabanından en güncel bilgiyi zorla çekiyoruz
         v_res = supabase.table("users").select("is_vip, last_barrow_date").eq("username", st.session_state.user).execute()
         if v_res.data:
-            u_data = v_res.data[0]
-            vip_tarihi = u_data.get('last_barrow_date')
+            u_info = v_res.data[0]
+            db_date_str = u_info.get('last_barrow_date')
             
-            if vip_tarihi:
-                bitis_dt = datetime.datetime.strptime(vip_tarihi, "%Y-%m-%d").date()
+            if db_date_str:
+                # Veritabanındaki tarihi parçalıyoruz (saat varsa atıyoruz)
+                clean_date_str = str(db_date_str).split(" ")[0]
+                bitis_dt = datetime.datetime.strptime(clean_date_str, "%Y-%m-%d").date()
                 bugun = datetime.date.today()
                 
-                # Tarih kontrolü: Bugün bitişten küçükse VIP devam
-                if bugun <= bitis_dt and u_data.get('is_vip'):
+                # SADECE BURADA KONTROL YAPILIYOR
+                if bugun <= bitis_dt and u_info.get('is_vip'):
                     st.session_state['is_vip'] = True
                     st.session_state['vip_kalan_gun'] = (bitis_dt - bugun).days
                 else:
                     st.session_state['is_vip'] = False
                     st.session_state['vip_kalan_gun'] = 0
-    except:
+    except Exception as e:
         pass
+
 
 
 # --- TASARIM (CSS) ---
