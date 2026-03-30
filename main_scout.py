@@ -30,9 +30,9 @@ if "user" in st.session_state and st.session_state.user:
             st.session_state['is_vip'] = bool(v_res.data[0]['is_vip'])
     except Exception as e:
         pass # Bağlantı hatası olursa bozma
- False)
-    except:
-        pass
+
+# BURADAN SONRA TASARIM CSS KODLARIN DEVAM ETSİN
+
 
 # --- TASARIM (CSS) ---
 st.markdown("""
