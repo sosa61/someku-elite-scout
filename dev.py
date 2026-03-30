@@ -165,7 +165,7 @@ with tabs[0]:
                         <span style="background:#f2cc60; color:black; padding:2px 8px; border-radius:5px; font-size:10px; font-weight:bold;">💎 ELİT YETENEK KİLİTLİ</span>
                         <h4 style="margin:10px 0; color:#8b949e;">🔒 Gizli Yıldız</h4>
                         <p style="font-size:12px; color:#8b949e;">PA: <b>{pa_val}</b> olan bu oyuncunun detayları için VIP üye olmalısın.</p>
-                        <a href="https://www.shopier.com/fmscout/45690641" target="_blank" style="display:inline-block; background:#238636; color:white; padding:8px 15px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:13px;">KİLİDİ AÇ (50 TL)</a>
+                        <a href="https://www.shopier.com/fmscout/45690641" target="_blank" style="display:inline-block; background:#238636; color:white; padding:8px 15px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:13px;">KİLİDİ AÇ</a>
                     </div>
                     ''', unsafe_allow_html=True)
                 # --- 🛡️ VIP KİLİT KONTROLÜ BİTTİ ---
