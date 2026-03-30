@@ -22,6 +22,7 @@ st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️"
 
 # --- 🔄 GÜÇLENDİRİLMİŞ VIP TAZELEME MOTORU ---
 if "user" in st.session_state and st.session_state.user:
+
     try:
         # Veritabanından en güncel durumu çek
         v_res = supabase.table("users").select("is_vip").eq("username", st.session_state.user).execute()
