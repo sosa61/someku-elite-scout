@@ -392,7 +392,7 @@ with tabs[3]:
     else:
         st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
         
-# --- 5. GİZLİ YETENEK AVI (V420 - PRO SCOUT SÜRÜMÜ) ---
+# --- 5. GİZLİ YETENEK AVI (V425 - DİNAMİK İPUCU SİSTEMİ) ---
 with tabs[4]:
     import unicodedata
     st.markdown('<h2 style="text-align:center; color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h2>', unsafe_allow_html=True)
@@ -447,7 +447,13 @@ with tabs[4]:
         yuzde = (kalan / 30) * 100
 
         if kalan > 0:
-            # GÖRSEL KUM SAATİ VE BAR
+            # DİNAMİK İPUÇLARI (SÜREYE GÖRE)
+            ipucu_html = ""
+            if kalan <= 20: # Son 20 saniye Potansiyel Yetenek
+                ipucu_html += f'<span style="color:#f2cc60; margin-right:15px;">🔥 PA: {p.get("pa","?")}</span>'
+            if kalan <= 10: # Son 10 saniye Mevcut Yetenek
+                ipucu_html += f'<span style="color:#58a6ff;">📊 CA: {p.get("ca","?")}</span>'
+
             bar_color = "#238636" if yuzde > 50 else ("#f2cc60" if yuzde > 20 else "#ff4b4b")
             st.markdown(f"""
                 <div style="background:#161b22; padding:20px; border-radius:15px; border:1px solid #30363d; text-align:center;">
@@ -455,17 +461,19 @@ with tabs[4]:
                         <span style="font-size:20px;">⏳ <b>{kalan}s</b></span>
                         <span style="color:#8b949e;">{mevki_turkce_yap(p['mevki'])}</span>
                     </div>
-                    <div style="width:100%; background:#30363d; height:12px; border-radius:10px; overflow:hidden;">
+                    <div style="width:100%; background:#30363d; height:12px; border-radius:10px; overflow:hidden; margin-bottom:10px;">
                         <div style="width:{yuzde}%; background:{bar_color}; height:100%; transition: width 0.5s ease;"></div>
                     </div>
-                    <p style="margin-top:15px; color:#f2cc60; font-size:18px;"><b>{p['yas']} Yaş | {p.get('kulup','Serbest')}</b></p>
+                    <div style="margin-top:10px; font-weight:bold; font-size:16px;">
+                        {ipucu_html}
+                    </div>
+                    <p style="margin-top:10px; color:#8b949e; font-size:16px;"><b>{p['yas']} Yaş | {p.get('kulup','Serbest')}</b></p>
                 </div>
                 <h1 style="text-align:center; font-size:55px; color:#58a6ff; letter-spacing:8px; margin:20px 0;">??????</h1>
             """, unsafe_allow_html=True)
 
             tahmin = st.text_input("Tahmini Yaz ve Enter'la:", key="scout_input").strip()
             
-            # İSİM KONTROLÜ (ESNEK)
             if tahmin:
                 temiz_tahmin = metin_temizle(tahmin)
                 temiz_gercek = metin_temizle(p['oyuncu_adi'])
@@ -492,7 +500,7 @@ with tabs[4]:
                 st.rerun()
 
     st.markdown("---")
-    
+
     # --- 5. LİDERLİK TABLOSU (SADE VE GÜVENLİ) ---
     st.subheader("🏆 TOP 10 ELITE SCOUTS")
     try:
