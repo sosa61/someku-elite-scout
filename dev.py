@@ -118,8 +118,9 @@ if st.session_state.user is None:
 tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🕵️ YETENEK AVI", "🤖 BARROW AI", "🛠️ ADMIN"])
 
 
-# --- 1. SCOUT (V173 - YENİ TABLO UYUMLU VE HATASIZ) ---
+# --- 1. SCOUT (V173 - VIP KİLİTLİ VE HATASIZ) ---
 with tabs[0]:
+    import urllib.parse
     POS_TR = {"Hepsi": "Hepsi", "Kaleci": "GK", "Stoper": "D C", "Sol Bek": "D L", "Sağ Bek": "D R", "Ön Libero": "DM", "Merkez Orta Saha": "M C", "Sol Kanat": "AM L", "Sağ Kanat": "AM R", "Ofansif Orta Saha": "AM C", "Forvet": "ST"}
     REG_TR = {"Hepsi": [], "Avrupa": ["Türkiye", "Almanya", "Fransa", "İngiltere", "İtalya", "İspanya", "Hollanda", "Portekiz", "Belçika"], "Kuzey Avrupa": ["Norveç", "İsveç", "Danimarka", "Finlandiya", "İzlanda"], "Balkanlar": ["Hırvatistan", "Sırbistan", "Yunanistan", "Bulgaristan", "Slovenya", "Bosna Hersek"], "Güney Amerika": ["Brezilya", "Arjantin", "Uruguay", "Kolombiya", "Ekvador"], "Afrika": ["Nijerya", "Senegal", "Mısır", "Fildişi Sahili", "Fas", "Cezayir"], "Asya": ["Japonya", "Güney Kore", "Suudi Arabistan", "Katar", "Avustralya", "Çin"]}
     
@@ -148,38 +149,53 @@ with tabs[0]:
     
     if res.data:
         cols = st.columns(2)
+        # Giriş yapan kişinin VIP durumunu alıyoruz
+        user_is_vip = st.session_state.get('is_vip', False)
+
         for i, p in enumerate(res.data):
             is_fav = p['oyuncu_adi'] in st.session_state.fav_list
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
-            
+            pa_val = p.get("pa", 0)
+
             with cols[i%2]:
-                card_style = "border: 2px solid #238636; background: rgba(35, 134, 54, 0.05);" if is_fav else "border: 1px solid #30363d;"
-                st.markdown(f'''
-                <div style="padding:15px; border-radius:12px; margin-bottom:10px; {card_style} position:relative;">
-                    <span style="position:absolute; top:10px; right:10px; background:#238636; color:white; padding:2px 8px; border-radius:5px; font-size:11px; font-weight:bold;">PA: {p["pa"]}</span>
-                    <h4 style="margin:0;">{p["oyuncu_adi"]}</h4>
-                    <p style="font-size:11px; color:#8b949e; margin:5px 0;">🏟️ {p.get("kulup","Serbest")} | 👟 {p["mevki"]}</p>
-                    <a href="{tm_url}" target="_blank" style="color:#58a6ff; font-size:11px; text-decoration:none;">Transfermarkt ➔</a>
-                </div>
-                ''', unsafe_allow_html=True)
-                
-                # --- RULETTEKİ KAYIT SİSTEMİNİN AYNISI (ARTIK HATA VERMEZ) ---
-                btn_txt = "⭐ FAVORİDEN ÇIKAR" if is_fav else "☆ FAVORİLERE EKLE"
-                if st.button(btn_txt, key=f"v173_btn_{p['oyuncu_adi']}_{i}", use_container_width=True):
-                    if is_fav:
-                        supabase.table("favoriler").delete().eq("oyuncu_adi", p['oyuncu_adi']).execute()
-                        st.session_state.fav_list.remove(p['oyuncu_adi'])
-                    else:
-                        supabase.table("favoriler").insert({
-                            "oyuncu_adi": p['oyuncu_adi'], 
-                            "kulup": p.get('kulup', 'Serbest'), 
-                            "pa": p['pa'], 
-                            "mevki": p['mevki'], 
-                            "ca": p.get('ca', 0),
-                            "kullanici_adi": "someku"
-                        }).execute()
-                        st.session_state.fav_list.append(p['oyuncu_adi'])
-                    st.rerun()
+                # --- 🛡️ VIP KİLİT KONTROLÜ BAŞLIYOR ---
+                if pa_val > 145 and user_is_vip is False:
+                    st.markdown(f'''
+                    <div style="padding:15px; border-radius:12px; margin-bottom:10px; border: 2px dashed #f2cc60; background: rgba(242, 204, 96, 0.05); text-align:center;">
+                        <span style="background:#f2cc60; color:black; padding:2px 8px; border-radius:5px; font-size:10px; font-weight:bold;">💎 ELİT YETENEK KİLİTLİ</span>
+                        <h4 style="margin:10px 0; color:#8b949e;">🔒 Gizli Yıldız</h4>
+                        <p style="font-size:12px; color:#8b949e;">PA: <b>{pa_val}</b> olan bu oyuncunun detayları için VIP üye olmalısın.</p>
+                        <a href="https://www.shopier.com/fmscout/45690641" target="_blank" style="display:inline-block; background:#238636; color:white; padding:8px 15px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:13px;">KİLİDİ AÇ (50 TL)</a>
+                    </div>
+                    ''', unsafe_allow_html=True)
+                # --- 🛡️ VIP KİLİT KONTROLÜ BİTTİ ---
+                else:
+                    card_style = "border: 2px solid #238636; background: rgba(35, 134, 54, 0.05);" if is_fav else "border: 1px solid #30363d;"
+                    st.markdown(f'''
+                    <div style="padding:15px; border-radius:12px; margin-bottom:10px; {card_style} position:relative;">
+                        <span style="position:absolute; top:10px; right:10px; background:#238636; color:white; padding:2px 8px; border-radius:5px; font-size:11px; font-weight:bold;">PA: {p["pa"]}</span>
+                        <h4 style="margin:0;">{p["oyuncu_adi"]}</h4>
+                        <p style="font-size:11px; color:#8b949e; margin:5px 0;">🏟️ {p.get("kulup","Serbest")} | 👟 {p["mevki"]}</p>
+                        <a href="{tm_url}" target="_blank" style="color:#58a6ff; font-size:11px; text-decoration:none;">Transfermarkt ➔</a>
+                    </div>
+                    ''', unsafe_allow_html=True)
+                    
+                    btn_txt = "⭐ FAVORİDEN ÇIKAR" if is_fav else "☆ FAVORİLERE EKLE"
+                    if st.button(btn_txt, key=f"v173_btn_{p['oyuncu_adi']}_{i}", use_container_width=True):
+                        if is_fav:
+                            supabase.table("favoriler").delete().eq("oyuncu_adi", p['oyuncu_adi']).execute()
+                            st.session_state.fav_list.remove(p['oyuncu_adi'])
+                        else:
+                            supabase.table("favoriler").insert({
+                                "oyuncu_adi": p['oyuncu_adi'], 
+                                "kulup": p.get('kulup', 'Serbest'), 
+                                "pa": p['pa'], 
+                                "mevki": p['mevki'], 
+                                "ca": p.get('ca', 0),
+                                "kullanici_adi": st.session_state.user # someku yerine aktif kullanıcıyı ekledik
+                            }).execute()
+                            st.session_state.fav_list.append(p['oyuncu_adi'])
+                        st.rerun()
 
         c1, c2 = st.columns(2)
         if c1.button("⬅️ Geri", use_container_width=True) and st.session_state.page > 0:
