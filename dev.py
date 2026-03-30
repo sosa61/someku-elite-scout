@@ -392,28 +392,34 @@ with tabs[3]:
     else:
         st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
         
-# --- 5. GİZLİ YETENEK AVI (V410 - EN SADE VE ÇALIŞAN VERSİYON) ---
+# --- 5. GİZLİ YETENEK AVI (V420 - PRO SCOUT SÜRÜMÜ) ---
 with tabs[4]:
-    st.markdown("## 🕵️ GİZLİ YETENEK AVI")
+    import unicodedata
+    st.markdown('<h2 style="text-align:center; color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h2>', unsafe_allow_html=True)
     
     # --- 1. FONKSİYONLAR ---
-    def mevki_tr(m):
+    def metin_temizle(metin):
+        """İsimlerdeki aksanları (í, â, ş) temizler ve standart hale getirir."""
+        if not metin: return ""
+        metin = str(metin).lower().replace('ı', 'i').replace('İ', 'i')
+        nfkd_form = unicodedata.normalize('NFKD', metin)
+        return "".join([c for c in nfkd_form if not unicodedata.combining(c)])
+
+    def mevki_turkce_yap(m):
+        """Mevkileri senin istediğin sade kategorilere ayırır."""
         m = str(m).upper()
-        if "GK" in m: return "Kaleci"
-        if any(x in m for x in ["ST", "CF"]): return "Forvet"
-        if "AM R" in m or "M R" in m: return "Sağ Kanat"
-        if "AM L" in m or "M L" in m: return "Sol Kanat"
-        if "D C" in m: return "Stoper"
-        if "D R" in m: return "Sağ Bek"
-        if "D L" in m: return "Sol Bek"
-        return "Orta Saha"
+        if "GK" in m: return "🧤 KALECİ"
+        if any(x in m for x in ["D R", "D L", "DR", "DL", "FB"]): return "🛡️ BEK"
+        if "D C" in m or "DC" in m: return "🛡️ STOPER"
+        if any(x in m for x in ["AM R", "AM L", "M R", "M L", "LW", "RW"]): return "⚡ KANAT"
+        if any(x in m for x in ["ST", "CF"]): return "⚽ FORVET"
+        return "🧠 ORTA SAHA"
 
     def skor_yaz(user, artis):
         try:
             c = supabase.table("users").select("puan").eq("username", user).execute()
             eski = c.data[0].get("puan", 0) if c.data else 0
-            yeni = eski + artis
-            if yeni < 0: yeni = 0 # En düşük puan 0
+            yeni = max(0, eski + artis)
             supabase.table("users").update({"puan": yeni}).eq("username", user).execute()
         except: pass
 
@@ -422,58 +428,83 @@ with tabs[4]:
     if 'target_p' not in st.session_state: st.session_state.target_p = None
 
     # --- 3. OYUN BAŞLATMA ---
-    if st.button("🚀 YENİ AV BAŞLAT", use_container_width=True):
-        # Takımı olan (None olmayan) ve PA 165+ mermiler
-        res_g = supabase.table("oyuncular").select("*").not_.eq("kulup", "None").gte("pa", 165).limit(300).execute()
+    def yeni_oyun_tetikle():
+        res_g = supabase.table("oyuncular").select("*").not_.eq("kulup", "None").gte("pa", 165).limit(500).execute()
         if res_g.data:
             st.session_state.target_p = random.choice(res_g.data)
             st.session_state.game_active = True
             st.session_state.game_start_time = time.time()
-            st.rerun()
 
+    if st.button("🚀 YENİ AV BAŞLAT", use_container_width=True):
+        yeni_oyun_tetikle()
+        st.rerun()
+
+    # --- 4. OYUN ALANI ---
     if st.session_state.game_active and st.session_state.target_p:
         p = st.session_state.target_p
-        kalan = int(30 - (time.time() - st.session_state.game_start_time))
+        gecen = time.time() - st.session_state.game_start_time
+        kalan = max(0, int(30 - gecen))
+        yuzde = (kalan / 30) * 100
 
         if kalan > 0:
-            st.error(f"⏱️ KALAN SÜRE: {kalan} Saniye")
-            st.info(f"**İpucu:** {mevki_tr(p['mevki'])} | {p['yas']} Yaş | {p.get('kulup','-')} | PA: {p.get('pa','?')}")
+            # GÖRSEL KUM SAATİ VE BAR
+            bar_color = "#238636" if yuzde > 50 else ("#f2cc60" if yuzde > 20 else "#ff4b4b")
+            st.markdown(f"""
+                <div style="background:#161b22; padding:20px; border-radius:15px; border:1px solid #30363d; text-align:center;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <span style="font-size:20px;">⏳ <b>{kalan}s</b></span>
+                        <span style="color:#8b949e;">{mevki_turkce_yap(p['mevki'])}</span>
+                    </div>
+                    <div style="width:100%; background:#30363d; height:12px; border-radius:10px; overflow:hidden;">
+                        <div style="width:{yuzde}%; background:{bar_color}; height:100%; transition: width 0.5s ease;"></div>
+                    </div>
+                    <p style="margin-top:15px; color:#f2cc60; font-size:18px;"><b>{p['yas']} Yaş | {p.get('kulup','Serbest')}</b></p>
+                </div>
+                <h1 style="text-align:center; font-size:55px; color:#58a6ff; letter-spacing:8px; margin:20px 0;">??????</h1>
+            """, unsafe_allow_html=True)
+
+            tahmin = st.text_input("Tahmini Yaz ve Enter'la:", key="scout_input").strip()
             
-            tahmin = st.text_input("Oyuncu Soyadı Girin:", key="game_guess_simple").strip().lower()
-            
-            if tahmin and tahmin in p['oyuncu_adi'].lower():
-                st.session_state.game_active = False
-                skor_yaz(st.session_state.user, 1)
-                st.balloons()
-                st.success(f"🎯 TEBRİKLER! Oyuncu: {p['oyuncu_adi']}")
-                if st.button("Sıradaki"): st.rerun()
-            
-            time.sleep(1) # Saniyeyi hissettir
+            # İSİM KONTROLÜ (ESNEK)
+            if tahmin:
+                temiz_tahmin = metin_temizle(tahmin)
+                temiz_gercek = metin_temizle(p['oyuncu_adi'])
+                
+                if temiz_tahmin in temiz_gercek and len(temiz_tahmin) > 2:
+                    st.session_state.game_active = False
+                    skor_yaz(st.session_state.user, 1)
+                    st.balloons()
+                    st.success(f"🎯 BİLDİN! Oyuncu: {p['oyuncu_adi']}")
+                    if st.button("Sıradaki Av"): 
+                        yeni_oyun_tetikle()
+                        st.rerun()
+                else:
+                    st.caption("İpucu: Soyadını yazman yeterli olabilir.")
+
+            time.sleep(0.5)
             st.rerun()
         else:
             st.session_state.game_active = False
             skor_yaz(st.session_state.user, -1)
-            st.warning(f"⌛ SÜRE DOLDU! Oyuncu şuydu: {p['oyuncu_adi']}")
-            if st.button("Yeniden Dene"): st.rerun()
+            st.error(f"⌛ SÜRE BİTTİ! Aranan: {p['oyuncu_adi']}")
+            if st.button("🔄 YENİDEN DENE"):
+                yeni_oyun_tetikle()
+                st.rerun()
 
     st.markdown("---")
     
-    # --- 4. LİDERLİK TABLOSU (EN SADE - ST.TABLE) ---
+    # --- 5. LİDERLİK TABLOSU (SADE VE GÜVENLİ) ---
     st.subheader("🏆 TOP 10 ELITE SCOUTS")
     try:
         leaders = supabase.table("users").select("username, puan").order("puan", desc=True).limit(10).execute()
         if leaders.data:
             import pandas as pd
-            # Hiç HTML kullanmadan direkt Pandas ve st.table ile basıyoruz
             df = pd.DataFrame(leaders.data)
-            df.columns = ["SCOUT ADI", "TOPLAM PUAN"]
-            df.index = df.index + 1 # 1'den başlasın
+            df.columns = ["SCOUT ADI", "PUAN"]
+            df.index = df.index + 1
             st.table(df)
-        else:
-            st.write("Henüz puanı olan kimse yok.")
     except:
-        st.write("Tablo şu an yüklenemiyor.")
-
+        st.write("Tablo yüklenemedi.")
 
 # --- 5. BARROW AI (V178 - ÖRNEK OYUNCU VE GENÇ YETENEK ZEKASI) ---
 with tabs[5]:
