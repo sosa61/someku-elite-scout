@@ -14,7 +14,7 @@ URL = "https://iwgowefraytdbcdgeqdz.supabase.co"
 KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3Z293ZWZyYXl0ZGJjZGdlcWR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MzM3MDEsImV4cCI6MjA5MDIwOTcwMX0.kWYUaG8OFvsAe-IBD4XcR7a2l2mflj4Y0HJfugU2m-o"
 supabase: Client = create_client(URL, KEY)
 
-# --- SAYFA AYARLARI ---
+# --- SAYFA AYARLARI --
 st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️")
 
 # --- 🔄 VIP TAZELEME MOTORU (KESİN ÇÖZÜM) ---
