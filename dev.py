@@ -359,14 +359,18 @@ with tabs[1]:
                 st.write(f"💰 **Piyasa Değeri:** {display_val}")
                 st.write(f"📈 **CA (Mevcut):** {p.get('ca', '-')}")
                 
-                st.markdown("---")
-                if st.button("⭐ FAVORİLERİME EKLE", use_container_width=True):
-                    supabase.table("favoriler").insert({
-                        "oyuncu_adi": p['oyuncu_adi'], "kulup": p.get('kulup', 'Serbest'), 
-                        "pa": p['pa'], "mevki": p['mevki'], "ca": p.get('ca', '-'),
-                        "kullanici_adi": curr_user
-                    }).execute()
-                    st.success("✅ Mermi listeye eklendi!")
+                # --- RULET FAVORİ SİSTEMİ (KİŞİYE ÖZEL) ---
+if st.button("⭐ FAVORİLERİME EKLE", use_container_width=True, key=f"rulet_fav_{p['oyuncu_adi']}"):
+    supabase.table("favoriler").insert({
+        "oyuncu_adi": p['oyuncu_adi'], 
+        "kulup": p.get('kulup', 'Serbest'), 
+        "pa": p['pa'], 
+        "mevki": p['mevki'], 
+        "ca": p.get('ca', '-'),
+        "kullanici_adi": st.session_state.user # BURASI ÇOK KRİTİK
+    }).execute()
+    st.success("✅ Mermi senin listene eklendi!")
+
     else:
         st.warning("Kriterlere uygun mermi bulunamadı.")
 
