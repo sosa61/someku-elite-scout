@@ -20,6 +20,15 @@ supabase: Client = create_client(URL, KEY)
 # --- SAYFA AYARLARI ---
 st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️")
 
+# --- 🔄 VIP DURUMU TAZELEME MOTORU ---
+if "user" in st.session_state and st.session_state.user:
+    try:
+        vip_check = supabase.table("users").select("is_vip").eq("username", st.session_state.user).execute()
+        if vip_check.data:
+            st.session_state.is_vip = vip_check.data[0].get('is_vip', False)
+    except:
+        pass
+
 # --- TASARIM (CSS) ---
 st.markdown("""
     <style>
