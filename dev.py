@@ -473,38 +473,6 @@ with tabs[4]:
 
     st.markdown("---")
     
-    # --- LİDERLİK TABLOSU (TAMİR EDİLDİ) ---
-    st.markdown("### 🏆 TOP 10 ELITE SCOUTS")
-    try:
-        # Puan sütununa göre büyükten küçüğe ilk 10'u çek
-        leaders = supabase.table("users").select("username, puan").order("puan", desc=True).limit(10).execute()
-        
-        if leaders.data:
-            # Tabloyu daha şık göstermek için Markdown Table kullanıyoruz
-            table_html = """
-            <table style="width:100%; color:white; border-collapse: collapse;">
-                <tr style="background-color: #21262d; text-align: left;">
-                    <th style="padding: 10px; border-bottom: 2px solid #30363d;">Sıra</th>
-                    <th style="padding: 10px; border-bottom: 2px solid #30363d;">Kullanıcı</th>
-                    <th style="padding: 10px; border-bottom: 2px solid #30363d;">Puan</th>
-                </tr>
-            """
-            for idx, user in enumerate(leaders.data):
-                color = "#f2cc60" if idx == 0 else "white" # Birinciyi altın rengi yap
-                table_html += f"""
-                <tr style="border-bottom: 1px solid #30363d;">
-                    <td style="padding: 10px;">{idx+1}</td>
-                    <td style="padding: 10px; color: {color}; font-weight: bold;">{user['username']}</td>
-                    <td style="padding: 10px; font-weight: bold;">{user.get('puan', 0)}</td>
-                </tr>
-                """
-            table_html += "</table>"
-            st.markdown(table_html, unsafe_allow_html=True)
-        else:
-            st.info("Henüz puanı olan scout yok. İlk sen ol!")
-    except Exception as e:
-        st.error(f"Liderlik tablosu şu an güncellenemiyor. (Hata: {e})")
-
 # --- 5. BARROW AI (V178 - ÖRNEK OYUNCU VE GENÇ YETENEK ZEKASI) ---
 with tabs[5]:
     st.markdown('<div style="text-align:center;"><h1 style="color:#ef4444;">🤵 BARROW AI</h1></div>', unsafe_allow_html=True)
