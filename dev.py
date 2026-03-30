@@ -20,6 +20,30 @@ supabase: Client = create_client(URL, KEY)
 # --- SAYFA AYARLARI ---
 st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️")
 
+# --- 🔄 TARİH BAZLI VIP KONTROLÜ (V185) ---
+if "user" in st.session_state and st.session_state.user:
+    try:
+        import datetime
+        v_res = supabase.table("users").select("is_vip, last_barrow_date").eq("username", st.session_state.user).execute()
+        if v_res.data:
+            u_data = v_res.data[0]
+            vip_tarihi = u_data.get('last_barrow_date')
+            
+            if vip_tarihi:
+                bitis_dt = datetime.datetime.strptime(vip_tarihi, "%Y-%m-%d").date()
+                bugun = datetime.date.today()
+                
+                # Tarih kontrolü: Bugün bitişten küçükse VIP devam
+                if bugun <= bitis_dt and u_data.get('is_vip'):
+                    st.session_state['is_vip'] = True
+                    st.session_state['vip_kalan_gun'] = (bitis_dt - bugun).days
+                else:
+                    st.session_state['is_vip'] = False
+                    st.session_state['vip_kalan_gun'] = 0
+    except:
+        pass
+
+
 # --- TASARIM (CSS) ---
 st.markdown("""
     <style>
@@ -119,6 +143,17 @@ if st.session_state.user is None:
     
     # --- YAN MENÜ (SIDEBAR) AYARLARI ---
 with st.sidebar:
+# --- 👤 YAN PANEL BİLGİSİ ---
+with st.sidebar:
+    if st.session_state.get('user'):
+        st.write(f"Hoş geldin, **{st.session_state.user}**")
+        
+        if st.session_state.get('is_vip'):
+            kalan = st.session_state.get('vip_kalan_gun', 0)
+            st.success(f"💎 VIP Aktif: {kalan} Gün Kaldı")
+        else:
+            st.warning("🔴 Standart Üye")
+
     st.markdown(f"### 👤 Hoş geldin, {st.session_state.user}")
     
     # VIP Durumunu Göster (Gözüksün ki adam gurur duysun)
