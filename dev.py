@@ -465,37 +465,40 @@ with tabs[4]:
 
     st.markdown("---")
     
-    # --- LİDERLİK TABLOSU (PREMIUM FIX) ---
+        # --- LİDERLİK TABLOSU (TEMİZ VERSİYON) ---
+    st.markdown("---")
     st.markdown("### 🏆 TOP 10 ELITE SCOUTS")
+    
     try:
+        # Puanları çek
         leaders = supabase.table("users").select("username, puan").order("puan", desc=True).limit(10).execute()
         
         if leaders.data:
-            # Tabloyu bir string değişkenine topluyoruz
-            html_table = '<table style="width:100%; border-collapse: collapse; background:#161b22; border-radius:10px; overflow:hidden;">'
-            html_table += '<tr style="background:#21262d; color:#8b949e;"><th style="padding:12px; text-align:left;">SIRA</th><th style="padding:12px; text-align:left;">SCOUT</th><th style="padding:12px; text-align:left;">PUAN</th></tr>'
+            # HTML Tabloyu tek bir değişkende topluyoruz
+            h = '<table style="width:100%; border-collapse: collapse; background:#161b22; border-radius:10px; overflow:hidden;">'
+            h += '<tr style="background:#21262d; color:#8b949e;"><th style="padding:12px; text-align:left;">SIRA</th><th style="padding:12px; text-align:left;">SCOUT</th><th style="padding:12px; text-align:left;">PUAN</th></tr>'
             
             for i, u in enumerate(leaders.data):
                 rank = i + 1
                 cls = 'style="color:#f2cc60; font-weight:bold;"' if rank == 1 else ""
                 icon = "👑" if rank == 1 else ("🥈" if rank == 2 else ("🥉" if rank == 3 else "🏃"))
-                u_puan = u.get('puan', 0)
                 
-                html_table += f'''
+                h += f'''
                 <tr style="border-bottom: 1px solid #30363d;">
                     <td style="padding:12px;">{icon} {rank}</td>
-                    <td style="padding:12px;" {cls}>{u['username']}</td>
-                    <td style="padding:12px;"><span style="background:#238636; color:white; padding:2px 8px; border-radius:5px; font-weight:bold;">{u_puan} PT</span></td>
+                    <td style="padding:12px;" {cls}>{u["username"]}</td>
+                    <td style="padding:12px;"><span style="background:#238636; color:white; padding:2px 8px; border-radius:5px; font-weight:bold;">{u.get("puan", 0)} PT</span></td>
                 </tr>
                 '''
-            html_table += '</table>'
+            h += '</table>'
             
-            # BURASI HAYATİ ÖNEM TAŞIYOR:
-            st.markdown(html_table, unsafe_allow_html=True)
+            # BURASI ÖNEMLİ: Sadece bu satır kalsın! 
+            # Başka st.write veya html_table yazan bir satır varsa SİL.
+            st.markdown(h, unsafe_allow_html=True)
         else:
             st.info("Henüz puanı olan scout yok.")
-    except:
-        st.error("Tablo yüklenemedi.")
+    except Exception as e:
+        st.error(f"Tablo yüklenemedi: {e}")
 
 # --- 5. BARROW AI (V178 - ÖRNEK OYUNCU VE GENÇ YETENEK ZEKASI) ---
 with tabs[5]:
