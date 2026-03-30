@@ -392,7 +392,7 @@ with tabs[3]:
     else:
         st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
         
-# --- 5. GİZLİ YETENEK AVI (V430 - KADEMELİ İPUCU & GÖRSEL FIX) ---
+# --- 5. GİZLİ YETENEK AVI (V435 - İSİM İPUCU KALDIRILDI) ---
 with tabs[4]:
     import unicodedata
     st.markdown('<h2 style="text-align:center; color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h2>', unsafe_allow_html=True)
@@ -439,27 +439,20 @@ with tabs[4]:
     # --- 3. OYUN ALANI ---
     if st.session_state.game_active and st.session_state.target_p:
         p = st.session_state.target_p
-        kalan = max(0, int(30 - (time.time() - st.session_state.game_start_time)))
+        kalan = max(0, int(30 - (time.time() - st.session_state.state.game_start_time)))
         yuzde = (kalan / 30) * 100
 
         if kalan > 0:
-            # İPUCU MANTIĞI
+            # KADEMELİ İPUÇLARI
             pa_hint = f"🔥 PA: {p['pa']}" if kalan <= 20 else "🔥 PA: ??"
             ca_hint = f"📊 CA: {p.get('ca','?')}" if kalan <= 10 else "📊 CA: ??"
             
-            # İsim İpucu (Son 5 saniye ismin 1/3'ü)
-            isim_gosterim = "?? ? ? ??"
-            if kalan <= 5:
-                uzunluk = len(p['oyuncu_adi'])
-                sinir = max(1, uzunluk // 3)
-                isim_gosterim = p['oyuncu_adi'][:sinir] + "..." + ("?" * (uzunluk-sinir))
-            
             bar_color = "#238636" if yuzde > 50 else ("#f2cc60" if yuzde > 20 else "#ff4b4b")
             
-            # KART TASARIMI (FIXED)
+            # KART TASARIMI
             st.markdown(f"""
                 <div style="background:#161b22; padding:20px; border-radius:15px; border:2px solid #30363d; text-align:center;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                         <span style="font-size:22px;">⏳ <b>{kalan}s</b></span>
                         <span style="color:#8b949e; font-weight:bold;">{mevki_turkce_yap(p['mevki'])}</span>
                     </div>
@@ -467,12 +460,12 @@ with tabs[4]:
                         <div style="width:{yuzde}%; background:{bar_color}; height:100%; transition: width 0.5s ease;"></div>
                     </div>
                     <p style="color:#ffffff; font-size:19px; margin-bottom:5px;"><b>{p['yas']} Yaş | {p.get('kulup','Serbest')}</b></p>
-                    <div style="display:flex; justify-content:center; gap:20px; font-weight:bold; font-size:16px; margin-bottom:10px;">
-                        <span>{pa_hint}</span>
-                        <span>{ca_hint}</span>
+                    <div style="display:flex; justify-content:center; gap:20px; font-weight:bold; font-size:16px;">
+                        <span style="color:#f2cc60;">{pa_hint}</span>
+                        <span style="color:#58a6ff;">{ca_hint}</span>
                     </div>
                 </div>
-                <h1 style="text-align:center; font-size:50px; color:#58a6ff; letter-spacing:5px; margin:25px 0;">{isim_gosterim}</h1>
+                <h1 style="text-align:center; font-size:50px; color:#58a6ff; letter-spacing:5px; margin:25px 0;">??????</h1>
             """, unsafe_allow_html=True)
 
             tahmin = st.text_input("Tahmini Yaz ve Enter'la:", key="scout_input").strip()
@@ -498,6 +491,7 @@ with tabs[4]:
                 st.rerun()
 
     st.markdown("---")
+
     
     # --- 5. LİDERLİK TABLOSU (SADE VE GÜVENLİ) ---
     st.subheader("🏆 TOP 10 ELITE SCOUTS")
