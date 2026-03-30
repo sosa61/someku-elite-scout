@@ -692,7 +692,7 @@ with tabs[5]:
                 supabase.table("favoriler").insert({
                     "oyuncu_adi": p['oyuncu_adi'], "kulup": p.get('kulup','Serbest'),
                     "pa": p['pa'], "mevki": p['mevki'], "ca": p.get('ca', 0),
-                    "kullanici_adi": "someku"
+                    "kullanici_adi": st.session_state.user
                 }).execute()
                 st.toast("Mermi listeye eklendi!")
             st.rerun()
