@@ -88,8 +88,7 @@ if st.session_state.user is None:
             st.query_params["user"] = u_id
             st.rerun()
         else:
-            st.error("Hatalı kullanıcı adı veya şifre!")
-    
+            
     
             # --- KAYIT OLMA BÖLÜMÜ ---
     st.markdown("---")
