@@ -20,7 +20,12 @@ supabase: Client = create_client(URL, KEY)
 # --- SAYFA AYARLARI ---
 st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️")
 
-# --- TASARIM TEMİZLEME (Mermi Gibi) ---
+import streamlit as st
+
+# Sayfa ayarları mermi gibi en üstte olmalı
+st.set_page_config(page_title="SOMEKU SCOUT", page_icon="🕵️‍♂️", layout="wide")
+
+# Alt tarafı, üst tarafı, her yeri mermi gibi silen CSS
 hide_st_style = """
             <style>
             #MainMenu {visibility: hidden;}
@@ -28,7 +33,17 @@ hide_st_style = """
             header {visibility: hidden;}
             .stAppDeployButton {display:none;}
             [data-testid="stStatusWidget"] {display:none;}
-            [data-testid="stHeader"] {display:none;}
+            /* Alttaki reklam bandını siler */
+            footer:after {
+                content:'';
+                display:block;
+                position:relative;
+                top:33px;
+            }
+            /* Tüm alt barı uçurur */
+            [data-testid="stFooter"] {display:none;}
+            /* Ekranın en altındaki boşluğu kapatır */
+            .stApp { margin-bottom: -50px; }
             </style>
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
