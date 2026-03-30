@@ -765,84 +765,50 @@ with tabs[5]:
     elif st.session_state.barrow_player == "empty":
         st.error("Barrow: 'O kriterlerde mermi bulamadım hıyarto!'")
 
-# --- 6. ADMIN (V130 - TAM YETKİ VE DENETİM) ---
-with tabs[6]: 
-    if st.session_state.get('user') == "someku":
-        st.markdown('<h1 style="color:#ff4b4b; text-align:center;">🛡️ YÖNETİM MERKEZİ</h1>', unsafe_allow_html=True)
-        
-        # 1. GERÇEK SAYIM (470 BİN OYUNCU İÇİN)
-        try:
-            res_count = supabase.table("oyuncular").select("*", count="exact").limit(1).execute()
-            actual_count = res_count.count
-            u_res = supabase.table("users").select("*").execute()
-            total_users = len(u_res.data)
-            
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Toplam Oyuncu", f"{actual_count:,}".replace(",", "."))
-            c2.metric("Kayıtlı Kullanıcı", total_users)
-            c3.success("Sistem Çevrimiçi")
-        except:
-            st.warning("Veri bağlantısı kuruluyor...")
-
-        st.markdown("---")
-        adm_tabs = st.tabs(["✏️ Oyuncu Düzenle/Ekle", "👥 Kullanıcı & Ban & Şifre", "🛠️ Sistem"])
-
-        # --- A. OYUNCU DÜZENLEME VE EKLEME ---
-        with adm_tabs[0]:
-            st.write("### ✍️ Oyuncu Verilerini Düzenle")
-            search_edit = st.text_input("Düzenlenecek Oyuncu Adı:", key="search_edit")
-            if search_edit:
-                res_e = supabase.table("oyuncular").select("*").ilike("oyuncu_adi", f"%{search_edit}%").limit(5).execute()
-                for p in res_e.data:
-                    with st.expander(f"DÜZENLE: {p['oyuncu_adi']} ({p['kulup']})"):
-                        with st.form(f"edit_form_{p['id']}"):
-                            n_ad = st.text_input("Ad", value=p['oyuncu_adi'])
-                            n_klb = st.text_input("Kulüp", value=p['kulup'])
-                            n_mvk = st.text_input("Mevki", value=p['mevki'])
-                            n_ys = st.number_input("Yaş", value=int(p['yas']))
-                            n_pa = st.number_input("PA", value=int(p['pa']))
-                            n_dgr = st.text_input("Değer", value=p['deger'])
-                            
-                            if st.form_submit_button("GÜNCELLE"):
-                                supabase.table("oyuncular").update({
-                                    "oyuncu_adi": n_ad, "kulup": n_klb, "mevki": n_mvk,
-                                    "yas": n_ys, "pa": n_pa, "deger": n_dgr
-                                }).eq("id", p['id']).execute()
-                                st.success(f"{n_ad} güncellendi!")
-                                st.rerun()
-                        if st.button(f"🗑️ BU OYUNCUYU SİL", key=f"del_{p['id']}"):
-                            supabase.table("oyuncular").delete().eq("id", p['id']).execute()
-                            st.error("Oyuncu silindi.")
-                            st.rerun()
-
-        # --- B. KULLANICI & BAN & ŞİFRE PANELİ ---
+        # --- B. KULLANICI & BAN & ŞİFRE & VIP PANELİ ---
         with adm_tabs[1]:
-            st.write("### 👥 Kullanıcı Denetimi")
+            st.write("### 👥 Kullanıcı Denetimi ve VIP Tanımlama")
             if u_res.data:
                 for u in u_res.data:
+                    # Kullanıcı kartı tasarımı
                     with st.container():
-                        col1, col2, col3 = st.columns([2, 2, 1])
-                        col1.write(f"**Kullanıcı:** {u['username']}")
-                        # Şifreleri maskelemeden gösteriyoruz (İstediğin gibi)
-                        col2.write(f"🔑 **Şifre:** `{u.get('password', 'N/A')}`") 
-                        # IP adresi (Eğer sütun varsa)
-                        ip = u.get('ip_adresi', 'Bilinmiyor')
-                        col1.caption(f"🌐 IP: {ip}")
+                        c1, c2, c3, c4 = st.columns([1.5, 1.5, 2, 1])
                         
+                        # 1. Sütun: Kullanıcı Bilgisi
+                        is_current_vip = u.get('is_vip', False)
+                        vip_status = "⭐ VIP" if is_current_vip else "⚪ Standart"
+                        c1.write(f"**{u['username']}**")
+                        c1.caption(f"Durum: {vip_status}")
+                        
+                        # 2. Sütun: Şifre ve IP
+                        c2.write(f"🔑 `{u.get('password', '***')}`")
+                        c2.caption(f"🌐 IP: {u.get('ip_adresi', 'Bilinmiyor')}")
+
+                        # 3. Sütun: VIP TARİH VE YETKİ VERME
+                        # Mevcut tarihi çek, yoksa bugünü göster
+                        current_date_val = u.get('last_barrow_date')
+                        try:
+                            default_date = datetime.datetime.strptime(current_date_val, "%Y-%m-%d").date() if current_date_val else datetime.date.today()
+                        except:
+                            default_date = datetime.date.today()
+                        
+                        new_date = c3.date_input(f"Bitiş:", value=default_date, key=f"date_{u['username']}")
+                        
+                        # 4. Sütun: GÜNCELLEME BUTONLARI
+                        if c4.button("✅ YETKİ VER", key=f"setvip_{u['username']}"):
+                            try:
+                                supabase.table("users").update({
+                                    "is_vip": True,
+                                    "last_barrow_date": str(new_date)
+                                }).eq("username", u['username']).execute()
+                                st.success(f"{u['username']} artık VIP! (Bitiş: {new_date})")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Hata: {e}")
+
                         if u['username'] != "someku":
-                            if col3.button("BANLA / SİL", key=f"ban_{u['id']}"):
-                                supabase.table("users").delete().eq("id", u['id']).execute()
-                                st.warning(f"{u['username']} sistemden atıldı.")
+                            if c4.button("🗑️ SİL", key=f"ban_{u['username']}"):
+                                supabase.table("users").delete().eq("username", u['username']).execute()
+                                st.warning(f"{u['username']} silindi.")
                                 st.rerun()
                     st.markdown("---")
-
-        # --- C. SİSTEM BAKIMI ---
-        with adm_tabs[2]:
-            st.write("### 🛠️ Kritik İşlemler")
-            if st.button("TÜM FAVORİLERİ SIFIRLA"):
-                st.warning("Emin misiniz? Geri dönüşü yok!")
-                if st.checkbox("Evet, tüm favorileri temizle"):
-                    supabase.table("favoriler").delete().neq("id", 0).execute()
-                    st.success("Tüm favori verileri silindi.")
-    else:
-        st.warning("Bu bölgeye erişim izniniz yok.")
