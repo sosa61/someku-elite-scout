@@ -82,27 +82,26 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 1. YAN MENÜ (COACHPRO TARZI) ---
+from streamlit_option_menu import option_menu # En tepeye eklemeyi unutma
+
+# --- YAN MENÜ (COACHPRO STİLİ) ---
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/805/805404.png", width=80) # Logo yerine futbol ikonu
     st.markdown("<h2 style='text-align: center; color: #238636;'>CoachPro</h2>", unsafe_allow_html=True)
     
     secenek = option_menu(
-        menu_title=None, # Başlık istemiyoruz
-        options=["Ana Sayfa", "Rulet", "11 Kur", "Favoriler", "Yetenek Avı", "Barrow AI", "Admin"],
-        icons=["house", "slot-machine", "people", "star", "search", "robot", "gear"], # İkonlar
-        menu_icon="cast",
-        default_index=4, # Başlangıçta Yetenek Avı seçili
+        menu_title=None, 
+        options=["Ana Sayfa", "Rulet", "11 Kur", "Favoriler", "Yetenek Avı", "Barrow AI", "Yönetim"],
+        icons=["house", "slot-machine", "people", "star", "crosshair", "robot", "shield-lock"], 
+        default_index=4, # Başlangıçta Yetenek Avı açık gelir
         styles={
-            "container": {"padding": "0!important", "background-color": "#0e1117"},
+            "container": {"padding": "0!important", "background-color": "#0d1117"},
             "icon": {"color": "#8b949e", "font-size": "18px"}, 
-            "nav-link": {"font-size": "16px", "text-align": "left", "margin":"5px", "color": "#8b949e"},
+            "nav-link": {"font-size": "15px", "text-align": "left", "margin":"5px", "color": "#8b949e", "border-radius": "10px"},
             "nav-link-selected": {"background-color": "#238636", "color": "white"},
         }
     )
-    
     st.markdown("---")
-    st.write(f"🟢 **Scout:** {st.session_state.user}")
+    st.caption(f"🟢 Scout: {st.session_state.user}")
 
 # --- 2. İÇERİK ALANI ---
 
