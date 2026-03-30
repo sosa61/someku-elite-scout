@@ -392,11 +392,11 @@ with tabs[3]:
     else:
         st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
         
-     # --- 5. GİZLİ YETENEK AVI (V240 - EKSİKSİZ & BİRLEŞTİRİLMİŞ) ---
+# --- 5. GİZLİ YETENEK AVI (V250 - TABLO FIX) ---
 with tabs[4]:
     st.markdown('<h2 style="text-align:center; color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h2>', unsafe_allow_html=True)
     
-    # 1. MEVKİ TÜRKÇELEŞTİRME SİSTEMİ
+    # 1. MEVKİ TÜRKÇELEŞTİRME
     def mevki_tr_yap(m):
         m = str(m).upper()
         if "GK" in m: return "Kaleci"
@@ -409,22 +409,19 @@ with tabs[4]:
         if any(x in m for x in ["AM C", "M C", "DM"]): return "Orta Saha"
         return "Joker"
 
-    # 2. PUAN GÜNCELLEME SİSTEMİ
-    def puan_guncelle(user, artis):
+    # 2. PUAN SİSTEMİ
+    def puan_islem(user, artis):
         try:
-            current = supabase.table("users").select("puan").eq("username", user).execute()
-            eski_puan = current.data[0].get("puan", 0) if (current.data and "puan" in current.data[0]) else 0
-            yeni_puan = eski_puan + artis
-            supabase.table("users").update({"puan": yeni_puan}).eq("username", user).execute()
-            return yeni_puan
-        except Exception as e:
-            return 0
+            c = supabase.table("users").select("puan").eq("username", user).execute()
+            eski = c.data[0].get("puan", 0) if c.data else 0
+            yeni = eski + artis
+            supabase.table("users").update({"puan": yeni}).eq("username", user).execute()
+            return yeni
+        except: return 0
 
-    # 3. OYUN DURUMU KONTROLLERİ
     if 'game_active' not in st.session_state: st.session_state.game_active = False
     if 'target_p' not in st.session_state: st.session_state.target_p = None
 
-    # YENİ OYUN BUTONU
     if st.button("🚀 YENİ AV BAŞLAT (-1 Puan Risk!)", use_container_width=True):
         res_g = supabase.table("oyuncular").select("*").gte("pa", 168).limit(300).execute()
         if res_g.data:
@@ -433,82 +430,73 @@ with tabs[4]:
             st.session_state.game_start_time = time.time()
             st.rerun()
 
-    # --- OYUN ALANI (SAYAÇ & TAHMİN) ---
+    # --- OYUN ALANI ---
     if st.session_state.game_active and st.session_state.target_p:
         p = st.session_state.target_p
-        m_tr = mevki_tr_yap(p['mevki'])
         
-        # Süre Hesaplama
         elapsed = time.time() - st.session_state.game_start_time
         kalan = int(30 - elapsed)
 
         if kalan > 0:
-            # GÖRSEL KART VE SAYAÇ
             st.markdown(f"""
-                <div style="text-align:center; padding:15px; border-radius:15px; background:rgba(255,75,75,0.1); border:2px solid #ff4b4b; margin-bottom:20px;">
-                    <h1 style="color:#ff4b4b; margin:0; font-size:50px;">⏱️ {kalan}s</h1>
-                    <p style="margin:5px 0; color:#8b949e; font-weight:bold;">{m_tr} | {p['yas']} Yaş | {p.get('kulup','Serbest')} | PA: {p['pa']}</p>
+                <div style="text-align:center; padding:15px; border-radius:15px; background:rgba(255,75,75,0.1); border:2px solid #ff4b4b; margin-bottom:15px;">
+                    <h1 style="color:#ff4b4b; margin:0; font-size:45px;">⏱️ {kalan}s</h1>
+                    <p style="margin:5px 0; color:#8b949e; font-weight:bold;">{mevki_tr_yap(p['mevki'])} | {p['yas']} Yaş | {p.get('kulup','Serbest')} | PA: {p['pa']}</p>
                 </div>
-                <h1 style="text-align:center; font-size:70px; color:#58a6ff; letter-spacing:15px; margin-bottom:15px;">????</h1>
+                <h1 style="text-align:center; font-size:60px; color:#58a6ff; letter-spacing:10px;">????</h1>
             """, unsafe_allow_html=True)
 
-            # TAHMİN GİRİŞİ
-            tahmin_input = st.text_input("Tahminini Yaz (Kenan, Messi, Mbappe vb.):", key="guess_input_final").strip().lower()
+            tahmin = st.text_input("Tahmin (Kenan, Messi, Mbappe):", key="scout_guess_final").strip().lower()
 
-            if tahmin_input and tahmin_input in p['oyuncu_adi'].lower():
+            if tahmin and tahmin in p['oyuncu_adi'].lower():
                 st.session_state.game_active = False
-                puan_guncelle(st.session_state.user, 1)
+                puan_islem(st.session_state.user, 1)
                 st.balloons()
                 st.success(f"🎯 BİLDİN! Oyuncu: {p['oyuncu_adi']} (+1 Puan)")
                 if st.button("Sıradaki Gelsin!"): st.rerun()
             
-            # Canlı akış için sayfayı tetikle
             time.sleep(0.5)
             st.rerun()
         else:
             st.session_state.game_active = False
-            puan_guncelle(st.session_state.user, -1)
-            st.error(f"⏱️ SÜRE BİTTİ! Aranan mermi: {p['oyuncu_adi']} (-1 Puan)")
+            puan_islem(st.session_state.user, -1)
+            st.error(f"⏱️ SÜRE BİTTİ! Aranan: {p['oyuncu_adi']} (-1 Puan)")
             if st.button("Yeniden Dene"): st.rerun()
 
     st.markdown("---")
     
-    # --- LİDERLİK TABLOSU (PREMIUM HTML) ---
+    # --- LİDERLİK TABLOSU (PREMIUM FIX) ---
     st.markdown("### 🏆 TOP 10 ELITE SCOUTS")
     try:
         leaders = supabase.table("users").select("username, puan").order("puan", desc=True).limit(10).execute()
         
         if leaders.data:
-            table_html = """
-            <style>
-                .scout-table { width: 100%; border-collapse: collapse; background: #161b22; border-radius: 10px; overflow: hidden; }
-                .scout-table th { background: #21262d; color: #8b949e; padding: 12px; text-align: left; border-bottom: 2px solid #30363d; }
-                .scout-table td { padding: 12px; border-bottom: 1px solid #30363d; color: white; }
-                .rank-1 { color: #f2cc60 !important; font-weight: bold; }
-                .puan-badge { background: #238636; color: white; padding: 2px 8px; border-radius: 5px; font-weight: bold; font-size: 12px; }
-            </style>
-            <table class="scout-table">
-                <tr><th>SIRA</th><th>SCOUT KULLANICI</th><th>PUAN</th></tr>
-            """
-            for i, user in enumerate(leaders.data):
+            # Tabloyu bir string değişkenine topluyoruz
+            html_table = '<table style="width:100%; border-collapse: collapse; background:#161b22; border-radius:10px; overflow:hidden;">'
+            html_table += '<tr style="background:#21262d; color:#8b949e;"><th style="padding:12px; text-align:left;">SIRA</th><th style="padding:12px; text-align:left;">SCOUT</th><th style="padding:12px; text-align:left;">PUAN</th></tr>'
+            
+            for i, u in enumerate(leaders.data):
                 rank = i + 1
-                r_class = "rank-1" if rank == 1 else ""
+                cls = 'style="color:#f2cc60; font-weight:bold;"' if rank == 1 else ""
                 icon = "👑" if rank == 1 else ("🥈" if rank == 2 else ("🥉" if rank == 3 else "🏃"))
-                table_html += f"""
-                <tr>
-                    <td>{icon} {rank}</td>
-                    <td class="{r_class}">{user['username']}</td>
-                    <td><span class="puan-badge">{user.get('puan', 0)} PT</span></td>
+                u_puan = u.get('puan', 0)
+                
+                html_table += f'''
+                <tr style="border-bottom: 1px solid #30363d;">
+                    <td style="padding:12px;">{icon} {rank}</td>
+                    <td style="padding:12px;" {cls}>{u['username']}</td>
+                    <td style="padding:12px;"><span style="background:#238636; color:white; padding:2px 8px; border-radius:5px; font-weight:bold;">{u_puan} PT</span></td>
                 </tr>
-                """
-            table_html += "</table>"
-            st.markdown(table_html, unsafe_allow_html=True)
+                '''
+            html_table += '</table>'
+            
+            # BURASI HAYATİ ÖNEM TAŞIYOR:
+            st.markdown(html_table, unsafe_allow_html=True)
         else:
-            st.info("Puan tablosu boş. İlk puanı sen al!")
+            st.info("Henüz puanı olan scout yok.")
     except:
-        st.error("Liderlik tablosu yüklenemedi. Supabase 'puan' sütununu kontrol et!")
+        st.error("Tablo yüklenemedi.")
 
-    
 # --- 5. BARROW AI (V178 - ÖRNEK OYUNCU VE GENÇ YETENEK ZEKASI) ---
 with tabs[5]:
     st.markdown('<div style="text-align:center;"><h1 style="color:#ef4444;">🤵 BARROW AI</h1></div>', unsafe_allow_html=True)
