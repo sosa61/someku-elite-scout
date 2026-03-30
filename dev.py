@@ -142,27 +142,20 @@ if st.session_state.user is None:
     st.stop()
     
     # --- YAN MENÜ (SIDEBAR) AYARLARI ---
+# --- YAN MENÜ (SIDEBAR) AYARLARI ---
 with st.sidebar:
-# --- 👤 YAN PANEL BİLGİSİ ---
-with st.sidebar:
-    if st.session_state.get('user'):
-        st.write(f"Hoş geldin, **{st.session_state.user}**")
-        
-        if st.session_state.get('is_vip'):
-            kalan = st.session_state.get('vip_kalan_gun', 0)
-            st.success(f"💎 VIP Aktif: {kalan} Gün Kaldı")
-        else:
-            st.warning("🔴 Standart Üye")
-
     st.markdown(f"### 👤 Hoş geldin, {st.session_state.user}")
     
-    # VIP Durumunu Göster (Gözüksün ki adam gurur duysun)
-    if st.session_state.get('is_vip', False):
-        st.success("🌟 VIP SCOUT ÜYESİ")
+    # VIP Durumunu ve Kalan Günü Göster
+    if st.session_state.get('is_vip'):
+        kalan_gun = st.session_state.get('vip_kalan_gun', 0)
+        st.success(f"🌟 VIP SCOUT ÜYESİ\n\n💎 Kalan: {kalan_gun} Gün")
     else:
-        st.info("🆓 STANDART ÜYE")
-    
+        st.warning("🔴 STANDART ÜYE")
+        st.info("Kilitli mermileri görmek için VIP üyeliğe geç!")
+
     st.markdown("---")
+
     
     # --- GÜVENLİ ÇIKIŞ BUTONU ---
     if st.button("🚪 Güvenli Çıkış Yap", use_container_width=True):
