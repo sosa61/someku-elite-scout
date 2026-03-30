@@ -22,25 +22,40 @@ st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️"
 
 import streamlit as st
 
-# --- REKLAM BANDI İMHA OPERASYONU (V3) ---
+# --- REKLAMIN ÜZERİNİ ÖRTME OPERASYONU ---
 st.markdown("""
     <style>
-    /* Üst menü ve GitHub linkini gizler */
-    [data-testid="stHeader"] {visibility: hidden !important;}
-    
-    /* Sağ alttaki kırmızı taç ve Hosted with Streamlit yazısını siler */
-    footer {visibility: hidden !important; height: 0px !important;}
-    
-    /* Alttaki reklam bandının ana kapsayıcısını bulur ve yok eder */
-    div[class^="viewerBadge_container"] {display: none !important;}
-    div[class^="viewerBadge_link"] {display: none !important;}
-    
-    /* Manage app butonunu ve çevresini tamamen temizler */
-    button[data-testid="stStatusWidget"] {display: none !important;}
-    .stAppDeployButton {display: none !important;}
-    
-    /* Sayfanın altına beyaz/siyah bir şerit çekerek her şeyi gömer */
-    .main .block-container {padding-bottom: 0px !important;}
+    /* Üst taraftaki kalabalığı uçurur */
+    header {visibility: hidden !important;}
+    .stAppDeployButton {display:none !important;}
+
+    /* Reklam bandının üzerine siyah bir perde çeker */
+    footer {
+        visibility: hidden !important;
+        display: none !important;
+    }
+
+    /* Ekranın en altına yapışık, dükkanın renginde bir bar ekler */
+    .stApp::after {
+        content: 'SOMEKU SCOUT 🕵️‍♂️ - Tüm Hakları Saklıdır';
+        display: block;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 50px;
+        background-color: #0e1117; /* Dükkanın arka plan rengiyle aynı yap */
+        color: #ffffff;
+        text-align: center;
+        line-height: 50px;
+        font-size: 12px;
+        z-index: 999999; /* Reklamın üstüne çıkmasını sağlar */
+    }
+
+    /* Sayfanın en altındaki boşluğu daraltır */
+    .main .block-container {
+        padding-bottom: 60px !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
