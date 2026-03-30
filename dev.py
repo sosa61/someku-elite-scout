@@ -625,17 +625,15 @@ with tabs[4]:
     except:
         st.write("Tablo yüklenemedi.")
 
-# --- 5. BARROW AI (V178 - KONTROLLÜ VE LİMİTLİ) ---
+# --- 5. BARROW AI (V188 - AKILLI MEVKİ ANALİZİ) ---
 with tabs[5]:
     st.markdown('<div style="text-align:center;"><h1 style="color:#ef4444;">🤵 BARROW AI</h1></div>', unsafe_allow_html=True)
     
-    # 1. KULLANICI KONTROLLERİ
     user_is_vip = st.session_state.get('is_vip', False)
     curr_user = st.session_state.get('user')
     
     if "barrow_player" not in st.session_state: st.session_state.barrow_player = None
 
-    # 2. LİMİT SORGULAMA (VIP DEĞİLSE)
     can_ask = True
     if not user_is_vip:
         u_data = supabase.table("users").select("barrow_count", "last_barrow_date").eq("username", curr_user).execute()
@@ -643,52 +641,60 @@ with tabs[5]:
             count = u_data.data[0].get('barrow_count', 0)
             l_date = u_data.data[0].get('last_barrow_date')
             today = str(datetime.date.today())
-
             if l_date != today:
                 supabase.table("users").update({"barrow_count": 0, "last_barrow_date": today}).eq("username", curr_user).execute()
                 count = 0
-            
             if count >= 3:
                 can_ask = False
                 st.warning(f"🔒 Barrow: 'Günlük 3 mermi hakkın doldu hıyarto! Daha fazlası için VIP ol.'")
                 st.markdown(f'''<a href="https://www.shopier.com/fmscout/45690641" target="_blank" style="text-decoration:none;"><button style="width:100%; background:#ef4444; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">SINIRSIZ BARROW İÇİN VIP OL</button></a>''', unsafe_allow_html=True)
 
-    # 3. SORU SORMA EKRANI
     b_in = st.text_input("Barrow'a emir ver (Örn: 'Messi gibi bir genç', 'Hummels tarzı defans'):", key="b_in_v178", disabled=not can_ask)
     
     if st.button("BARROWA SOR", disabled=not can_ask):
         if b_in:
-            # Hakkı artır (VIP değilse)
             if not user_is_vip:
                 new_count = u_data.data[0].get('barrow_count', 0) + 1
                 supabase.table("users").update({"barrow_count": new_count}).eq("username", curr_user).execute()
 
-            # --- ASIL BARROW MANTIĞI ---
             BARROW_INSULTS = ["Bütçen buysa git halısaha maçı ayarla hıyarto!", "Yine mi sen? Al şu mermiyi de kaybol.", "Messi'yi rüyanda görürsün ama bir mermi bulalım bakalım..."]
             st.markdown(f'<div style="background:#1a1a1a; padding:15px; border-left:5px solid #ef4444; color:#ef4444; margin-bottom:20px;">{random.choice(BARROW_INSULTS)}</div>', unsafe_allow_html=True)
             
             bq = supabase.table("oyuncular").select("*").gte("pa", 135)
             low_in = b_in.lower()
             
+            # --- 🛡️ GÜÇLENDİRİLMİŞ MEVKİ MOTORU ---
+            m_list = []
+            
+            # 1. Örnek Oyuncu Analizi
             scout_knowledge = {
                 "messi": ["AM R", "AM C", "ST"], "ronaldo": ["ST", "AM L"], "neymar": ["AM L", "AM C"],
                 "hummels": ["D C"], "van dijk": ["D C"], "modric": ["M C"], "de bruyne": ["AM C", "M C"],
                 "haaland": ["ST"], "mbappe": ["ST", "AM L"], "musiala": ["AM C", "AM L"], "arda güler": ["AM C", "AM R"]
             }
-            
-            m_list = []
-            for player_name, positions in scout_knowledge.items():
-                if player_name in low_in:
-                    m_list.extend(positions)
-                    if any(x in low_in for x in ["genç", "gibi", "tarzı", "veliaht"]): bq = bq.lte("yas", 21)
+            for pk, pv in scout_knowledge.items():
+                if pk in low_in:
+                    m_list.extend(pv)
+                    if any(x in low_in for x in ["genç", "gibi", "tarzı"]): bq = bq.lte("yas", 21)
 
-            if "defans" in low_in or "stoper" in low_in: m_list.extend(["D C", "D R", "D L"])
-            elif "forvet" in low_in or "golcü" in low_in: m_list.append("ST")
-            elif "orta saha" in low_in: m_list.extend(["M C", "DM", "AM C"])
-            elif "kanat" in low_in: m_list.extend(["AM L", "AM R"])
+            # 2. Kesin Mevki Kelimeleri (Hata payını sıfıra indirmek için)
+            if any(x in low_in for x in ["kaleci", "gk", "file bekçisi"]): m_list.append("GK")
+            elif any(x in low_in for x in ["stoper", "defans", "dc"]): m_list.append("D C")
+            elif any(x in low_in for x in ["sol bek", "dl"]): m_list.append("D L")
+            elif any(x in low_in for x in ["sağ bek", "dr"]): m_list.append("D R")
+            elif any(x in low_in for x in ["ön libero", "dm"]): m_list.append("DM")
+            elif any(x in low_in for x in ["orta saha", "mc"]): m_list.append("M C")
+            elif any(x in low_in for x in ["sol kanat", "aml"]): m_list.append("AM L")
+            elif any(x in low_in for x in ["sağ kanat", "amr"]): m_list.append("AM R")
+            elif any(x in low_in for x in ["ofansif orta", "amc"]): m_list.append("AM C")
+            elif any(x in low_in for x in ["forvet", "golcü", "st", "santrafor"]): m_list.append("ST")
             
-            if m_list: bq = bq.or_(",".join([f'mevki.ilike.%{m}%' for m in set(m_list)]))
+            if m_list:
+                # Mevkileri tekilleştir ve filtrele
+                or_filter = ",".join([f'mevki.ilike.%{m}%' for m in set(m_list)])
+                bq = bq.or_(or_filter)
 
+            # --- YAŞ ANALİZİ ---
             nums = re.findall(r'\d+', low_in)
             range_match = re.search(r'(\d+)\s*[-|ile|ve|ila|–]\s*(\d+)', low_in)
             if range_match:
@@ -700,7 +706,6 @@ with tabs[5]:
             elif not any(x in low_in for x in scout_knowledge.keys()): bq = bq.lte("yas", 28)
 
             res_b = bq.limit(100).execute()
-            
             if res_b.data:
                 st.session_state.barrow_player = random.choice(res_b.data)
             else:
