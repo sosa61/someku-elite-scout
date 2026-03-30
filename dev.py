@@ -66,7 +66,76 @@ if st.session_state.user is None:
             st.query_params["user"] = u_id; st.rerun()
     st.stop()
 
-tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🕵️ YETENEK AVI", "🤖 BARROW AI", "🛠️ ADMIN"])
+import streamlit as st
+from streamlit_option_menu import option_menu # Bu kütüphane yoksa 'pip install streamlit-option-menu'
+
+# --- SAYFA AYARLARI ---
+st.set_page_config(page_title="ScoutPro Elite", layout="wide")
+
+# --- CUSTOM CSS (Görseldeki gibi modern dokunuşlar) ---
+st.markdown("""
+    <style>
+    .main { background-color: #0e1117; }
+    .stButton>button { width: 100%; border-radius: 10px; height: 3em; background-color: #238636; color: white; border: none; }
+    .stButton>button:hover { background-color: #2ea043; border: none; }
+    .card { background-color: #161b22; padding: 20px; border-radius: 15px; border: 1px solid #30363d; margin-bottom: 10px; }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- 1. YAN MENÜ (COACHPRO TARZI) ---
+with st.sidebar:
+    st.image("https://cdn-icons-png.flaticon.com/512/805/805404.png", width=80) # Logo yerine futbol ikonu
+    st.markdown("<h2 style='text-align: center; color: #238636;'>CoachPro</h2>", unsafe_allow_html=True)
+    
+    secenek = option_menu(
+        menu_title=None, # Başlık istemiyoruz
+        options=["Ana Sayfa", "Rulet", "11 Kur", "Favoriler", "Yetenek Avı", "Barrow AI", "Admin"],
+        icons=["house", "slot-machine", "people", "star", "search", "robot", "gear"], # İkonlar
+        menu_icon="cast",
+        default_index=4, # Başlangıçta Yetenek Avı seçili
+        styles={
+            "container": {"padding": "0!important", "background-color": "#0e1117"},
+            "icon": {"color": "#8b949e", "font-size": "18px"}, 
+            "nav-link": {"font-size": "16px", "text-align": "left", "margin":"5px", "color": "#8b949e"},
+            "nav-link-selected": {"background-color": "#238636", "color": "white"},
+        }
+    )
+    
+    st.markdown("---")
+    st.write(f"🟢 **Scout:** {st.session_state.user}")
+
+# --- 2. İÇERİK ALANI ---
+
+if secenek == "Yetenek Avı":
+    # BURAYA EN SON ÇALIŞAN YETENEK AVI KODLARINI (V440) KOYUYORUZ
+    st.markdown(f"""
+        <div style="background: linear-gradient(90deg, #1d976c 0%, #93f9b9 100%); padding:25px; border-radius:15px; color:white; margin-bottom:20px;">
+            <h1 style="margin:0;">🕵️ GİZLİ YETENEK AVI</h1>
+            <p style="margin:0; opacity:0.8;">Elite mermileri keşfetme zamanı.</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # Oyun kodların (V440 sürümü) burada devam eder...
+
+elif secenek == "Ana Sayfa":
+    # Görseldeki gibi istatistik kartları yapalım
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown('<div class="card"><h3>22</h3><p>Aktif Oyuncu</p></div>', unsafe_allow_html=True)
+    with col2:
+        st.markdown('<div class="card"><h3>47</h3><p>Arşiv Video</p></div>', unsafe_allow_html=True)
+    with col3:
+        st.markdown('<div class="card"><h3>11</h3><p>Galibiyet</p></div>', unsafe_allow_html=True)
+    with col4:
+        st.markdown('<div class="card"><h3>5</h3><p>Haftalık Antrenman</p></div>', unsafe_allow_html=True)
+
+    st.markdown("""
+        <div style="background: #161b22; padding:40px; border-radius:20px; border: 1px solid #30363d; text-align:center;">
+            <h2 style="color:#238636;">CoachPro'ya Hoş Geldiniz</h2>
+            <p style="color:#8b949e;">Takımınızı bir üst seviyeye taşıyın. Akıllı planlama ve istatistiklerle geleceği yönetin.</p>
+            <button style="background:#238636; color:white; padding:10px 20px; border-radius:10px; border:none; cursor:pointer;">Bugünkü Planı Gör</button>
+        </div>
+    """, unsafe_allow_html=True)
 
 
 # --- 1. SCOUT (V173 - YENİ TABLO UYUMLU VE HATASIZ) ---
