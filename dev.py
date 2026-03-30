@@ -648,14 +648,10 @@ with tabs[4]:
 with tabs[5]:
     st.markdown('<div style="text-align:center;"><h1 style="color:#ef4444;">🤵 BARROW AI</h1></div>', unsafe_allow_html=True)
     
-    user_is_vip = st.session_state.get('is_vip', False)
-    curr_user = st.session_state.get('user')
-    
-    if "barrow_player" not in st.session_state: st.session_state.barrow_player = None
-
+    # --- BARROW AI HAK KONTROLÜ (V201 - HİZALAMA FİX) ---
     can_ask = True
-            # --- STANDART KULLANICI HAK KONTROLÜ ---
-        if not user_is_vip:
+    if not user_is_vip:
+        try:
             u_data = supabase.table("users").select("barrow_count, last_barrow_date").eq("username", curr_user).execute()
             if u_data.data:
                 count = u_data.data[0].get('barrow_count', 0)
@@ -666,12 +662,14 @@ with tabs[5]:
                 if l_date != today:
                     supabase.table("users").update({
                         "barrow_count": 0,
-                        "last_barrow_date": today # SADECE STANDART ÜYENİN TARİHİNİ GÜNCELLE
+                        "last_barrow_date": today 
                     }).eq("username", curr_user).execute()
                     count = 0
                 
                 if count >= 3:
                     can_ask = False
+        except:
+            pass
 
     b_in = st.text_input("Barrow'a emir ver (Örn: 'Messi gibi bir genç', 'Hummels tarzı defans'):", key="b_in_v178", disabled=not can_ask)
     
