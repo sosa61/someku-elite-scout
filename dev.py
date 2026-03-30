@@ -498,18 +498,7 @@ with tabs[4]:
                 st.rerun()
 
     st.markdown("---")
-    # Liderlik Tablosu
-    try:
-        leaders = supabase.table("users").select("username, puan").order("puan", desc=True).limit(10).execute()
-        if leaders.data:
-            import pandas as pd
-            df = pd.DataFrame(leaders.data)
-            df.columns = ["SCOUT ADI", "PUAN"]
-            df.index = df.index + 1
-            st.table(df)
-    except: pass
-
-
+    
     # --- 5. LİDERLİK TABLOSU (SADE VE GÜVENLİ) ---
     st.subheader("🏆 TOP 10 ELITE SCOUTS")
     try:
