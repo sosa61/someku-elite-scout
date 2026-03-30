@@ -66,7 +66,8 @@ if st.session_state.user is None:
             st.query_params["user"] = u_id; st.rerun()
     st.stop()
 
-tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🤖 BARROW AI", "🛠️ ADMIN"])
+tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🕵️ YETENEK AVI", "🤖 BARROW AI", "🛠️ ADMIN"])
+
 
 # --- 1. SCOUT (V173 - YENİ TABLO UYUMLU VE HATASIZ) ---
 with tabs[0]:
