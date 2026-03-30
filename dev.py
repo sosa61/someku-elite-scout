@@ -66,47 +66,7 @@ if st.session_state.user is None:
             st.query_params["user"] = u_id; st.rerun()
     st.stop()
 
-# --- PROFESYONEL SOL MENÜ TASARIMI ---
-with st.sidebar:
-    st.markdown(f"""
-        <div style="text-align:center; padding:10px;">
-            <h2 style="color:#238636; margin-bottom:0;">🛡️ SCOUT PRO</h2>
-            <p style="color:#8b949e; font-size:12px;">Elite Talent Identification</p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # Görseldeki gibi şık bir seçim alanı
-    secenek = st.radio(
-        "MENÜ",
-        ["🏠 Ana Sayfa", "🎰 Transfer Ruleti", "📋 11 Kurucu", "⭐ Favoriler", "🕵️ Yetenek Avı", "🤖 Barrow AI", "🛠️ Yönetim"],
-        label_visibility="collapsed" # Etiketi gizle, daha temiz durur
-    )
-    
-    st.markdown("---")
-    st.info(f"👤 Aktif Scout: **{st.session_state.user}**")
-
-# --- İÇERİK YÖNETİMİ (KAYDIRMA DERDİ BİTTİ) ---
-
-if secenek == "🕵️ Yetenek Avı":
-    # --- YETENEK AVI KODLARINI BURAYA YAPIŞTIR ---
-    import unicodedata
-    st.markdown('<h1 style="color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h1>', unsafe_allow_html=True)
-    
-    # ... (V440'ta çalışan tüm fonksiyonlar ve oyun kodları burada olacak) ...
-    # NOT: st.session_state.game_active gibi oyun mantığı aynen devam eder.
-
-elif secenek == "🎰 Transfer Ruleti":
-    st.title("🎰 Transfer Ruleti")
-    # Rulet kodların buraya...
-
-elif secenek == "🏠 Ana Sayfa":
-    # Görseldeki gibi "Hoş Geldin" kartı yapalım
-    st.markdown(f"""
-        <div style="background: linear-gradient(90deg, #1d976c 0%, #93f9b9 100%); padding:30px; border-radius:20px; color:white;">
-            <h1>Hoş Geldin, Scout {st.session_state.user}!</h1>
-            <p>Bugün hangi mermiyi keşfedeceksin? Takımı zirveye taşıyacak yetenekleri bulma zamanı.</p>
-        </div>
-    """, unsafe_allow_html=True)
+tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🕵️ YETENEK AVI", "🤖 BARROW AI", "🛠️ ADMIN"])
 
 
 # --- 1. SCOUT (V173 - YENİ TABLO UYUMLU VE HATASIZ) ---
