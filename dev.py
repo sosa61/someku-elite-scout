@@ -409,110 +409,140 @@ with tabs[1]:
         st.warning("Kriterlere uygun mermi bulunamadı.")
 
 
-# --- 3. İLK 11 (V163 - PNG VE METİN ÇIKTISI) ---
+# --- 3. İLK 11 (V165 - SÜRÜKLE BIRAK & FULL DİZİLİŞ) ---
 with tabs[2]:
-    st.markdown('<h2 style="text-align:center;">🏟️ ELITE ARENA - KADRO KUR</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 style="text-align:center;">🏟️ ELITE ARENA - TAKTİK TAHTASI</h2>', unsafe_allow_html=True)
     
-    # --- FAVORİLERİ ÇEK ---
+    # --- FAVORİLERİ SADECE BU KULLANICI İÇİN ÇEK ---
+    curr_user = st.session_state.get('user')
     try:
-        res_fav = supabase.table("favoriler").select("*").order("pa", desc=True).execute()
-        f_n = [f"{p['oyuncu_adi']} ({p['pa']})" for p in res_fav.data] if res_fav.data else ["Henüz Favorin Yok"]
+        res_fav = supabase.table("favoriler").select("*").eq("kullanici_adi", curr_user).order("pa", desc=True).execute()
+        f_n = [f"{p['oyuncu_adi']} ({p['pa']})" for p in res_fav.data] if res_fav.data else ["Favori Mermi Yok"]
     except:
         f_n = ["Bağlantı Hatası"]
 
-    tactic = st.selectbox("🏟️ Diziliş Seç:", ["4-4-2", "4-3-3"], key="tactic_sel")
+    # --- DİZİLİŞ SEÇENEKLERİ ---
+    tactic = st.selectbox("🏟️ Ana Diziliş Seç (Oyuncuları Sürükleyebilirsin):", 
+                         ["4-3-3", "4-4-2", "4-2-3-1", "3-5-2", "5-3-2", "4-1-2-1-2 (Baklava)"], key="tactic_sel")
     
-    # --- OYUNCU SEÇİMLERİ ---
-    st.markdown('<div style="color:#58a6ff; font-weight:bold; font-size:12px;">🛡️ DEFANS</div>', unsafe_allow_html=True)
-    c1, c2, c3, c4, c5 = st.columns(5)
-    gk = c1.selectbox("GK", f_n, key="sl_gk"); lb = c2.selectbox("LB", f_n, key="sl_lb")
-    cb1 = c3.selectbox("CB1", f_n, key="sl_cb1"); cb2 = c4.selectbox("CB2", f_n, key="sl_cb2"); rb = c5.selectbox("RB", f_n, key="sl_rb")
+    st.info("💡 İpucu: Saha üzerindeki oyuncuları istediğin yere sürükleyip bırakabilirsin!")
 
-    st.markdown('<div style="color:#238636; font-weight:bold; font-size:12px;">⚡ HÜCUM</div>', unsafe_allow_html=True)
+    # --- DİNAMİK POZİSYON ATAMALARI ---
+    st.markdown('<div style="color:#58a6ff; font-weight:bold; font-size:12px;">🛡️ DEFANS VE KALE</div>', unsafe_allow_html=True)
+    c1, c2, c3, c4, c5 = st.columns(5)
+    gk = c1.selectbox("GK", f_n, key="sl_gk"); lb = c2.selectbox("LB/LWB", f_n, key="sl_lb")
+    cb1 = c3.selectbox("CB1", f_n, key="sl_cb1"); cb2 = c4.selectbox("CB2", f_n, key="sl_cb2"); rb = c5.selectbox("RB/RWB", f_n, key="sl_rb")
+
+    st.markdown('<div style="color:#238636; font-weight:bold; font-size:12px;">⚡ ORTA SAHA VE HÜCUM</div>', unsafe_allow_html=True)
+    
+    # Dizilişlere göre seçim kutuları
     if tactic == "4-4-2":
         m1, m2, m3, m4 = st.columns(4)
-        lm = m1.selectbox("LM", f_n, key="sl_lm"); cm1 = m2.selectbox("CM1", f_n, key="sl_cm1")
-        cm2 = m3.selectbox("CM2", f_n, key="sl_cm2"); rm = m4.selectbox("RM", f_n, key="sl_rm")
+        lm = m1.selectbox("LM", f_n); cm1 = m2.selectbox("CM1", f_n); cm2 = m3.selectbox("CM2", f_n); rm = m4.selectbox("RM", f_n)
         f1, f2 = st.columns(2)
-        st1 = f1.selectbox("ST1", f_n, key="sl_st1"); st2 = f2.selectbox("ST2", f_n, key="sl_st2")
-        kadro_txt = f"Diziliş: 4-4-2\nGK: {gk}\nLB: {lb}\nCB: {cb1}\nCB: {cb2}\nRB: {rb}\nLM: {lm}\nCM: {cm1}\nCM: {cm2}\nRM: {rm}\nST: {st1}\nST: {st2}"
-    else:
+        st1 = f1.selectbox("ST1", f_n); st2 = f2.selectbox("ST2", f_n)
+        positions = [("GK",gk,84,39), ("LB",lb,67,2), ("CB",cb1,67,26), ("CB",cb2,67,51), ("RB",rb,67,75), ("LM",lm,40,2), ("CM",cm1,40,26), ("CM",cm2,40,51), ("RM",rm,40,75), ("ST",st1,13,26), ("ST",st2,13,51)]
+    
+    elif tactic == "4-2-3-1":
+        m1, m2, m3, m4, m5 = st.columns(5)
+        dm1 = m1.selectbox("CDM1", f_n); dm2 = m2.selectbox("CDM2", f_n); aml = m3.selectbox("LAM", f_n); amc = m4.selectbox("CAM", f_n); amr = m5.selectbox("RAM", f_n)
+        st1 = st.selectbox("ST", f_n)
+        positions = [("GK",gk,84,39), ("LB",lb,67,2), ("CB",cb1,67,26), ("CB",cb2,67,51), ("RB",rb,67,75), ("DM",dm1,50,26), ("DM",dm2,50,51), ("AM",aml,25,5), ("AM",amc,22,39), ("AM",amr,25,71), ("ST",st1,8,39)]
+
+    elif tactic == "3-5-2":
+        cb3 = st.selectbox("CB3", f_n)
+        m1, m2, m3, m4, m5 = st.columns(5)
+        lwb = m1.selectbox("LWB", f_n); cm1 = m2.selectbox("CM1", f_n); cdm = m3.selectbox("CDM", f_n); cm2 = m4.selectbox("CM2", f_n); rwb = m5.selectbox("RWB", f_n)
+        f1, f2 = st.columns(2)
+        st1 = f1.selectbox("ST1", f_n); st2 = f2.selectbox("ST2", f_n)
+        positions = [("GK",gk,84,39), ("CB",lb,72,12), ("CB",cb1,75,39), ("CB",cb2,72,66), ("LWB",lwb,45,2), ("DM",cdm,52,39), ("CM",cm1,43,23), ("CM",cm2,43,55), ("RWB",rwb,45,75), ("ST",st1,13,26), ("ST",st2,13,51)]
+
+    else: # Default 4-3-3
         m1, m2, m3 = st.columns(3)
-        cm1 = m1.selectbox("LCM", f_n, key="sl_lcm"); cm2 = m2.selectbox("CM", f_n, key="sl_cmm"); cm3 = m3.selectbox("RCM", f_n, key="sl_rcm")
+        cm1 = m1.selectbox("LCM", f_n); cm2 = m2.selectbox("CM", f_n); cm3 = m3.selectbox("RCM", f_n)
         f1, f2, f3 = st.columns(3)
-        lw = f1.selectbox("LW", f_n, key="sl_lw"); st_p = f2.selectbox("ST", f_n, key="sl_st"); rw = f3.selectbox("RW", f_n, key="sl_rw")
-        kadro_txt = f"Diziliş: 4-3-3\nGK: {gk}\nLB: {lb}\nCB: {cb1}\nCB: {cb2}\nRB: {rb}\nCM: {cm1}\nCM: {cm2}\nCM: {cm3}\nLW: {lw}\nST: {st_p}\nRW: {rw}"
+        lw = f1.selectbox("LW", f_n); st_p = f2.selectbox("ST", f_n); rw = f3.selectbox("RW", f_n)
+        positions = [("GK",gk,84,39), ("LB",lb,67,2), ("CB",cb1,67,26), ("CB",cb2,67,51), ("RB",rb,67,75), ("CM",cm1,43,10), ("CM",cm2,43,38), ("CM",cm3,43,66), ("LW",lw,14,5), ("ST",st_p,11,38), ("RW",rw,14,71)]
 
-    # --- GÖRSEL SAHA TASARIMI ---
-    players_html = ""
-    if tactic == "4-4-2":
-        players_html = f"""
-            <div class="player" style="top:84%; left:39%; border-color:#f2cc60;"><div class="pos">GK</div><div class="name">{gk}</div></div>
-            <div class="player" style="top:67%; left:2%;"><div class="pos">LB</div><div class="name">{lb}</div></div>
-            <div class="player" style="top:67%; left:26%;"><div class="pos">CB</div><div class="name">{cb1}</div></div>
-            <div class="player" style="top:67%; left:51%;"><div class="pos">CB</div><div class="name">{cb2}</div></div>
-            <div class="player" style="top:67%; left:75%;"><div class="pos">RB</div><div class="name">{rb}</div></div>
-            <div class="player" style="top:40%; left:2%;"><div class="pos">LM</div><div class="name">{lm}</div></div>
-            <div class="player" style="top:40%; left:26%;"><div class="pos">CM</div><div class="name">{cm1}</div></div>
-            <div class="player" style="top:40%; left:51%;"><div class="pos">CM</div><div class="name">{cm2}</div></div>
-            <div class="player" style="top:40%; left:75%;"><div class="pos">RM</div><div class="name">{rm}</div></div>
-            <div class="player" style="top:13%; left:26%;"><div class="pos">ST</div><div class="name">{st1}</div></div>
-            <div class="player" style="top:13%; left:51%;"><div class="pos">ST</div><div class="name">{st2}</div></div>
-        """
-    else:
-        players_html = f"""
-            <div class="player" style="top:84%; left:39%; border-color:#f2cc60;"><div class="pos">GK</div><div class="name">{gk}</div></div>
-            <div class="player" style="top:67%; left:2%;"><div class="pos">LB</div><div class="name">{lb}</div></div>
-            <div class="player" style="top:67%; left:26%;"><div class="pos">CB</div><div class="name">{cb1}</div></div>
-            <div class="player" style="top:67%; left:51%;"><div class="pos">CB</div><div class="name">{cb2}</div></div>
-            <div class="player" style="top:67%; left:75%;"><div class="pos">RB</div><div class="name">{rb}</div></div>
-            <div class="player" style="top:43%; left:10%;"><div class="pos">CM</div><div class="name">{cm1}</div></div>
-            <div class="player" style="top:43%; left:38%;"><div class="pos">CM</div><div class="name">{cm2}</div></div>
-            <div class="player" style="top:43%; left:66%;"><div class="pos">CM</div><div class="name">{cm3}</div></div>
-            <div class="player" style="top:14%; left:5%;"><div class="pos">LW</div><div class="name">{lw}</div></div>
-            <div class="player" style="top:11%; left:38%;"><div class="pos">ST</div><div class="name">{st_p}</div></div>
-            <div class="player" style="top:14%; left:71%;"><div class="pos">RW</div><div class="name">{rw}</div></div>
-        """
+    # --- HTML & JS (SÜRÜKLE BIRAK MOTORU) ---
+    players_divs = "".join([f'<div class="player draggable" style="top:{y}%; left:{x}%;" onmousedown="startDrag(event, this)"><div class="pos">{p}</div><div class="name">{n}</div></div>' for p, n, y, x in positions])
 
-    # PNG İndirme Scripti ve Saha HTML
-    saha_html = f"""
+    tahta_html = f"""
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <div id="capture" style="position:relative; background:#238636; border:3px solid #ffffff; border-radius:15px; width:360px; height:530px; margin:auto; overflow:hidden;">
-        <div style="position:absolute; top:50%; left:0; width:100%; border-top:2px solid rgba(255,255,255,0.3);"></div>
-        <div style="position:absolute; top:41%; left:30%; width:40%; height:18%; border:2px solid rgba(255,255,255,0.3); border-radius:50%;"></div>
-        {players_html}
-        <div style="position:absolute; bottom:5px; right:10px; color:rgba(255,255,255,0.4); font-size:9px; font-weight:bold;">SOMEKU ELITE SCOUT</div>
+    <div id="capture" style="position:relative; background:#1e4620; border:4px solid #ffffff; border-radius:15px; width:360px; height:540px; margin:auto; overflow:hidden; background-image: radial-gradient(#2d5a27 1px, transparent 1px); background-size: 20px 20px;">
+        <div style="position:absolute; top:50%; left:0; width:100%; border-top:2px solid rgba(255,255,255,0.4);"></div>
+        <div style="position:absolute; top:40%; left:30%; width:40%; height:20%; border:2px solid rgba(255,255,255,0.4); border-radius:50%;"></div>
+        <div style="position:absolute; top:0; left:20%; width:60%; height:15%; border:2px solid rgba(255,255,255,0.4); border-top:none;"></div>
+        <div style="position:absolute; bottom:0; left:20%; width:60%; height:15%; border:2px solid rgba(255,255,255,0.4); border-bottom:none;"></div>
+        {players_divs}
+        <div style="position:absolute; bottom:5px; right:10px; color:rgba(255,255,255,0.3); font-size:9px;">SOMEKU ELITE SCOUT</div>
     </div>
-    <div style="display:flex; gap:10px; margin-top:15px;">
-        <button onclick="downloadImage()" style="flex:1; padding:10px; background:#238636; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">📸 RESİM (PNG) İNDİR</button>
+    
+    <div style="text-align:center; margin-top:15px;">
+        <button onclick="downloadImage()" style="width:100%; padding:12px; background:#238636; color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">📸 KADROYU PNG OLARAK KAYDET</button>
     </div>
+
     <script>
+        let activeElement = null;
+        let currentX, currentY, initialX, initialY, xOffset = 0, yOffset = 0;
+
+        function startDrag(e, el) {{
+            activeElement = el;
+            if (e.type === "touchstart") {{
+                initialX = e.touches[0].clientX - xOffset;
+                initialY = e.touches[0].clientY - yOffset;
+            }} else {{
+                initialX = e.clientX - xOffset;
+                initialY = e.clientY - yOffset;
+            }}
+            document.addEventListener("mousemove", drag);
+            document.addEventListener("mouseup", endDrag);
+            document.addEventListener("touchmove", drag);
+            document.addEventListener("touchend", endDrag);
+        }}
+
+        function drag(e) {{
+            if (activeElement) {{
+                e.preventDefault();
+                let clientX = e.type === "touchmove" ? e.touches[0].clientX : e.clientX;
+                let clientY = e.type === "touchmove" ? e.touches[0].clientY : e.clientY;
+                
+                const rect = document.getElementById('capture').getBoundingClientRect();
+                let newX = ((clientX - rect.left - 39) / rect.width) * 100;
+                let newY = ((clientY - rect.top - 20) / rect.height) * 100;
+                
+                activeElement.style.left = newX + "%";
+                activeElement.style.top = newY + "%";
+            }}
+        }}
+
+        function endDrag() {{
+            activeElement = null;
+            document.removeEventListener("mousemove", drag);
+            document.removeEventListener("mouseup", endDrag);
+        }}
+
         function downloadImage() {{
             html2canvas(document.querySelector("#capture")).then(canvas => {{
                 let link = document.createElement('a');
-                link.download = 'elite-kadro.png';
+                link.download = 'mermi-kadro.png';
                 link.href = canvas.toDataURL();
                 link.click();
             }});
         }}
     </script>
     <style>
-        .player {{ position:absolute; background:rgba(13,17,23,0.95); border:1.5px solid #58a6ff; border-radius:6px; color:white; width:78px; padding:3px; text-align:center; box-shadow:0 4px 10px rgba(0,0,0,0.5); }}
-        .pos {{ font-size:8px; color:#58a6ff; font-weight:bold; }}
-        .name {{ font-size:9px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
+        .player {{ position:absolute; background:rgba(13,17,23,0.9); border:1.5px solid #58a6ff; border-radius:8px; color:white; width:78px; padding:4px; text-align:center; cursor:move; transition: transform 0.1s; z-index:100; user-select:none; }}
+        .player:active {{ transform: scale(1.1); border-color:#f2cc60; box-shadow: 0 0 15px rgba(242,204,96,0.5); }}
+        .pos {{ font-size:9px; color:#58a6ff; font-weight:bold; text-transform:uppercase; pointer-events:none; }}
+        .name {{ font-size:10px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none; }}
     </style>
     """
-    
-    st.components.v1.html(saha_html, height=600)
+    st.components.v1.html(tahta_html, height=650)
 
-    # --- METİN OLARAK İNDİR BUTONU ---
-    st.download_button(
-        label="📄 KADRO LİSTESİNİ (.TXT) İNDİR",
-        data=kadro_txt,
-        file_name="mermi-kadro-listesi.txt",
-        mime="text/plain",
-        use_container_width=True
-    )
+    # --- METİN ÇIKTISI ---
+    kadro_txt = f"Diziliş: {tactic}\nKullanıcı: {curr_user}\nTarih: {datetime.date.today()}\n" + "\n".join([f"{p[0]}: {p[1]}" for p in positions])
+    st.download_button(label="📄 KADRO LİSTESİNİ (.TXT) İNDİR", data=kadro_txt, file_name="mermi-kadro.txt", mime="text/plain", use_container_width=True)
 
 # --- 4. FAVORİLER (V149 - GÜNCEL TABLO UYUMLU) ---
 with tabs[3]:
