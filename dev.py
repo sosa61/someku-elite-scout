@@ -116,6 +116,29 @@ if st.session_state.user is None:
                 
     # Giriş yapmayan herkesi burada durduruyoruz
     st.stop()
+    
+    # --- YAN MENÜ (SIDEBAR) AYARLARI ---
+with st.sidebar:
+    st.markdown(f"### 👤 Hoş geldin, {st.session_state.user}")
+    
+    # VIP Durumunu Göster (Gözüksün ki adam gurur duysun)
+    if st.session_state.get('is_vip', False):
+        st.success("🌟 VIP SCOUT ÜYESİ")
+    else:
+        st.info("🆓 STANDART ÜYE")
+    
+    st.markdown("---")
+    
+    # --- GÜVENLİ ÇIKIŞ BUTONU ---
+    if st.button("🚪 Güvenli Çıkış Yap", use_container_width=True):
+        # Session verilerini mermi gibi temizle
+        st.session_state.user = None
+        st.session_state.is_vip = False
+        # URL'deki kullanıcı parametresini sil
+        st.query_params.clear()
+        st.success("Başarıyla çıkış yapıldı. Yönlendiriliyorsun...")
+        st.rerun() # Sayfayı yenileyip giriş ekranına atar
+
 
 tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🕵️ YETENEK AVI", "🤖 BARROW AI", "🛠️ ADMIN"])
 
