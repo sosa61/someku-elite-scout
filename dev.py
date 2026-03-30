@@ -159,50 +159,6 @@ with st.sidebar:
 tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🕵️ YETENEK AVI", "🤖 BARROW AI", "🛠️ ADMIN"])
 
 
-# --- 2. RULET ---
-with tabs[1]:
-    import json
-    st.markdown('<h2 style="text-align:center;">🎰 SCOUT RULETİ</h2>', unsafe_allow_html=True)
-    user_is_vip = st.session_state.get('is_vip', False)
-    if user_is_vip:
-        st.markdown('<div style="text-align:center; padding:10px; background:#f2cc60; color:black; border-radius:15px; font-weight:bold; margin-bottom:15px;">🌟 ALTIN RULET MODU AKTİF (PA 155-200)</div>', unsafe_allow_html=True)
-        min_pa, max_pa, slot_border = 155, 200, "#f2cc60"
-    else:
-        st.markdown('<div style="text-align:center; padding:10px; background:#30363d; color:white; border-radius:15px; margin-bottom:15px;">🎰 STANDART RULET (PA 130-150)</div>', unsafe_allow_html=True)
-        min_pa, max_pa, slot_border = 130, 150, "#30363d"
-    
-    if 'rulet_winner' not in st.session_state: st.session_state.rulet_winner = None
-    if 'animasyon_tamam' not in st.session_state: st.session_state.animasyon_tamam = False
-
-    try:
-        r_offset = random.randint(0, 150) 
-        res = supabase.table("oyuncular").select("*").gte("pa", min_pa).lte("pa", max_pa).range(r_offset, r_offset + 80).execute()
-        player_pool = res.data if res.data else []
-        if player_pool: random.shuffle(player_pool)
-    except: player_pool = []
-
-    if player_pool:
-        if st.button("🎰 RULETİ ÇEVİR", key="rulet_spin_btn", use_container_width=True):
-            strip_players = [random.choice(player_pool) for _ in range(30)]
-            winner = random.choice(player_pool)
-            st.session_state.rulet_winner, st.session_state.animasyon_tamam = winner, False
-            strip_players[25] = winner
-            players_json = json.dumps(strip_players)
-            roulette_html = f"""<div style="position:relative; width:100%; height:160px; background:#0d1117; border:3px solid {slot_border}; border-radius:15px; overflow:hidden; display:flex; justify-content:center; align-items:center;"><div style="position:absolute; width:100%; height:60px; border-top:2px solid {slot_border}; border-bottom:2px solid {slot_border}; background:rgba(242, 204, 96, 0.05); z-index:10;"></div><div id="slot-track" style="display:flex; flex-direction:column; position:absolute; top:0; transition: top 4s cubic-bezier(0.1, 0, 0.1, 1); width:100%;"></div></div><script>(function() {{ const players = {players_json}; const track = document.getElementById('slot-track'); const itemH = 60; const contH = 160; const winI = 25; track.innerHTML = players.map((p, i) => `<div style="height:${{itemH}}px; width:100%; display:flex; flex-direction:column; justify-content:center; align-items:center;"><small style="color:#8b949e; font-size:10px;">${{p.kulup || 'Scout Agent'}}</small><b style="color:white; font-size:13px;">${{p.oyuncu_adi}}</b></div>`).join(''); setTimeout(() => {{ track.style.top = "-" + ((winI * itemH) - (contH / 2 - itemH / 2)) + "px"; }}, 100); }})();</script>"""
-            components.html(roulette_html, height=180)
-            time.sleep(4.5)
-            st.session_state.animasyon_tamam = True
-            st.rerun()
-
-        if st.session_state.rulet_winner and st.session_state.animasyon_tamam:
-            p = st.session_state.rulet_winner
-            tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
-            card_color = "#f2cc60" if user_is_vip else "#238636"
-            st.markdown(f'<div style="background: rgba(255,255,255,0.03); border: 2px solid {card_color}; border-radius: 20px; padding: 20px; text-align:center;"><h3 style="margin:0; font-size:20px;">{p["oyuncu_adi"]}</h3><p style="color:{card_color}; font-weight:bold;">{p["mevki"]} | PA: {p["pa"]}</p><a href="{tm_url}" target="_blank" style="text-decoration:none; color:#58a6ff; font-size:12px;">Transfermarkt Profili ➔</a></div>', unsafe_allow_html=True)
-            if st.button("⭐ FAVORİLERİME EKLE", key=f"fav_btn_rulet_{p['oyuncu_adi']}", use_container_width=True):
-                supabase.table("favoriler").insert({"oyuncu_adi": p['oyuncu_adi'], "kulup": p.get('kulup','Serbest'), "pa": p['pa'], "mevki": p['mevki'], "kullanici_adi": st.session_state.user}).execute()
-                st.success("✅ Mermi listeye eklendi!")
-                
 # --- 2. RULET (V187 - HATASIZ VE KİŞİYE ÖZEL) ---
 with tabs[1]:
     st.markdown('<h2 style="text-align:center;">🎰 SCOUT RULETİ</h2>', unsafe_allow_html=True)
