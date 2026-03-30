@@ -392,12 +392,12 @@ with tabs[3]:
     else:
         st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
         
-# --- 5. GİZLİ YETENEK AVI (V271 FIXED) ---
+# --- 5. GİZLİ YETENEK AVI (V280 - ÇİFT RENDER FIX) ---
 with tabs[4]:
     st.markdown('<h2 style="text-align:center; color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h2>', unsafe_allow_html=True)
-
-    # MEVKİ TÜRKÇELEŞTİRME
-    def mevki_tr_yap(m):
+    
+    # --- 1. FONKSİYONLAR ---
+    def mevki_tr(m):
         m = str(m).upper()
         if "GK" in m: return "Kaleci"
         if any(x in m for x in ["ST", "CF"]): return "Forvet"
@@ -406,25 +406,20 @@ with tabs[4]:
         if "D C" in m: return "Stoper"
         if "D R" in m: return "Sağ Bek"
         if "D L" in m: return "Sol Bek"
-        if any(x in m for x in ["AM C", "M C", "DM"]): return "Orta Saha"
-        return "Joker"
+        return "Orta Saha"
 
-    # PUAN SİSTEMİ
-    def puan_islem(user, artis):
+    def skor_yaz(user, artis):
         try:
             c = supabase.table("users").select("puan").eq("username", user).execute()
-            eski = c.data[0].get("puan", 0) if c.data else 0
-            yeni = eski + artis
+            yeni = (c.data[0].get("puan", 0) if c.data else 0) + artis
             supabase.table("users").update({"puan": yeni}).eq("username", user).execute()
-            return yeni
-        except:
-            return 0
+        except: pass
 
-    if 'game_active' not in st.session_state:
-        st.session_state.game_active = False
-    if 'target_p' not in st.session_state:
-        st.session_state.target_p = None
+    # --- 2. DURUM KONTROLÜ ---
+    if 'game_active' not in st.session_state: st.session_state.game_active = False
+    if 'target_p' not in st.session_state: st.session_state.target_p = None
 
+    # --- 3. OYUN BUTONU VE ALANI ---
     if st.button("🚀 YENİ AV BAŞLAT (-1 Puan Risk!)", use_container_width=True):
         res_g = supabase.table("oyuncular").select("*").gte("pa", 168).limit(300).execute()
         if res_g.data:
@@ -433,7 +428,6 @@ with tabs[4]:
             st.session_state.game_start_time = time.time()
             st.rerun()
 
-    # --- OYUN ---
     if st.session_state.game_active and st.session_state.target_p:
         p = st.session_state.target_p
         kalan = int(30 - (time.time() - st.session_state.game_start_time))
@@ -441,72 +435,47 @@ with tabs[4]:
         if kalan > 0:
             st.markdown(f"""
                 <div style="text-align:center; padding:15px; border-radius:15px; background:rgba(255,75,75,0.1); border:2px solid #ff4b4b;">
-                    <h1 style="color:#ff4b4b;">⏱️ {kalan}s</h1>
-                    <p>{mevki_tr_yap(p['mevki'])} | {p['yas']} | {p.get('kulup','Serbest')} | PA: {p['pa']}</p>
+                    <h1 style="color:#ff4b4b; margin:0;">⏱️ {kalan}s</h1>
+                    <p style="margin:5px 0; color:#8b949e;"><b>{mevki_tr(p['mevki'])} | {p['yas']} Yaş | {p.get('kulup','Serbest')}</b></p>
                 </div>
-                <h1 style="text-align:center; font-size:60px;">????</h1>
+                <h1 style="text-align:center; font-size:60px; color:#58a6ff; letter-spacing:10px;">????</h1>
             """, unsafe_allow_html=True)
 
-            tahmin = st.text_input("Tahmin:", key="guess").strip().lower()
-
+            tahmin = st.text_input("Tahmin:", key="game_guess").strip().lower()
             if tahmin and tahmin in p['oyuncu_adi'].lower():
                 st.session_state.game_active = False
-                puan_islem(st.session_state.user, 1)
-                st.success(f"🎯 DOĞRU! {p['oyuncu_adi']}")
-                st.balloons()
-                st.rerun()
-
-            time.sleep(0.5)
-            st.rerun()
-
+                skor_yaz(st.session_state.user, 1)
+                st.balloons(); st.success(f"🎯 BİLDİN! {p['oyuncu_adi']}"); st.rerun()
+            
+            time.sleep(0.5); st.rerun()
         else:
             st.session_state.game_active = False
-            puan_islem(st.session_state.user, -1)
-            st.error(f"⏱️ BİTTİ! {p['oyuncu_adi']}")
-            if st.button("Tekrar Dene"):
-                st.rerun()
+            skor_yaz(st.session_state.user, -1)
+            st.error(f"⏱️ BİTTİ! {p['oyuncu_adi']}"); st.rerun()
 
     st.markdown("---")
-
-    # --- LİDER TABLOSU ---
+    
+    # --- 4. LİDERLİK TABLOSU (SADECE BURADA RENDER EDİLİR) ---
     st.markdown("### 🏆 TOP 10 ELITE SCOUTS")
+    tablo_yeri = st.empty() # Tablo için sabit bir yer ayırıyoruz
 
     try:
         leaders = supabase.table("users").select("username, puan").order("puan", desc=True).limit(10).execute()
-
         if leaders.data:
-            html = """
-            <table style="width:100%; border-collapse: collapse; background:#161b22; border-radius:10px; overflow:hidden;">
-                <tr style="background:#21262d; color:#8b949e;">
-                    <th style="padding:12px;">SIRA</th>
-                    <th style="padding:12px;">SCOUT</th>
-                    <th style="padding:12px;">PUAN</th>
-                </tr>
-            """
-
-            for i, row in enumerate(leaders.data):
+            h = '<table style="width:100%; border-collapse: collapse; background:#161b22; border-radius:10px; overflow:hidden;">'
+            h += '<tr style="background:#21262d; color:#8b949e;"><th style="padding:12px; text-align:left;">SIRA</th><th style="padding:12px; text-align:left;">SCOUT</th><th style="padding:12px; text-align:left;">PUAN</th></tr>'
+            for i, u in enumerate(leaders.data):
                 rank = i + 1
-                icon = ["👑","🥈","🥉"][i] if i < 3 else "🏃"
+                icon = "👑" if rank == 1 else ("🥈" if rank == 2 else ("🥉" if rank == 3 else "🏃"))
+                style = 'style="color:#f2cc60; font-weight:bold;"' if rank == 1 else ""
+                h += f'<tr style="border-bottom: 1px solid #30363d;"><td style="padding:12px;">{icon} {rank}</td><td style="padding:12px;" {style}>{u["username"]}</td><td style="padding:12px;"><span style="background:#238636; color:white; padding:2px 8px; border-radius:5px; font-weight:bold;">{u.get("puan", 0)} PT</span></td></tr>'
+            h += '</table>'
+            
+            # st.markdown yerine st.empty().markdown kullanarak hayalet renderı engelliyoruz
+            tablo_yeri.markdown(h, unsafe_allow_html=True)
+    except:
+        pass
 
-                html += f"""
-                <tr style="border-bottom:1px solid #30363d;">
-                    <td style="padding:12px;">{icon} {rank}</td>
-                    <td style="padding:12px;">{row['username']}</td>
-                    <td style="padding:12px;">
-                        <span style="background:#238636; padding:4px 10px; border-radius:6px; font-weight:bold;">
-                            {row.get('puan',0)} PT
-                        </span>
-                    </td>
-                </tr>
-                """
-
-            html += "</table>"
-
-            # ✅ SADECE BURASI (TEK RENDER)
-            st.markdown(html, unsafe_allow_html=True)
-
-    except Exception as e:
-        st.error(f"Hata: {e}")
 
 # --- 5. BARROW AI (V178 - ÖRNEK OYUNCU VE GENÇ YETENEK ZEKASI) ---
 with tabs[5]:
