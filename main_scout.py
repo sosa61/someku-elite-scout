@@ -20,12 +20,17 @@ supabase: Client = create_client(URL, KEY)
 # --- SAYFA AYARLARI ---
 st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️")
 
-# --- 🔄 VIP DURUMU TAZELEME MOTORU ---
+# --- 🔄 GÜÇLENDİRİLMİŞ VIP TAZELEME MOTORU ---
 if "user" in st.session_state and st.session_state.user:
     try:
-        vip_check = supabase.table("users").select("is_vip").eq("username", st.session_state.user).execute()
-        if vip_check.data:
-            st.session_state.is_vip = vip_check.data[0].get('is_vip', False)
+        # Veritabanından en güncel durumu çek
+        v_res = supabase.table("users").select("is_vip").eq("username", st.session_state.user).execute()
+        if v_res.data:
+            # Burası çok kritik: Değişkeni zorla güncelle
+            st.session_state['is_vip'] = bool(v_res.data[0]['is_vip'])
+    except Exception as e:
+        pass # Bağlantı hatası olursa bozma
+ False)
     except:
         pass
 
