@@ -392,7 +392,7 @@ with tabs[3]:
     else:
         st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
         
-# --- 5. GİZLİ YETENEK AVI (V280 - TAMİRLİ & GÜNCEL) ---
+# --- 5. GİZLİ YETENEK AVI (V290 - KESİN ÇÖZÜM) ---
 with tabs[4]:
     st.markdown('<h2 style="text-align:center; color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h2>', unsafe_allow_html=True)
     
@@ -415,8 +415,7 @@ with tabs[4]:
             c = supabase.table("users").select("puan").eq("username", user).execute()
             eski = c.data[0].get("puan", 0) if c.data else 0
             yeni = eski + artis
-            # Puan 0'ın altına düşmesin
-            if yeni < 0: yeni = 0
+            if yeni < 0: yeni = 0 # 0'ın altına düşürme
             supabase.table("users").update({"puan": yeni}).eq("username", user).execute()
             return yeni
         except: return 0
@@ -425,7 +424,7 @@ with tabs[4]:
     if 'target_p' not in st.session_state: st.session_state.target_p = None
 
     if st.button("🚀 YENİ AV BAŞLAT (Doğru: +1 | Yanlış: -1)", use_container_width=True):
-        # Kulübü olan ve PA 165+ olanları çek
+        # Kulübü olan (None olmayan) ve PA 165+ olanları çek
         res_g = supabase.table("oyuncular").select("*").not_.eq("kulup", "None").gte("pa", 165).limit(500).execute()
         if res_g.data:
             st.session_state.target_p = random.choice(res_g.data)
@@ -451,7 +450,7 @@ with tabs[4]:
                 <h1 style="text-align:center; font-size:60px; color:#58a6ff; letter-spacing:10px;">????</h1>
             """, unsafe_allow_html=True)
 
-            tahmin = st.text_input("Oyuncu Soyadı:", key="guess_final_v280").strip().lower()
+            tahmin = st.text_input("Oyuncu Soyadı:", key="guess_final_v290").strip().lower()
             if tahmin and tahmin in p['oyuncu_adi'].lower():
                 st.session_state.game_active = False
                 puan_islem(st.session_state.user, 1)
@@ -473,24 +472,28 @@ with tabs[4]:
     try:
         leaders_res = supabase.table("users").select("username, puan").order("puan", desc=True).limit(10).execute()
         if leaders_res.data:
-            out = '<table style="width:100%; border-collapse: collapse; background:#161b22; border-radius:10px; overflow:hidden;">'
-            out += '<tr style="background:#21262d; color:#8b949e;"><th style="padding:12px; text-align:left;">SIRA</th><th style="padding:12px; text-align:left;">SCOUT</th><th style="padding:12px; text-align:left;">PUAN</th></tr>'
+            # İsmi çok spesifik yaptım ki karışmasın
+            final_tablo_gorseli = '<table style="width:100%; border-collapse: collapse; background:#161b22; border-radius:10px; overflow:hidden;">'
+            final_tablo_gorseli += '<tr style="background:#21262d; color:#8b949e;"><th style="padding:12px; text-align:left;">SIRA</th><th style="padding:12px; text-align:left;">SCOUT</th><th style="padding:12px; text-align:left;">PUAN</th></tr>'
+            
             for i, row in enumerate(leaders_res.data):
                 rank = i + 1
                 icon = "👑" if rank == 1 else ("🥈" if rank == 2 else ("🥉" if rank == 3 else "🏃"))
                 style = 'style="color:#f2cc60; font-weight:bold;"' if rank == 1 else ""
-                out += f'''
+                
+                final_tablo_gorseli += f'''
                 <tr style="border-bottom: 1px solid #30363d;">
                     <td style="padding:12px;">{icon} {rank}</td>
                     <td style="padding:12px;" {style}>{row["username"]}</td>
                     <td style="padding:12px;"><span style="background:#238636; color:white; padding:2px 8px; border-radius:5px; font-weight:bold;">{row.get("puan", 0)} PT</span></td>
                 </tr>
                 '''
-            out += '</table>'
-            st.markdown(out, unsafe_allow_html=True)
+            final_tablo_gorseli += '</table>'
+            
+            # KRİTİK: SADECE BU SATIR! Başka hiçbir yerde "final_tablo_gorseli" yazmasın.
+            st.markdown(final_tablo_gorseli, unsafe_allow_html=True)
     except:
         st.error("Puanlar şu an yüklenemiyor.")
-
 
 # --- 5. BARROW AI (V178 - ÖRNEK OYUNCU VE GENÇ YETENEK ZEKASI) ---
 with tabs[5]:
