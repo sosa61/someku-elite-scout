@@ -392,10 +392,10 @@ with tabs[3]:
     else:
         st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
         
-## --- 5. GİZLİ YETENEK AVI (V270 - FINAL FIX) ---
+# --- 5. GİZLİ YETENEK AVI (V271 FIXED) ---
 with tabs[4]:
     st.markdown('<h2 style="text-align:center; color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h2>', unsafe_allow_html=True)
-    
+
     # MEVKİ TÜRKÇELEŞTİRME
     def mevki_tr_yap(m):
         m = str(m).upper()
@@ -417,10 +417,13 @@ with tabs[4]:
             yeni = eski + artis
             supabase.table("users").update({"puan": yeni}).eq("username", user).execute()
             return yeni
-        except: return 0
+        except:
+            return 0
 
-    if 'game_active' not in st.session_state: st.session_state.game_active = False
-    if 'target_p' not in st.session_state: st.session_state.target_p = None
+    if 'game_active' not in st.session_state:
+        st.session_state.game_active = False
+    if 'target_p' not in st.session_state:
+        st.session_state.target_p = None
 
     if st.button("🚀 YENİ AV BAŞLAT (-1 Puan Risk!)", use_container_width=True):
         res_g = supabase.table("oyuncular").select("*").gte("pa", 168).limit(300).execute()
@@ -430,69 +433,80 @@ with tabs[4]:
             st.session_state.game_start_time = time.time()
             st.rerun()
 
-    # --- OYUN ALANI ---
+    # --- OYUN ---
     if st.session_state.game_active and st.session_state.target_p:
         p = st.session_state.target_p
-        elapsed = time.time() - st.session_state.game_start_time
-        kalan = int(30 - elapsed)
+        kalan = int(30 - (time.time() - st.session_state.game_start_time))
 
         if kalan > 0:
             st.markdown(f"""
-                <div style="text-align:center; padding:15px; border-radius:15px; background:rgba(255,75,75,0.1); border:2px solid #ff4b4b; margin-bottom:15px;">
-                    <h1 style="color:#ff4b4b; margin:0; font-size:45px;">⏱️ {kalan}s</h1>
-                    <p style="margin:5px 0; color:#8b949e; font-weight:bold;">{mevki_tr_yap(p['mevki'])} | {p['yas']} Yaş | {p.get('kulup','Serbest')} | PA: {p['pa']}</p>
+                <div style="text-align:center; padding:15px; border-radius:15px; background:rgba(255,75,75,0.1); border:2px solid #ff4b4b;">
+                    <h1 style="color:#ff4b4b;">⏱️ {kalan}s</h1>
+                    <p>{mevki_tr_yap(p['mevki'])} | {p['yas']} | {p.get('kulup','Serbest')} | PA: {p['pa']}</p>
                 </div>
-                <h1 style="text-align:center; font-size:60px; color:#58a6ff; letter-spacing:10px;">????</h1>
+                <h1 style="text-align:center; font-size:60px;">????</h1>
             """, unsafe_allow_html=True)
 
-            tahmin = st.text_input("Tahmin:", key="scout_guess_final").strip().lower()
+            tahmin = st.text_input("Tahmin:", key="guess").strip().lower()
+
             if tahmin and tahmin in p['oyuncu_adi'].lower():
                 st.session_state.game_active = False
                 puan_islem(st.session_state.user, 1)
+                st.success(f"🎯 DOĞRU! {p['oyuncu_adi']}")
                 st.balloons()
-                st.success(f"🎯 BİLDİN! {p['oyuncu_adi']}")
-                if st.button("Sıradaki!"): st.rerun()
+                st.rerun()
+
             time.sleep(0.5)
             st.rerun()
+
         else:
             st.session_state.game_active = False
             puan_islem(st.session_state.user, -1)
             st.error(f"⏱️ BİTTİ! {p['oyuncu_adi']}")
-            if st.button("Dene"): st.rerun()
+            if st.button("Tekrar Dene"):
+                st.rerun()
 
     st.markdown("---")
-    
-    # --- LİDERLİK TABLOSU ---
-    st.markdown("### 🏆 TOP 10 ELITE SCOUTS")
-    
-    try:
-        leaders_res = supabase.table("users").select("username, puan").order("puan", desc=True).limit(10).execute()
-        
-        if leaders_res.data:
-            # İsmini "final_tablo" yaptım ki başka yerle karışmasın
-            final_tablo = '<table style="width:100%; border-collapse: collapse; background:#161b22; border-radius:10px; overflow:hidden;">'
-            final_tablo += '<tr style="background:#21262d; color:#8b949e;"><th style="padding:12px; text-align:left;">SIRA</th><th style="padding:12px; text-align:left;">SCOUT</th><th style="padding:12px; text-align:left;">PUAN</th></tr>'
-            
-            for i, row in enumerate(leaders_res.data):
-                rank = i + 1
-                icon = "👑" if rank == 1 else ("🥈" if rank == 2 else ("🥉" if rank == 3 else "🏃"))
-                style = 'style="color:#f2cc60; font-weight:bold;"' if rank == 1 else ""
-                
-                final_tablo += f'''
-                <tr style="border-bottom: 1px solid #30363d;">
-                    <td style="padding:12px;">{icon} {rank}</td>
-                    <td style="padding:12px;" {style}>{row["username"]}</td>
-                    <td style="padding:12px;"><span style="background:#238636; color:white; padding:2px 8px; border-radius:5px; font-weight:bold;">{row.get("puan", 0)} PT</span></td>
-                </tr>
-                '''
-            final_tablo += '</table>'
-            
-            # SADECE BU SATIR KALACAK. Altında veya üstünde st.write(final_tablo) varsa sil!
-            st.markdown(final_tablo, unsafe_allow_html=True)
-            
-    except Exception as e:
-        st.error("Tablo yüklenemedi!")
 
+    # --- LİDER TABLOSU ---
+    st.markdown("### 🏆 TOP 10 ELITE SCOUTS")
+
+    try:
+        leaders = supabase.table("users").select("username, puan").order("puan", desc=True).limit(10).execute()
+
+        if leaders.data:
+            html = """
+            <table style="width:100%; border-collapse: collapse; background:#161b22; border-radius:10px; overflow:hidden;">
+                <tr style="background:#21262d; color:#8b949e;">
+                    <th style="padding:12px;">SIRA</th>
+                    <th style="padding:12px;">SCOUT</th>
+                    <th style="padding:12px;">PUAN</th>
+                </tr>
+            """
+
+            for i, row in enumerate(leaders.data):
+                rank = i + 1
+                icon = ["👑","🥈","🥉"][i] if i < 3 else "🏃"
+
+                html += f"""
+                <tr style="border-bottom:1px solid #30363d;">
+                    <td style="padding:12px;">{icon} {rank}</td>
+                    <td style="padding:12px;">{row['username']}</td>
+                    <td style="padding:12px;">
+                        <span style="background:#238636; padding:4px 10px; border-radius:6px; font-weight:bold;">
+                            {row.get('puan',0)} PT
+                        </span>
+                    </td>
+                </tr>
+                """
+
+            html += "</table>"
+
+            # ✅ SADECE BURASI (TEK RENDER)
+            st.markdown(html, unsafe_allow_html=True)
+
+    except Exception as e:
+        st.error(f"Hata: {e}")
 
 # --- 5. BARROW AI (V178 - ÖRNEK OYUNCU VE GENÇ YETENEK ZEKASI) ---
 with tabs[5]:
