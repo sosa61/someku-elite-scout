@@ -574,99 +574,92 @@ with tabs[4]:
     except:
         st.write("Tablo yüklenemedi.")
 
-# --- 5. BARROW AI (V178 - ÖRNEK OYUNCU VE GENÇ YETENEK ZEKASI) ---
+# --- 5. BARROW AI (V178 - KONTROLLÜ VE LİMİTLİ) ---
 with tabs[5]:
     st.markdown('<div style="text-align:center;"><h1 style="color:#ef4444;">🤵 BARROW AI</h1></div>', unsafe_allow_html=True)
     
+    # 1. KULLANICI KONTROLLERİ
+    user_is_vip = st.session_state.get('is_vip', False)
+    curr_user = st.session_state.get('user')
+    
     if "barrow_player" not in st.session_state: st.session_state.barrow_player = None
 
-    b_in = st.text_input("Barrow'a emir ver (Örn: 'Messi gibi bir genç', 'Hummels tarzı defans', '20 yaş 3m'):", key="b_in_v178")
+    # 2. LİMİT SORGULAMA (VIP DEĞİLSE)
+    can_ask = True
+    if not user_is_vip:
+        u_data = supabase.table("users").select("barrow_count", "last_barrow_date").eq("username", curr_user).execute()
+        if u_data.data:
+            count = u_data.data[0].get('barrow_count', 0)
+            l_date = u_data.data[0].get('last_barrow_date')
+            today = str(datetime.date.today())
+
+            if l_date != today:
+                supabase.table("users").update({"barrow_count": 0, "last_barrow_date": today}).eq("username", curr_user).execute()
+                count = 0
+            
+            if count >= 3:
+                can_ask = False
+                st.warning(f"🔒 Barrow: 'Günlük 3 mermi hakkın doldu hıyarto! Daha fazlası için VIP ol.'")
+                st.markdown(f'''<a href="https://www.shopier.com/fmscout/45690641" target="_blank" style="text-decoration:none;"><button style="width:100%; background:#ef4444; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">SINIRSIZ BARROW İÇİN VIP OL</button></a>''', unsafe_allow_html=True)
+
+    # 3. SORU SORMA EKRANI
+    b_in = st.text_input("Barrow'a emir ver (Örn: 'Messi gibi bir genç', 'Hummels tarzı defans'):", key="b_in_v178", disabled=not can_ask)
     
-    if st.button("BARROWA SOR"):
+    if st.button("BARROWA SOR", disabled=not can_ask):
         if b_in:
+            # Hakkı artır (VIP değilse)
+            if not user_is_vip:
+                new_count = u_data.data[0].get('barrow_count', 0) + 1
+                supabase.table("users").update({"barrow_count": new_count}).eq("username", curr_user).execute()
+
+            # --- ASIL BARROW MANTIĞI ---
             BARROW_INSULTS = ["Bütçen buysa git halısaha maçı ayarla hıyarto!", "Yine mi sen? Al şu mermiyi de kaybol.", "Messi'yi rüyanda görürsün ama bir mermi bulalım bakalım..."]
             st.markdown(f'<div style="background:#1a1a1a; padding:15px; border-left:5px solid #ef4444; color:#ef4444; margin-bottom:20px;">{random.choice(BARROW_INSULTS)}</div>', unsafe_allow_html=True)
             
             bq = supabase.table("oyuncular").select("*").gte("pa", 135)
             low_in = b_in.lower()
             
-            # --- MEVKİ ANALİZ MOTORU ---
-            m_list = []
-            
-            # 1. Örnek Oyuncu Analizi (Barrow Knowledge)
             scout_knowledge = {
-                "messi": ["AM R", "AM C", "ST"],
-                "ronaldo": ["ST", "AM L"],
-                "neymar": ["AM L", "AM C"],
-                "hummels": ["D C"],
-                "van dijk": ["D C"],
-                "modric": ["M C"],
-                "de bruyne": ["AM C", "M C"],
-                "haaland": ["ST"],
-                "mbappe": ["ST", "AM L"],
-                "musiala": ["AM C", "AM L"],
-                "arda güler": ["AM C", "AM R"]
+                "messi": ["AM R", "AM C", "ST"], "ronaldo": ["ST", "AM L"], "neymar": ["AM L", "AM C"],
+                "hummels": ["D C"], "van dijk": ["D C"], "modric": ["M C"], "de bruyne": ["AM C", "M C"],
+                "haaland": ["ST"], "mbappe": ["ST", "AM L"], "musiala": ["AM C", "AM L"], "arda güler": ["AM C", "AM R"]
             }
             
-            # Cümlede isim geçiyor mu?
+            m_list = []
             for player_name, positions in scout_knowledge.items():
                 if player_name in low_in:
                     m_list.extend(positions)
-                    # "Genç hali" veya "Gibi" diyorsa yaş limitini 21'e çek
-                    if any(x in low_in for x in ["genç", "gibi", "tarzı", "veliaht"]):
-                        bq = bq.lte("yas", 21)
+                    if any(x in low_in for x in ["genç", "gibi", "tarzı", "veliaht"]): bq = bq.lte("yas", 21)
 
-            # 2. Standart Mevki Kelimeleri
             if "defans" in low_in or "stoper" in low_in: m_list.extend(["D C", "D R", "D L"])
             elif "forvet" in low_in or "golcü" in low_in: m_list.append("ST")
             elif "orta saha" in low_in: m_list.extend(["M C", "DM", "AM C"])
             elif "kanat" in low_in: m_list.extend(["AM L", "AM R"])
             
-            if m_list:
-                bq = bq.or_(",".join([f'mevki.ilike.%{m}%' for m in set(m_list)]))
+            if m_list: bq = bq.or_(",".join([f'mevki.ilike.%{m}%' for m in set(m_list)]))
 
-            # --- YAŞ ANALİZİ (V177'DEN GELEN) ---
             nums = re.findall(r'\d+', low_in)
             range_match = re.search(r'(\d+)\s*[-|ile|ve|ila|–]\s*(\d+)', low_in)
-            max_match = any(x in low_in for x in ["en fazla", "max", "altı", "limit"])
-            
             if range_match:
                 n1, n2 = int(range_match.group(1)), int(range_match.group(2))
                 bq = bq.gte("yas", min(n1, n2)).lte("yas", max(n1, n2))
-            elif max_match and nums:
+            elif any(x in low_in for x in ["en fazla", "max", "altı"]) and nums:
                 bq = bq.lte("yas", int(nums[0]))
-            elif nums and "yaş" in low_in:
-                bq = bq.eq("yas", int(nums[0]))
-            elif not any(x in low_in for x in scout_knowledge.keys()):
-                bq = bq.lte("yas", 28)
-
-            # --- BÜTÇE ANALİZİ ---
-            m_match = re.search(r'(\d+)\s*(m|milyon|mio)', low_in)
-            k_match = re.search(r'(\d+)\s*(bin|k|b)', low_in)
-            req_limit = None
-            if m_match: req_limit = float(m_match.group(1))
-            elif k_match: req_limit = float(k_match.group(1)) / 1000
+            elif nums and "yaş" in low_in: bq = bq.eq("yas", int(nums[0]))
+            elif not any(x in low_in for x in scout_knowledge.keys()): bq = bq.lte("yas", 28)
 
             res_b = bq.limit(100).execute()
             
             if res_b.data:
-                final_list = res_b.data
-                if req_limit:
-                    def get_p(x):
-                        v = str(x.get("deger","0")).upper()
-                        n = re.findall(r"[-+]?\d*\.\d+|\d+", v.replace(",","."))
-                        if not n: return 999
-                        return float(n[0])/1000 if "K" in v else float(n[0])
-                    final_list = [x for x in res_b.data if get_p(x) <= req_limit]
-                
-                if final_list: st.session_state.barrow_player = random.choice(final_list)
-                else: st.session_state.barrow_player = "empty"
-            else: st.session_state.barrow_player = "empty"
+                st.session_state.barrow_player = random.choice(res_b.data)
+            else:
+                st.session_state.barrow_player = "empty"
+            st.rerun()
 
-    # --- OYUNCU KARTI VE FAVORİLEME ---
+    # --- OYUNCU KARTI ---
     if st.session_state.barrow_player and st.session_state.barrow_player != "empty":
         p = st.session_state.barrow_player
-        f_check = supabase.table("favoriler").select("oyuncu_adi").eq("oyuncu_adi", p['oyuncu_adi']).execute()
+        f_check = supabase.table("favoriler").select("oyuncu_adi").eq("oyuncu_adi", p['oyuncu_adi']).eq("kullanici_adi", curr_user).execute()
         is_f = len(f_check.data) > 0
         tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
         border_color = "#238636" if is_f else "#ef4444"
@@ -688,13 +681,13 @@ with tabs[5]:
 
         if st.button("⭐ Listeye Ekle / Çıkar", key="barrow_fav_final"):
             if is_f:
-                supabase.table("favoriler").delete().eq("oyuncu_adi", p['oyuncu_adi']).execute()
+                supabase.table("favoriler").delete().eq("oyuncu_adi", p['oyuncu_adi']).eq("kullanici_adi", curr_user).execute()
                 st.toast("Mermi listeden çıkarıldı!")
             else:
                 supabase.table("favoriler").insert({
                     "oyuncu_adi": p['oyuncu_adi'], "kulup": p.get('kulup','Serbest'),
                     "pa": p['pa'], "mevki": p['mevki'], "ca": p.get('ca', 0),
-                    "kullanici_adi": st.session_state.user
+                    "kullanici_adi": curr_user
                 }).execute()
                 st.toast("Mermi listeye eklendi!")
             st.rerun()
