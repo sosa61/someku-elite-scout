@@ -22,15 +22,13 @@ st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️"
 
 # --- 🔄 GÜÇLENDİRİLMİŞ VIP TAZELEME MOTORU ---
 if "user" in st.session_state and st.session_state.user:
-
     try:
-        # Veritabanından en güncel durumu çek
         v_res = supabase.table("users").select("is_vip").eq("username", st.session_state.user).execute()
         if v_res.data:
-            # Burası çok kritik: Değişkeni zorla güncelle
-            st.session_state['is_vip'] = bool(v_res.data[0]['is_vip'])
+            # VIP durumunu zorla session'a işliyoruz
+            st.session_state['is_vip'] = bool(v_res.data[0].get('is_vip', False))
     except Exception as e:
-        pass # Bağlantı hatası olursa bozma
+        pass 
 
 # BURADAN SONRA TASARIM CSS KODLARIN DEVAM ETSİN
 
