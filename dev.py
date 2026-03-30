@@ -486,9 +486,6 @@ with tabs[4]:
             else:
                 st.warning("Barrow: 'İstediğin kriterlerde mermi bulamadım, siktir git kendin ara.'")
 
-
- 
-barrowda sadece favorikeme sorunu favorikeme basınca gidiyor
 # --- 6. ADMIN (V130 - TAM YETKİ VE DENETİM) ---
 with tabs[5]: 
     if st.session_state.get('user') == "someku":
