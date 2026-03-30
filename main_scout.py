@@ -22,31 +22,27 @@ st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️"
 
 import streamlit as st
 
-# Sayfa ayarları mermi gibi en üstte olmalı
-st.set_page_config(page_title="SOMEKU SCOUT", page_icon="🕵️‍♂️", layout="wide")
-
-# Alt tarafı, üst tarafı, her yeri mermi gibi silen CSS
-hide_st_style = """
-            <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            header {visibility: hidden;}
-            .stAppDeployButton {display:none;}
-            [data-testid="stStatusWidget"] {display:none;}
-            /* Alttaki reklam bandını siler */
-            footer:after {
-                content:'';
-                display:block;
-                position:relative;
-                top:33px;
-            }
-            /* Tüm alt barı uçurur */
-            [data-testid="stFooter"] {display:none;}
-            /* Ekranın en altındaki boşluğu kapatır */
-            .stApp { margin-bottom: -50px; }
-            </style>
-            """
-st.markdown(hide_st_style, unsafe_allow_html=True)
+# --- REKLAM BANDI İMHA OPERASYONU (V3) ---
+st.markdown("""
+    <style>
+    /* Üst menü ve GitHub linkini gizler */
+    [data-testid="stHeader"] {visibility: hidden !important;}
+    
+    /* Sağ alttaki kırmızı taç ve Hosted with Streamlit yazısını siler */
+    footer {visibility: hidden !important; height: 0px !important;}
+    
+    /* Alttaki reklam bandının ana kapsayıcısını bulur ve yok eder */
+    div[class^="viewerBadge_container"] {display: none !important;}
+    div[class^="viewerBadge_link"] {display: none !important;}
+    
+    /* Manage app butonunu ve çevresini tamamen temizler */
+    button[data-testid="stStatusWidget"] {display: none !important;}
+    .stAppDeployButton {display: none !important;}
+    
+    /* Sayfanın altına beyaz/siyah bir şerit çekerek her şeyi gömer */
+    .main .block-container {padding-bottom: 0px !important;}
+    </style>
+    """, unsafe_allow_html=True)
 
 
 # --- 🔄 GÜÇLENDİRİLMİŞ VIP TAZELEME MOTORU (V183) ---
