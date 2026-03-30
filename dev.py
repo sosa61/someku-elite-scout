@@ -32,8 +32,10 @@ if "user" in st.session_state and st.session_state.user:
             if db_date_str:
                 # Veritabanındaki tarihi parçalıyoruz (saat varsa atıyoruz)
                 clean_date_str = str(db_date_str).split(" ")[0]
+                                # 35. ve 36. Satırları Şöyle Yap:
                 bitis_dt = datetime.datetime.strptime(clean_date_str, "%Y-%m-%d").date()
                 bugun = datetime.date.today()
+
                 
                 # SADECE BURADA KONTROL YAPILIYOR
                 if bugun <= bitis_dt and u_info.get('is_vip'):
@@ -652,19 +654,24 @@ with tabs[5]:
     if "barrow_player" not in st.session_state: st.session_state.barrow_player = None
 
     can_ask = True
-    if not user_is_vip:
-        u_data = supabase.table("users").select("barrow_count", "last_barrow_date").eq("username", curr_user).execute()
-        if u_data.data:
-            count = u_data.data[0].get('barrow_count', 0)
-            l_date = u_data.data[0].get('last_barrow_date')
-            today = str(datetime.date.today())
-            if l_date != today:
-                supabase.table("users").update({"barrow_count": 0, "last_barrow_date": today}).eq("username", curr_user).execute()
-                count = 0
-            if count >= 3:
-                can_ask = False
-                st.warning(f"🔒 Barrow: 'Günlük 3 mermi hakkın doldu hıyarto! Daha fazlası için VIP ol.'")
-                st.markdown(f'''<a href="https://www.shopier.com/fmscout/45690641" target="_blank" style="text-decoration:none;"><button style="width:100%; background:#ef4444; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">SINIRSIZ BARROW İÇİN VIP OL</button></a>''', unsafe_allow_html=True)
+            # --- STANDART KULLANICI HAK KONTROLÜ ---
+        if not user_is_vip:
+            u_data = supabase.table("users").select("barrow_count, last_barrow_date").eq("username", curr_user).execute()
+            if u_data.data:
+                count = u_data.data[0].get('barrow_count', 0)
+                l_date = u_data.data[0].get('last_barrow_date')
+                today = str(datetime.date.today())
+
+                # Eğer yeni bir güne girilmişse hakları sıfırla
+                if l_date != today:
+                    supabase.table("users").update({
+                        "barrow_count": 0,
+                        "last_barrow_date": today # SADECE STANDART ÜYENİN TARİHİNİ GÜNCELLE
+                    }).eq("username", curr_user).execute()
+                    count = 0
+                
+                if count >= 3:
+                    can_ask = False
 
     b_in = st.text_input("Barrow'a emir ver (Örn: 'Messi gibi bir genç', 'Hummels tarzı defans'):", key="b_in_v178", disabled=not can_ask)
     
