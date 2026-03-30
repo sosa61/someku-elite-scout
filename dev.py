@@ -392,88 +392,103 @@ with tabs[3]:
     else:
         st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
         
-        # --- 5. GİZLİ YETENEK AVI (V215 - CANLI SÜRE & TAHMİN SİSTEMİ) ---
+        # --- 5. GİZLİ YETENEK AVI (V220 - REKABET & CANLI SAYAÇ) ---
 with tabs[4]:
     st.markdown('<h2 style="text-align:center; color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h2>', unsafe_allow_html=True)
     
-    # Detaylı Türkçe Mevki Dönüştürücü
-    def mevki_temizle_tr(m):
+    # 1. MEVKİ TÜRKÇELEŞTİRME
+    def mevki_tr_yap(m):
         m = m.upper()
         if "GK" in m: return "Kaleci"
         if any(x in m for x in ["ST", "CF"]): return "Forvet"
-        if any(x in m for x in ["AM R", "M R"]): return "Sağ Kanat"
-        if any(x in m for x in ["AM L", "M L"]): return "Sol Kanat"
+        if "AM R" in m or "M R" in m: return "Sağ Kanat"
+        if "AM L" in m or "M L" in m: return "Sol Kanat"
         if "D C" in m: return "Stoper"
         if "D R" in m: return "Sağ Bek"
         if "D L" in m: return "Sol Bek"
         if any(x in m for x in ["AM C", "M C", "DM"]): return "Orta Saha"
         return "Joker"
 
-    # Oyun Hafızası
+    # 2. PUAN SİSTEMİ FONKSİYONLARI
+    def puan_guncelle(user, artis):
+        try:
+            current = supabase.table("users").select("puan").eq("username", user).execute()
+            eski_puan = current.data[0].get("puan", 0) if current.data else 0
+            yeni_puan = eski_puan + artis
+            supabase.table("users").update({"puan": yeni_puan}).eq("username", user).execute()
+            return yeni_puan
+        except: return 0
+
+    # 3. OYUN DURUMU
     if 'game_active' not in st.session_state: st.session_state.game_active = False
     if 'target_p' not in st.session_state: st.session_state.target_p = None
-    if 'guess_correct' not in st.session_state: st.session_state.guess_correct = False
 
-    # Yeni Oyun Başlat
-    if st.button("🚀 YENİ AV BAŞLAT (30 SANİYE)", use_container_width=True):
-        res_g = supabase.table("oyuncular").select("*").gte("pa", 165).limit(200).execute()
-        if res_g.data:
-            st.session_state.target_p = random.choice(res_g.data)
-            st.session_state.game_active = True
-            st.session_state.game_start_time = time.time()
-            st.session_state.guess_correct = False
-            st.rerun()
+    c_ust1, c_ust2 = st.columns([2, 1])
 
+    with c_ust1:
+        if st.button("🚀 YENİ AV BAŞLAT (-1 Puan Risk!)", use_container_width=True):
+            res_g = supabase.table("oyuncular").select("*").gte("pa", 168).limit(300).execute()
+            if res_g.data:
+                st.session_state.target_p = random.choice(res_g.data)
+                st.session_state.game_active = True
+                st.session_state.game_start_time = time.time()
+                st.rerun()
+
+    # --- CANLI SAYAÇ VE OYUN ALANI ---
     if st.session_state.game_active and st.session_state.target_p:
         p = st.session_state.target_p
+        m_tr = mevki_tr_yap(p['mevki'])
         
-        # CANLI SÜRE SİSTEMİ
-        elapsed = time.time() - st.session_state.game_start_time
-        kalan = int(30 - elapsed)
+        # CANLI SAYAÇ YERİ
+        timer_place = st.empty()
         
-        if kalan > 0 and not st.session_state.guess_correct:
-            # Saniyenin düşmesini ekranda görmek için ufak bir tetikleyici
-            st.markdown(f"<h1 style='text-align:center; color:#ff4b4b;'>⏱️ {kalan}s</h1>", unsafe_allow_html=True)
-            time.sleep(0.1) # Sayfanın canlı kalmasına yardımcı olur
-            
-            # KART TASARIMI
-            m_tr = mevki_temizle_tr(p['mevki'])
+        # Kullanıcı Tahmin Girişi
+        tahmin = st.text_input("Tahminini Yaz (Kenan, Messi, Mbappe vb.):", key="game_input").strip().lower()
 
-            st.markdown(f'''
-                <div style="padding:20px; border-radius:15px; border:2px dashed #f2cc60; background:rgba(242,204,96,0.05); text-align:center;">
-                    <h1 style="color:#58a6ff; font-size:45px;">? ? ? ? ?</h1>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top:15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top:15px;">
-                        <div><small style="color:#8b949e;">MEVKİ</small><br><b>{m_tr}</b></div>
-                        <div><small style="color:#8b949e;">YAŞ</small><br><b>{p['yas']}</b></div>
-                        <div><small style="color:#8b949e;">KULÜP</small><br><b>{p.get('kulup', 'Serbest')}</b></div>
-                        <div><small style="color:#8b949e;">POTANSİYEL</small><br><b style="color:#238636;">{p['pa']}</b></div>
-                    </div>
+        # DÖNGÜ: Saniye canlı düşer
+        while st.session_state.game_active:
+            elapsed = time.time() - st.session_state.game_start_time
+            kalan = int(30 - elapsed)
+
+            if kalan <= 0:
+                st.session_state.game_active = False
+                puan_guncelle(st.session_state.user, -1)
+                st.error(f"⏱️ SÜRE BİTTİ! Aranan mermi: {p['oyuncu_adi']} (-1 Puan)")
+                st.button("Yeniden Dene")
+                break
+            
+            # Doğru Tahmin Kontrolü
+            if tahmin and tahmin in p['oyuncu_adi'].lower():
+                st.session_state.game_active = False
+                puan_guncelle(st.session_state.user, 1)
+                st.balloons()
+                st.success(f"🎯 BİLDİN! Oyuncu: {p['oyuncu_adi']} (+1 Puan)")
+                st.button("Sıradaki Gelsin!")
+                break
+
+            # Sayaç Görseli
+            timer_place.markdown(f"""
+                <div style="text-align:center; padding:10px; border-radius:10px; background:rgba(255,75,75,0.1); border:1px solid #ff4b4b;">
+                    <h1 style="color:#ff4b4b; margin:0;">⏱️ {kalan}</h1>
+                    <p style="margin:0; font-size:12px; color:#8b949e;">{m_tr} | {p['yas']} Yaş | {p['kulup']} | PA: {p['pa']}</p>
                 </div>
-            ''', unsafe_allow_html=True)
+                <h1 style="text-align:center; font-size:60px; color:#58a6ff;">? ? ? ?</h1>
+            """, unsafe_allow_html=True)
+            
+            time.sleep(0.1) # İşlemciyi yormadan akıcılık sağlar
 
-            # TAHMİN KUTUSU
-            user_guess = st.text_input("Tahminini Buraya Yaz:", key="guess_input").strip().lower()
-            
-            if user_guess:
-                # İsmin içinde geçiyorsa doğru kabul et (Örn: Mbappe yazsa da Kylian Mbappe olsa da kabul)
-                if user_guess in p['oyuncu_adi'].lower():
-                    st.session_state.guess_correct = True
-                    st.balloons()
-                    st.rerun()
-            
-            # Saniyenin tık tık düşmesi için otomatik yenileme (Deneysel)
-            if kalan % 2 == 0: # Çok sık yenileyip kasmaması için
-                st.empty() 
-
-        elif st.session_state.guess_correct:
-            st.success(f"🎯 HELAL OLSUN! Doğru cevap: **{p['oyuncu_adi']}**")
-            st.session_state.game_active = False
-            if st.button("Harikayım, Yeni Bir Tane Ver!"): st.rerun()
-            
-        else:
-            st.error(f"⏱️ SÜRE BİTTİ! Aranan mermi şuydu: **{p['oyuncu_adi']}**")
-            st.session_state.game_active = False
-            if st.button("Tekrar Dene"): st.rerun()
+    st.markdown("---")
+    
+    # --- LİDERLİK TABLOSU (SAĞ VEYA ALT) ---
+    st.markdown("### 🏆 TOP 10 ELITE SCOUTS")
+    try:
+        leaders = supabase.table("users").select("username", "puan").order("puan", desc=True).limit(10).execute()
+        if leaders.data:
+            df_lead = pd.DataFrame(leaders.data)
+            df_lead.columns = ["Kullanıcı", "Puan"]
+            st.table(df_lead)
+    except:
+        st.write("Liderlik tablosu yüklenemedi.")
 
 
 # --- 5. BARROW AI (V178 - ÖRNEK OYUNCU VE GENÇ YETENEK ZEKASI) ---
