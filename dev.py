@@ -392,7 +392,7 @@ with tabs[3]:
     else:
         st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
         
-# --- 5. GİZLİ YETENEK AVI (V250 - TABLO FIX) ---
+# --- 5. GİZLİ YETENEK AVI (V260 - KESİN ÇÖZÜM) ---
 with tabs[4]:
     st.markdown('<h2 style="text-align:center; color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h2>', unsafe_allow_html=True)
     
@@ -409,7 +409,7 @@ with tabs[4]:
         if any(x in m for x in ["AM C", "M C", "DM"]): return "Orta Saha"
         return "Joker"
 
-    # 2. PUAN SİSTEMİ
+    # 2. PUAN İŞLEMİ
     def puan_islem(user, artis):
         try:
             c = supabase.table("users").select("puan").eq("username", user).execute()
@@ -465,40 +465,39 @@ with tabs[4]:
 
     st.markdown("---")
     
-        # --- LİDERLİK TABLOSU (TEMİZ VERSİYON) ---
-    st.markdown("---")
+    # --- LİDERLİK TABLOSU ---
     st.markdown("### 🏆 TOP 10 ELITE SCOUTS")
     
     try:
         # Puanları çek
-        leaders = supabase.table("users").select("username, puan").order("puan", desc=True).limit(10).execute()
+        leaders_res = supabase.table("users").select("username, puan").order("puan", desc=True).limit(10).execute()
         
-        if leaders.data:
-            # HTML Tabloyu tek bir değişkende topluyoruz
-            h = '<table style="width:100%; border-collapse: collapse; background:#161b22; border-radius:10px; overflow:hidden;">'
-            h += '<tr style="background:#21262d; color:#8b949e;"><th style="padding:12px; text-align:left;">SIRA</th><th style="padding:12px; text-align:left;">SCOUT</th><th style="padding:12px; text-align:left;">PUAN</th></tr>'
+        if leaders_res.data:
+            tablo_html = '<table style="width:100%; border-collapse: collapse; background:#161b22; border-radius:10px; overflow:hidden;">'
+            tablo_html += '<tr style="background:#21262d; color:#8b949e;"><th style="padding:12px; text-align:left;">SIRA</th><th style="padding:12px; text-align:left;">SCOUT</th><th style="padding:12px; text-align:left;">PUAN</th></tr>'
             
-            for i, u in enumerate(leaders.data):
+            for i, user_row in enumerate(leaders_res.data):
                 rank = i + 1
-                cls = 'style="color:#f2cc60; font-weight:bold;"' if rank == 1 else ""
+                name_style = 'style="color:#f2cc60; font-weight:bold;"' if rank == 1 else ""
                 icon = "👑" if rank == 1 else ("🥈" if rank == 2 else ("🥉" if rank == 3 else "🏃"))
+                puan_degeri = user_row.get("puan", 0)
                 
-                h += f'''
+                tablo_html += f'''
                 <tr style="border-bottom: 1px solid #30363d;">
                     <td style="padding:12px;">{icon} {rank}</td>
-                    <td style="padding:12px;" {cls}>{u["username"]}</td>
-                    <td style="padding:12px;"><span style="background:#238636; color:white; padding:2px 8px; border-radius:5px; font-weight:bold;">{u.get("puan", 0)} PT</span></td>
+                    <td style="padding:12px;" {name_style}>{user_row["username"]}</td>
+                    <td style="padding:12px;"><span style="background:#238636; color:white; padding:2px 8px; border-radius:5px; font-weight:bold;">{puan_degeri} PT</span></td>
                 </tr>
                 '''
-            h += '</table>'
+            tablo_html += '</table>'
             
-            # BURASI ÖNEMLİ: Sadece bu satır kalsın! 
-            # Başka st.write veya html_table yazan bir satır varsa SİL.
-            st.markdown(h, unsafe_allow_html=True)
+            # Kodların ekranda yazı olarak görünmemesi için TEK satır:
+            st.markdown(tablo_html, unsafe_allow_html=True)
         else:
             st.info("Henüz puanı olan scout yok.")
     except Exception as e:
-        st.error(f"Tablo yüklenemedi: {e}")
+        st.error(f"Tablo yüklenemedi!")
+        
 
 # --- 5. BARROW AI (V178 - ÖRNEK OYUNCU VE GENÇ YETENEK ZEKASI) ---
 with tabs[5]:
