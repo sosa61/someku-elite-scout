@@ -391,9 +391,75 @@ with tabs[3]:
                     st.rerun()
     else:
         st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
+        
+        # --- 5. GİZLİ YETENEK AVI (V211 - SCOUT GUESSER) ---
+with tabs[4]:
+    st.markdown('<h2 style="text-align:center; color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h2>', unsafe_allow_html=True)
+    
+    # Mevki Türkçeleştirme Sözlüğü
+    POS_TR_GAME = {
+        "GK": "Kaleci", "D C": "Stoper", "D L": "Sol Bek", "D R": "Sağ Bek",
+        "DM": "Ön Libero", "M C": "Merkez Orta Saha", "AM C": "On Numara",
+        "AM L": "Sol Kanat", "AM R": "Sağ Kanat", "ST": "Forvet"
+    }
+
+    # Oyun Verilerini Saklama
+    if 'game_active' not in st.session_state: st.session_state.game_active = False
+    if 'target_p' not in st.session_state: st.session_state.target_p = None
+
+    # Yeni Oyun Başlatma Butonu
+    if st.button("🚀 YENİ AV BAŞLAT (30 SANİYE)", use_container_width=True):
+        # 165+ PA'lı elit oyunculardan birini çek
+        res_g = supabase.table("oyuncular").select("*").gte("pa", 165).limit(100).execute()
+        if res_g.data:
+            st.session_state.target_p = random.choice(res_g.data)
+            st.session_state.game_active = True
+            st.session_state.game_start_time = time.time()
+            st.rerun()
+
+    # Oyun Başladıysa Ekrana Getir
+    if st.session_state.game_active and st.session_state.target_p:
+        p = st.session_state.target_p
+        
+        # 30 Saniyelik Geri Sayım
+        gecen = time.time() - st.session_state.game_start_time
+        kalan = max(0, int(30 - gecen))
+        
+        c1, c2 = st.columns([1, 3])
+        c1.metric("⏳ KALAN SÜRE", f"{kalan}s")
+        c2.info("Bu oyuncunun kim olduğunu bulabilir misin?")
+
+        # Mevkiyi Türkçeye Çevir
+        m_ham = p['mevki'].split(",")[0].strip()
+        m_tr = POS_TR_GAME.get(m_ham, m_ham)
+
+        # GİZLİ OYUNCU KARTI
+        st.markdown(f'''
+            <div style="padding:25px; border-radius:15px; border:2px dashed #f2cc60; background:rgba(242,204,96,0.05); text-align:center; margin-bottom:20px;">
+                <h1 style="color:#58a6ff; font-size:50px; letter-spacing: 10px;">??????</h1>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top:20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top:20px;">
+                    <div><small style="color:#8b949e;">MEVKİ</small><br><b>{m_tr}</b></div>
+                    <div><small style="color:#8b949e;">YAŞ</small><br><b>{p['yas']}</b></div>
+                    <div><small style="color:#8b949e;">KULÜP</small><br><b>{p.get('kulup', 'Serbest')}</b></div>
+                    <div><small style="color:#8b949e;">POTANSİYEL (PA)</small><br><b style="color:#238636;">{p['pa']}</b></div>
+                </div>
+            </div>
+        ''', unsafe_allow_html=True)
+
+        if kalan > 0:
+            if st.button("🔓 KİMLİĞİ AÇIKLA / CEVABI GÖR", use_container_width=True):
+                st.session_state.game_active = False
+                st.balloons()
+                st.success(f"🎯 Tebrikler! Aranan oyuncu: **{p['oyuncu_adi']}**")
+        else:
+            st.error(f"⏱️ SÜRE BİTTİ! Aranan oyuncu: **{p['oyuncu_adi']}** idi.")
+            if st.button("Tekrar Dene", use_container_width=True):
+                st.session_state.game_active = False
+                st.rerun()
+
 
 # --- 5. BARROW AI (V178 - ÖRNEK OYUNCU VE GENÇ YETENEK ZEKASI) ---
-with tabs[4]:
+with tabs[5]:
     st.markdown('<div style="text-align:center;"><h1 style="color:#ef4444;">🤵 BARROW AI</h1></div>', unsafe_allow_html=True)
     
     if "barrow_player" not in st.session_state: st.session_state.barrow_player = None
@@ -521,7 +587,7 @@ with tabs[4]:
         st.error("Barrow: 'O kriterlerde mermi bulamadım hıyarto!'")
 
 # --- 6. ADMIN (V130 - TAM YETKİ VE DENETİM) ---
-with tabs[5]: 
+with tabs[6]: 
     if st.session_state.get('user') == "someku":
         st.markdown('<h1 style="color:#ff4b4b; text-align:center;">🛡️ YÖNETİM MERKEZİ</h1>', unsafe_allow_html=True)
         
