@@ -49,21 +49,33 @@ def get_user_favs(username):
         return [f['oyuncu_adi'] for f in res.data]
     except: return []
 
-# --- OTURUM ---
-if 'page' not in st.session_state: st.session_state.page = 0
-if 'user' not in st.session_state: st.session_state.user = st.query_params.get("user", None)
-if st.session_state.user and 'fav_list' not in st.session_state: st.session_state.fav_list = get_user_favs(st.session_state.user)
-if 'roulette_player' not in st.session_state: st.session_state.roulette_player = None
-
 # --- GİRİŞ ---
 if st.session_state.user is None:
     st.markdown('<h1 style="text-align:center;">🕵️ SOMEKU SCOUT</h1>', unsafe_allow_html=True)
-    u_id = st.text_input("Kullanıcı Adı:"); u_pw = st.text_input("Şifre:", type="password")
+    u_id = st.text_input("Kullanıcı Adı:")
+    u_pw = st.text_input("Şifre:", type="password")
+    
     if st.button("Giriş"):
+        # Veritabanından tüm bilgileri (is_vip dahil) çekiyoruz
         res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
-        if res.data or (u_id == "someku" and u_pw == "28616128Ok"):
+        
+        # Giriş Başarılıysa
+        if res.data:
+            user_data = res.data[0]
             st.session_state.user = u_id
-            st.query_params["user"] = u_id; st.rerun()
+            # VIP DURUMUNU BURADA HAFIZAYA ALIYORUZ
+            st.session_state.is_vip = user_data.get("is_vip", False)
+            st.query_params["user"] = u_id
+            st.rerun()
+            
+        # Senin Özel Girişin (Admin Girişi)
+        elif u_id == "someku" and u_pw == "28616128Ok":
+            st.session_state.user = u_id
+            st.session_state.is_vip = True # Seni otomatik VIP yapar
+            st.query_params["user"] = u_id
+            st.rerun()
+        else:
+            st.error("Hatalı kullanıcı adı veya şifre!")
     st.stop()
 
 tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🕵️ YETENEK AVI", "🤖 BARROW AI", "🛠️ ADMIN"])
