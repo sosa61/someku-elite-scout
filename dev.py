@@ -18,91 +18,130 @@ supabase: Client = create_client(URL, KEY)
 # --- SAYFA AYARLARI ---
 st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️")
 
-# --- TASARIM (CSS) ---
-# --- ELITE SCOUT NIGHT EDITION (V190 - PREMIUM DESIGN) ---
+# --- TASARIM (CSS) - CHAMPIONS LEAGUE EDITION (V200) ---
 st.markdown("""
-    <style>
-    /* Ana Arka Plan ve Yazı Renkleri */
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+    /* 1. ANA ARKA PLAN (Gece Mavisi ve Yıldız Efekti) */
     .stApp {
-        background-color: #05070a;
-        color: #e6e6e6;
+        background: radial-gradient(circle at top, #001a3d 0%, #000814 100%) !important;
+        color: #ffffff !important;
+        font-family: 'Poppins', sans-serif;
     }
-    
-    /* Sekme (Tab) Tasarımı */
+
+    /* 2. SEKMELER (Şampiyonlar Ligi Menüsü) */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: #0d1117;
-        padding: 10px;
-        border-radius: 15px;
+        gap: 12px;
+        background-color: rgba(0, 26, 61, 0.6);
+        padding: 15px;
+        border-radius: 25px;
+        border: 1px solid #d4af37; /* Şampiyonlar Ligi Altını */
+        box-shadow: 0 0 20px rgba(212, 175, 55, 0.1);
     }
     .stTabs [data-baseweb="tab"] {
-        height: 45px;
-        background-color: #161b22;
-        border-radius: 8px;
-        color: #8b949e;
-        border: 1px solid #30363d;
-        transition: 0.3s;
+        background-color: transparent;
+        color: #8b949e !important;
+        font-weight: bold;
+        border-radius: 12px;
+        transition: 0.4s;
+        border: 1px solid transparent;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #238636 !important;
-        color: white !important;
-        border: 1px solid #3fb950 !important;
+        background: linear-gradient(135deg, #d4af37 0%, #f2cc60 100%) !important;
+        color: #000814 !important; /* Seçili sekmede yazı siyah olsun ki okunsun */
+        border: 1px solid #ffffff !important;
+        box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
     }
 
-    /* Oyuncu Kartları (Genel) */
-    div[data-testid="stMarkdownContainer"] > div {
-        border-radius: 12px;
+    /* 3. OYUNCU KARTLARI (Premium Card Design) */
+    .player-card {
+        background: rgba(22, 27, 34, 0.8);
+        border: 1px solid rgba(212, 175, 55, 0.3);
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 15px;
+        border-left: 6px solid #d4af37;
+        transition: 0.3s;
+        backdrop-filter: blur(5px);
     }
-    
-    /* Buton Tasarımları */
+    .player-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+        border-color: #f2cc60;
+    }
+
+    /* 4. FAVORİ VE ROZETLER */
+    .fav-active {
+        border: 2px solid #f2cc60 !important;
+        border-left: 10px solid #f2cc60 !important;
+        background: rgba(212, 175, 55, 0.05) !important;
+    }
+    .pa-badge {
+        background: linear-gradient(90deg, #d4af37, #f2cc60);
+        color: #000;
+        padding: 5px 15px;
+        border-radius: 10px;
+        font-weight: 800;
+        float: right;
+        box-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
+    }
+
+    /* 5. BARROW AI (VIP LOCA TASARIMI) */
+    .barrow-box {
+        background: linear-gradient(135deg, #000000 0%, #001a3d 100%) !important;
+        border: 2px solid #ef4444 !important;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 0 30px rgba(239, 68, 68, 0.2);
+    }
+    .barrow-text {
+        font-family: 'JetBrains Mono', monospace;
+        color: #ff4b4b;
+        text-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+    }
+
+    /* 6. BUTONLAR */
     .stButton > button {
-        background-color: #21262d;
-        color: #c9d1d9;
-        border: 1px solid #30363d;
-        border-radius: 8px;
+        background-color: #161b22;
+        color: #d4af37;
+        border: 1px solid #d4af37;
+        border-radius: 12px;
         font-weight: bold;
-        transition: 0.2s;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
     .stButton > button:hover {
-        border-color: #58a6ff;
-        color: #58a6ff;
-        background-color: #161b22;
+        background: #d4af37;
+        color: #000;
+        box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
     }
 
-    /* Giriş Kutuları (Inputs) */
-    .stTextInput > div > div > input {
-        background-color: #0d1117;
-        color: white;
-        border: 1px solid #30363d;
+    /* 7. GİRİŞ KUTULARI */
+    input {
+        background-color: #0d1117 !important;
+        border: 1px solid #30363d !important;
+        border-radius: 10px !important;
+        color: #f2cc60 !important;
     }
-    
-    /* Barrow AI Özel Kutusu */
-    .barrow-box {
-        background: linear-gradient(145deg, #1a0000, #330000);
-        border: 2px solid #ff4b4b;
-        padding: 20px;
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(255, 75, 75, 0.2);
+
+    /* 8. TRANSFERMARKT LİNKİ */
+    .tm-link {
+        color: #f2cc60 !important;
+        border: 1px solid #f2cc60;
+        padding: 5px 12px;
+        border-radius: 8px;
+        font-weight: bold;
+        text-decoration: none;
+        transition: 0.3s;
     }
-    </style>
-    """, unsafe_allow_html=True)
-
-
-st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
-    .stApp { background-color: #0d1117; color: white; }
-    .player-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; margin-bottom: 15px; border-left: 5px solid #3b82f6; transition: 0.3s; }
-    .fav-active { border: 2px solid #f2cc60 !important; border-left: 10px solid #f2cc60 !important; box-shadow: 0 0 15px rgba(242,204,96,0.2); }
-    .pa-badge { background: #238636; color: white; padding: 4px 12px; border-radius: 8px; font-weight: bold; float: right; font-size: 1.1rem; }
-    .ann-box { background: #1c2128; border: 1px solid #30363d; padding: 15px; border-radius: 10px; color: #58a6ff; text-align: center; margin-bottom: 20px; border-bottom: 3px solid #3b82f6; font-weight: bold; }
-    .barrow-box { background: #000000; border: 2px solid #ef4444; border-radius: 8px; padding: 20px; margin: 15px 0; }
-    .barrow-text { font-family: 'JetBrains Mono', monospace; color: #ff0000; font-size: 1.1rem; font-weight: bold; }
-    .tm-link { color: #58a6ff !important; text-decoration: none; border: 1px solid #58a6ff; padding: 3px 10px; border-radius: 5px; font-size: 12px; display: inline-block; margin-top: 10px; }
-    .section-header { background: #21262d; padding: 10px; border-radius: 8px; margin: 20px 0 10px 0; border-left: 5px solid #58a6ff; font-weight: bold; }
-    .page-indicator { background: #3b82f6; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; margin: 10px 0; display: inline-block; }
-    </style>
+    .tm-link:hover {
+        background: #f2cc60;
+        color: #000 !important;
+    }
+</style>
 """, unsafe_allow_html=True)
+
 
 # --- BARROW ZEKA ---
 BARROW_INSULTS = ["Cebinde kuruş yok hala elit oyuncu peşindesin. Al şunu dua et.", "Taktik bilgin zayıf, bari oyuncun düzgün olsun.", "Yine mi geldin? Barrow senin için mermiyi buldu.", "Bak buraya hıyarto, bütçene göre en mermisi budur."]
