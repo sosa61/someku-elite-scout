@@ -19,6 +19,75 @@ supabase: Client = create_client(URL, KEY)
 st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️")
 
 # --- TASARIM (CSS) ---
+# --- ELITE SCOUT NIGHT EDITION (V190 - PREMIUM DESIGN) ---
+st.markdown("""
+    <style>
+    /* Ana Arka Plan ve Yazı Renkleri */
+    .stApp {
+        background-color: #05070a;
+        color: #e6e6e6;
+    }
+    
+    /* Sekme (Tab) Tasarımı */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: #0d1117;
+        padding: 10px;
+        border-radius: 15px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 45px;
+        background-color: #161b22;
+        border-radius: 8px;
+        color: #8b949e;
+        border: 1px solid #30363d;
+        transition: 0.3s;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #238636 !important;
+        color: white !important;
+        border: 1px solid #3fb950 !important;
+    }
+
+    /* Oyuncu Kartları (Genel) */
+    div[data-testid="stMarkdownContainer"] > div {
+        border-radius: 12px;
+    }
+    
+    /* Buton Tasarımları */
+    .stButton > button {
+        background-color: #21262d;
+        color: #c9d1d9;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        font-weight: bold;
+        transition: 0.2s;
+    }
+    .stButton > button:hover {
+        border-color: #58a6ff;
+        color: #58a6ff;
+        background-color: #161b22;
+    }
+
+    /* Giriş Kutuları (Inputs) */
+    .stTextInput > div > div > input {
+        background-color: #0d1117;
+        color: white;
+        border: 1px solid #30363d;
+    }
+    
+    /* Barrow AI Özel Kutusu */
+    .barrow-box {
+        background: linear-gradient(145deg, #1a0000, #330000);
+        border: 2px solid #ff4b4b;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(255, 75, 75, 0.2);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
