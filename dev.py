@@ -765,50 +765,84 @@ with tabs[5]:
     elif st.session_state.barrow_player == "empty":
         st.error("Barrow: 'O kriterlerde mermi bulamadım hıyarto!'")
 
-        # --- B. KULLANICI & BAN & ŞİFRE & VIP PANELİ ---
-        with adm_tabs[1]:
+# --- 6. ADMIN (V131 - VIP YÖNETİM MERKEZİ) ---
+with tabs[6]: 
+    if st.session_state.get('user') == "someku":
+        st.markdown('<h1 style="color:#ff4b4b; text-align:center;">🛡️ YÖNETİM MERKEZİ</h1>', unsafe_allow_html=True)
+        
+        # VERİLERİ ÇEK
+        try:
+            # Kullanıcıları çekiyoruz
+            u_res = supabase.table("users").select("*").execute()
+            users_list = u_res.data if u_res.data else []
+            
+            # Oyuncu sayısını çekiyoruz
+            res_count = supabase.table("oyuncular").select("*", count="exact").limit(1).execute()
+            actual_count = res_count.count
+            
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Toplam Oyuncu", f"{actual_count:,}".replace(",", "."))
+            c2.metric("Kayıtlı Kullanıcı", len(users_list))
+            c3.success("Sistem Çevrimiçi")
+        except Exception as e:
+            st.error(f"Bağlantı Hatası: {e}")
+            users_list = []
+
+        st.markdown("---")
+        adm_tabs = st.tabs(["👥 Kullanıcı & VIP Yönetimi", "✏️ Oyuncu Düzenle", "🛠️ Sistem"])
+
+        # --- A. KULLANICI & VIP PANELİ (BURASI ÖNEMLİ) ---
+        with adm_tabs[0]:
             st.write("### 👥 Kullanıcı Denetimi ve VIP Tanımlama")
-            if u_res.data:
-                for u in u_res.data:
-                    # Kullanıcı kartı tasarımı
+            if not users_list:
+                st.info("Henüz kayıtlı kullanıcı bulunamadı.")
+            else:
+                for u in users_list:
                     with st.container():
-                        c1, c2, c3, c4 = st.columns([1.5, 1.5, 2, 1])
+                        # Mobilde düzgün görünmesi için sütunlar
+                        col_info, col_date, col_action = st.columns([2, 2, 1])
                         
-                        # 1. Sütun: Kullanıcı Bilgisi
-                        is_current_vip = u.get('is_vip', False)
-                        vip_status = "⭐ VIP" if is_current_vip else "⚪ Standart"
-                        c1.write(f"**{u['username']}**")
-                        c1.caption(f"Durum: {vip_status}")
+                        # Kullanıcı Bilgisi
+                        is_vip = u.get('is_vip', False)
+                        statu = "⭐ VIP" if is_vip else "⚪ Standart"
+                        col_info.write(f"**{u['username']}** ({statu})")
+                        col_info.caption(f"🔑: `{u.get('password', '***')}`")
                         
-                        # 2. Sütun: Şifre ve IP
-                        c2.write(f"🔑 `{u.get('password', '***')}`")
-                        c2.caption(f"🌐 IP: {u.get('ip_adresi', 'Bilinmiyor')}")
-
-                        # 3. Sütun: VIP TARİH VE YETKİ VERME
-                        # Mevcut tarihi çek, yoksa bugünü göster
-                        current_date_val = u.get('last_barrow_date')
+                        # Tarih Seçici
+                        curr_date = u.get('last_barrow_date')
                         try:
-                            default_date = datetime.datetime.strptime(current_date_val, "%Y-%m-%d").date() if current_date_val else datetime.date.today()
+                            # Tarih varsa onu al, yoksa bugünü al
+                            val_date = datetime.datetime.strptime(curr_date, "%Y-%m-%d").date() if curr_date else datetime.date.today()
                         except:
-                            default_date = datetime.date.today()
+                            val_date = datetime.date.today()
                         
-                        new_date = c3.date_input(f"Bitiş:", value=default_date, key=f"date_{u['username']}")
+                        target_date = col_date.date_input(f"Bitiş:", value=val_date, key=f"d_{u['username']}")
                         
-                        # 4. Sütun: GÜNCELLEME BUTONLARI
-                        if c4.button("✅ YETKİ VER", key=f"setvip_{u['username']}"):
-                            try:
-                                supabase.table("users").update({
-                                    "is_vip": True,
-                                    "last_barrow_date": str(new_date)
-                                }).eq("username", u['username']).execute()
-                                st.success(f"{u['username']} artık VIP! (Bitiş: {new_date})")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Hata: {e}")
-
+                        # İşlem Butonları
+                        if col_action.button("✅ YETKİ", key=f"btn_vip_{u['username']}"):
+                            supabase.table("users").update({
+                                "is_vip": True,
+                                "last_barrow_date": str(target_date)
+                            }).eq("username", u['username']).execute()
+                            st.success(f"{u['username']} güncellendi!")
+                            st.rerun()
+                        
                         if u['username'] != "someku":
-                            if c4.button("🗑️ SİL", key=f"ban_{u['username']}"):
+                            if col_action.button("🗑️ SİL", key=f"btn_del_{u['username']}"):
                                 supabase.table("users").delete().eq("username", u['username']).execute()
-                                st.warning(f"{u['username']} silindi.")
+                                st.warning("Silindi.")
                                 st.rerun()
                     st.markdown("---")
+
+        # --- B. OYUNCU DÜZENLEME ---
+        with adm_tabs[1]:
+            st.write("### ✍️ Oyuncu Verilerini Düzenle")
+            # Eski oyuncu düzenleme kodların buraya gelebilir...
+
+        # --- C. SİSTEM BAKIMI ---
+        with adm_tabs[2]:
+            if st.button("🔴 SİSTEMİ TAZELE (CACHE TEMİZLE)"):
+                st.cache_data.clear()
+                st.success("Tüm önbellek mermi gibi temizlendi!")
+    else:
+        st.warning("Bu bölgeye sadece **someku** girebilir!")
