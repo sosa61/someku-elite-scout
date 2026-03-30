@@ -353,6 +353,142 @@ with tabs[1]:
                 st.success("✅ Mermi listeye eklendi!")
     else:
         st.warning("Mermi bulunamadı hıyarto!")
+        
+        # --- 3. İLK 11 (V165 - SÜRÜKLE BIRAK & FULL DİZİLİŞ) ---
+with tabs[2]:
+    st.markdown('<h2 style="text-align:center;">🏟️ ELITE ARENA - TAKTİK TAHTASI</h2>', unsafe_allow_html=True)
+    
+    # --- FAVORİLERİ SADECE BU KULLANICI İÇİN ÇEK ---
+    curr_user = st.session_state.get('user')
+    try:
+        res_fav = supabase.table("favoriler").select("*").eq("kullanici_adi", curr_user).order("pa", desc=True).execute()
+        f_n = [f"{p['oyuncu_adi']} ({p['pa']})" for p in res_fav.data] if res_fav.data else ["Favori Mermi Yok"]
+    except:
+        f_n = ["Bağlantı Hatası"]
+
+    # --- DİZİLİŞ SEÇENEKLERİ ---
+    tactic = st.selectbox("🏟️ Ana Diziliş Seç (Oyuncuları Sürükleyebilirsin):", 
+                         ["4-3-3", "4-4-2", "4-2-3-1", "3-5-2", "5-3-2", "4-1-2-1-2 (Baklava)"], key="tactic_sel")
+    
+    st.info("💡 İpucu: Saha üzerindeki oyuncuları istediğin yere sürükleyip bırakabilirsin!")
+
+    # --- DİNAMİK POZİSYON ATAMALARI ---
+    st.markdown('<div style="color:#58a6ff; font-weight:bold; font-size:12px;">🛡️ DEFANS VE KALE</div>', unsafe_allow_html=True)
+    c1, c2, c3, c4, c5 = st.columns(5)
+    gk = c1.selectbox("GK", f_n, key="sl_gk"); lb = c2.selectbox("LB/LWB", f_n, key="sl_lb")
+    cb1 = c3.selectbox("CB1", f_n, key="sl_cb1"); cb2 = c4.selectbox("CB2", f_n, key="sl_cb2"); rb = c5.selectbox("RB/RWB", f_n, key="sl_rb")
+
+    st.markdown('<div style="color:#238636; font-weight:bold; font-size:12px;">⚡ ORTA SAHA VE HÜCUM</div>', unsafe_allow_html=True)
+    
+    # Dizilişlere göre seçim kutuları
+    if tactic == "4-4-2":
+        m1, m2, m3, m4 = st.columns(4)
+        lm = m1.selectbox("LM", f_n); cm1 = m2.selectbox("CM1", f_n); cm2 = m3.selectbox("CM2", f_n); rm = m4.selectbox("RM", f_n)
+        f1, f2 = st.columns(2)
+        st1 = f1.selectbox("ST1", f_n); st2 = f2.selectbox("ST2", f_n)
+        positions = [("GK",gk,84,39), ("LB",lb,67,2), ("CB",cb1,67,26), ("CB",cb2,67,51), ("RB",rb,67,75), ("LM",lm,40,2), ("CM",cm1,40,26), ("CM",cm2,40,51), ("RM",rm,40,75), ("ST",st1,13,26), ("ST",st2,13,51)]
+    
+    elif tactic == "4-2-3-1":
+        m1, m2, m3, m4, m5 = st.columns(5)
+        dm1 = m1.selectbox("CDM1", f_n); dm2 = m2.selectbox("CDM2", f_n); aml = m3.selectbox("LAM", f_n); amc = m4.selectbox("CAM", f_n); amr = m5.selectbox("RAM", f_n)
+        st1 = st.selectbox("ST", f_n)
+        positions = [("GK",gk,84,39), ("LB",lb,67,2), ("CB",cb1,67,26), ("CB",cb2,67,51), ("RB",rb,67,75), ("DM",dm1,50,26), ("DM",dm2,50,51), ("AM",aml,25,5), ("AM",amc,22,39), ("AM",amr,25,71), ("ST",st1,8,39)]
+
+    elif tactic == "3-5-2":
+        cb3 = st.selectbox("CB3", f_n)
+        m1, m2, m3, m4, m5 = st.columns(5)
+        lwb = m1.selectbox("LWB", f_n); cm1 = m2.selectbox("CM1", f_n); cdm = m3.selectbox("CDM", f_n); cm2 = m4.selectbox("CM2", f_n); rwb = m5.selectbox("RWB", f_n)
+        f1, f2 = st.columns(2)
+        st1 = f1.selectbox("ST1", f_n); st2 = f2.selectbox("ST2", f_n)
+        positions = [("GK",gk,84,39), ("CB",lb,72,12), ("CB",cb1,75,39), ("CB",cb2,72,66), ("LWB",lwb,45,2), ("DM",cdm,52,39), ("CM",cm1,43,23), ("CM",cm2,43,55), ("RWB",rwb,45,75), ("ST",st1,13,26), ("ST",st2,13,51)]
+
+    else: # Default 4-3-3
+        m1, m2, m3 = st.columns(3)
+        cm1 = m1.selectbox("LCM", f_n); cm2 = m2.selectbox("CM", f_n); cm3 = m3.selectbox("RCM", f_n)
+        f1, f2, f3 = st.columns(3)
+        lw = f1.selectbox("LW", f_n); st_p = f2.selectbox("ST", f_n); rw = f3.selectbox("RW", f_n)
+        positions = [("GK",gk,84,39), ("LB",lb,67,2), ("CB",cb1,67,26), ("CB",cb2,67,51), ("RB",rb,67,75), ("CM",cm1,43,10), ("CM",cm2,43,38), ("CM",cm3,43,66), ("LW",lw,14,5), ("ST",st_p,11,38), ("RW",rw,14,71)]
+
+    # --- HTML & JS (SÜRÜKLE BIRAK MOTORU) ---
+    players_divs = "".join([f'<div class="player draggable" style="top:{y}%; left:{x}%;" onmousedown="startDrag(event, this)"><div class="pos">{p}</div><div class="name">{n}</div></div>' for p, n, y, x in positions])
+
+    tahta_html = f"""
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <div id="capture" style="position:relative; background:#1e4620; border:4px solid #ffffff; border-radius:15px; width:360px; height:540px; margin:auto; overflow:hidden; background-image: radial-gradient(#2d5a27 1px, transparent 1px); background-size: 20px 20px;">
+        <div style="position:absolute; top:50%; left:0; width:100%; border-top:2px solid rgba(255,255,255,0.4);"></div>
+        <div style="position:absolute; top:40%; left:30%; width:40%; height:20%; border:2px solid rgba(255,255,255,0.4); border-radius:50%;"></div>
+        <div style="position:absolute; top:0; left:20%; width:60%; height:15%; border:2px solid rgba(255,255,255,0.4); border-top:none;"></div>
+        <div style="position:absolute; bottom:0; left:20%; width:60%; height:15%; border:2px solid rgba(255,255,255,0.4); border-bottom:none;"></div>
+        {players_divs}
+        <div style="position:absolute; bottom:5px; right:10px; color:rgba(255,255,255,0.3); font-size:9px;">SOMEKU ELITE SCOUT</div>
+    </div>
+    
+    <div style="text-align:center; margin-top:15px;">
+        <button onclick="downloadImage()" style="width:100%; padding:12px; background:#238636; color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">📸 KADROYU PNG OLARAK KAYDET</button>
+    </div>
+
+    <script>
+        let activeElement = null;
+        let currentX, currentY, initialX, initialY, xOffset = 0, yOffset = 0;
+
+        function startDrag(e, el) {{
+            activeElement = el;
+            if (e.type === "touchstart") {{
+                initialX = e.touches[0].clientX - xOffset;
+                initialY = e.touches[0].clientY - yOffset;
+            }} else {{
+                initialX = e.clientX - xOffset;
+                initialY = e.clientY - yOffset;
+            }}
+            document.addEventListener("mousemove", drag);
+            document.addEventListener("mouseup", endDrag);
+            document.addEventListener("touchmove", drag);
+            document.addEventListener("touchend", endDrag);
+        }}
+
+        function drag(e) {{
+            if (activeElement) {{
+                e.preventDefault();
+                let clientX = e.type === "touchmove" ? e.touches[0].clientX : e.clientX;
+                let clientY = e.type === "touchmove" ? e.touches[0].clientY : e.clientY;
+                
+                const rect = document.getElementById('capture').getBoundingClientRect();
+                let newX = ((clientX - rect.left - 39) / rect.width) * 100;
+                let newY = ((clientY - rect.top - 20) / rect.height) * 100;
+                
+                activeElement.style.left = newX + "%";
+                activeElement.style.top = newY + "%";
+            }}
+        }}
+
+        function endDrag() {{
+            activeElement = null;
+            document.removeEventListener("mousemove", drag);
+            document.removeEventListener("mouseup", endDrag);
+        }}
+
+        function downloadImage() {{
+            html2canvas(document.querySelector("#capture")).then(canvas => {{
+                let link = document.createElement('a');
+                link.download = 'mermi-kadro.png';
+                link.href = canvas.toDataURL();
+                link.click();
+            }});
+        }}
+    </script>
+    <style>
+        .player {{ position:absolute; background:rgba(13,17,23,0.9); border:1.5px solid #58a6ff; border-radius:8px; color:white; width:78px; padding:4px; text-align:center; cursor:move; transition: transform 0.1s; z-index:100; user-select:none; }}
+        .player:active {{ transform: scale(1.1); border-color:#f2cc60; box-shadow: 0 0 15px rgba(242,204,96,0.5); }}
+        .pos {{ font-size:9px; color:#58a6ff; font-weight:bold; text-transform:uppercase; pointer-events:none; }}
+        .name {{ font-size:10px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none; }}
+    </style>
+    """
+    st.components.v1.html(tahta_html, height=650)
+
+    # --- METİN ÇIKTISI ---
+    kadro_txt = f"Diziliş: {tactic}\nKullanıcı: {curr_user}\nTarih: {datetime.date.today()}\n" + "\n".join([f"{p[0]}: {p[1]}" for p in positions])
+    st.download_button(label="📄 KADRO LİSTESİNİ (.TXT) İNDİR", data=kadro_txt, file_name="mermi-kadro.txt", mime="text/plain", use_container_width=True)
+
 
 
 # --- 4. FAVORİLER (V149 - GÜNCEL TABLO UYUMLU) ---
