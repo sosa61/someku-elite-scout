@@ -87,31 +87,22 @@ if st.session_state.user is None:
     u_id = st.text_input("Kullanıcı Adı:")
     u_pw = st.text_input("Şifre:", type="password")
     
-            if st.button("Giriş"):
-            # 1. Kullanıcıyı veritabanında ara
-            res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
-            
-            if res.data:
-                user_data = res.data[0]
-                # 2. Kullanıcı ismini hafızaya al
-                st.session_state.user = u_id
-                # 3. VIP durumunu veritabanından çek ve ZORLA session'a işle
-                st.session_state['is_vip'] = bool(user_data.get('is_vip', False))
-                
-                # 4. 30 Günlük hatırlama parametresini URL'ye ekle
-                st.query_params["user"] = u_id
-                
-                st.success(f"Giriş Başarılı! VIP: {st.session_state.is_vip}")
-                st.rerun()
-            
-            # Kendi hesabın için yedek giriş (Veritabanı çökerse diye)
-            elif u_id == "someku" and u_pw == "286161":
-                st.session_state.user = u_id
-                st.session_state['is_vip'] = True
-                st.query_params["user"] = u_id
-                st.rerun()
-            else:
-                st.error("Hatalı kullanıcı adı veya şifre hıyarto!")
+    if st.button("Giriş"):
+        res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
+        
+        if res.data:
+            user_data = res.data[0]
+            st.session_state.user = u_id
+            st.session_state.is_vip = user_data.get("is_vip", False)
+            st.query_params["user"] = u_id
+            st.rerun()
+        elif u_id == "someku" and u_pw == "28616128Ok":
+            st.session_state.user = u_id
+            st.session_state.is_vip = True
+            st.query_params["user"] = u_id
+            st.rerun()
+        else:
+            st.error("❌ Hatalı kullanıcı adı veya şifre!")
 
     # --- KAYIT OLMA BÖLÜMÜ (Giriş Bloğunun İçinde Ama Butonun Altında) ---
     st.markdown("---")
