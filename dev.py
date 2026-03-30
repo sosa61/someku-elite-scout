@@ -62,50 +62,44 @@ if query_user and st.session_state.user is None:
     st.session_state.user = query_user
 
 
-# --- GİRİŞ ---
+# --- GİRİŞ VE KAYIT BÖLÜMÜ ---
 if st.session_state.user is None:
     st.markdown('<h1 style="text-align:center;">🕵️ SOMEKU SCOUT</h1>', unsafe_allow_html=True)
     u_id = st.text_input("Kullanıcı Adı:")
     u_pw = st.text_input("Şifre:", type="password")
     
     if st.button("Giriş"):
-        # Veritabanından tüm bilgileri (is_vip dahil) çekiyoruz
+        # Veritabanından tüm bilgileri çekiyoruz
         res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
         
-        # Giriş Başarılıysa
         if res.data:
             user_data = res.data[0]
             st.session_state.user = u_id
-            # VIP DURUMUNU BURADA HAFIZAYA ALIYORUZ
             st.session_state.is_vip = user_data.get("is_vip", False)
             st.query_params["user"] = u_id
             st.rerun()
-            
-        # Senin Özel Girişin (Admin Girişi)
         elif u_id == "someku" and u_pw == "28616128Ok":
             st.session_state.user = u_id
-            st.session_state.is_vip = True # Seni otomatik VIP yapar
+            st.session_state.is_vip = True
             st.query_params["user"] = u_id
             st.rerun()
         else:
-            
+            st.error("❌ Hatalı kullanıcı adı veya şifre!")
     
-            # --- KAYIT OLMA BÖLÜMÜ ---
+    # --- KAYIT OLMA BÖLÜMÜ (Giriş Bloğunun İçinde Ama Butonun Altında) ---
     st.markdown("---")
     with st.expander("✨ Hesabın yok mu? Hemen Kayıt Ol"):
         new_user = st.text_input("Yeni Kullanıcı Adı:", key="reg_user")
-        new_email = st.text_input("E-posta Adresi:", key="reg_email") # MAİL BURADA
+        new_email = st.text_input("E-posta Adresi:", key="reg_email")
         new_pw = st.text_input("Yeni Şifre:", type="password", key="reg_pw")
         
         if st.button("Kayıt Ol", use_container_width=True):
             if new_user and new_email and new_pw:
-                # Veritabanında bu kullanıcı adı veya mail var mı bak
                 check = supabase.table("users").select("*").or_(f"username.eq.{new_user},email.eq.{new_email}").execute()
                 
                 if check.data:
                     st.error("❌ Bu kullanıcı adı veya e-posta zaten kullanılıyor!")
                 else:
-                    # Yeni kullanıcıyı is_vip=False olarak mermi gibi kaydet
                     data = {
                         "username": new_user,
                         "email": new_email,
@@ -116,9 +110,10 @@ if st.session_state.user is None:
                     supabase.table("users").insert(data).execute()
                     st.success("✅ Kayıt başarılı! Yukarıdan giriş yapabilirsin.")
             else:
-
                 st.warning("⚠️ Lütfen tüm alanları doldur!")
-st.stop()
+                
+    # Giriş yapmayan herkesi burada durduruyoruz
+    st.stop()
 
 tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🕵️ YETENEK AVI", "🤖 BARROW AI", "🛠️ ADMIN"])
 
