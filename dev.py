@@ -159,7 +159,7 @@ with tabs[0]:
 
             with cols[i%2]:
                 # --- 🛡️ VIP KİLİT KONTROLÜ BAŞLIYOR ---
-                if pa_val > 145 and user_is_vip is False:
+                if pa_val > 150 and user_is_vip is False:
                     st.markdown(f'''
                     <div style="padding:15px; border-radius:12px; margin-bottom:10px; border: 2px dashed #f2cc60; background: rgba(242, 204, 96, 0.05); text-align:center;">
                         <span style="background:#f2cc60; color:black; padding:2px 8px; border-radius:5px; font-size:10px; font-weight:bold;">💎 ELİT YETENEK KİLİTLİ</span>
