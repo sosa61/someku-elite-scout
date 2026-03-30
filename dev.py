@@ -66,7 +66,35 @@ if st.session_state.user is None:
             st.query_params["user"] = u_id; st.rerun()
     st.stop()
 
-tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🕵️ YETENEK AVI", "🤖 BARROW AI", "🛠️ ADMIN"])
+# --- SOL MENÜ YAPISI ---
+with st.sidebar:
+    st.title("⚽ SCOUT PANELİ")
+    # Menü seçeneklerini buraya ekle
+    secenek = st.radio(
+        "GİTMEK İSTEDİĞİNİZ YER:",
+        ["🏠 ANA SAYFA", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🕵️ YETENEK AVI", "🤖 BARROW AI", "🛠️ ADMIN"],
+        index=4  # Varsayılan olarak Yetenek Avı açık gelsin istersen 4 yap
+    )
+    st.markdown("---")
+    st.caption(f"Giriş Yapan: {st.session_state.user}")
+
+# --- İÇERİK YÖNETİMİ ---
+# Eski 'with tabs[4]:' yerine artık 'if' yapısı kullanıyoruz:
+
+if secenek == "🕵️ YETENEK AVI":
+    # Buraya en son verdiğim V440 kodlarını (fonksiyonlar dahil) aynen yapıştır
+    import unicodedata
+    st.markdown('<h2 style="text-align:center; color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h2>', unsafe_allow_html=True)
+    
+    # ... (Buraya V440 fonksiyonlarını ve oyun kodlarını koy) ...
+
+elif secenek == "🎰 RULET":
+    st.write("Rulet içeriği buraya...")
+
+elif secenek == "🏠 ANA SAYFA":
+    st.write("Ana sayfa içeriği buraya...")
+
+# Diğer sekmeleri de bu şekilde 'elif' ile bağla.
 
 
 # --- 1. SCOUT (V173 - YENİ TABLO UYUMLU VE HATASIZ) ---
