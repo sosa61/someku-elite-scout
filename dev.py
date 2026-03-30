@@ -89,7 +89,7 @@ if st.session_state.user is None:
             st.rerun()
         else:
             st.error("Hatalı kullanıcı adı veya şifre!")
-    st.stop()
+    
     
             # --- KAYIT OLMA BÖLÜMÜ ---
     st.markdown("---")
@@ -119,7 +119,7 @@ if st.session_state.user is None:
             else:
 
                 st.warning("⚠️ Lütfen tüm alanları doldur!")
-
+st.stop()
 
 tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🕵️ YETENEK AVI", "🤖 BARROW AI", "🛠️ ADMIN"])
 
