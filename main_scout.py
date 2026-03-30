@@ -22,43 +22,37 @@ st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️"
 
 import streamlit as st
 
-# --- REKLAMIN ÜZERİNİ ÖRTME OPERASYONU ---
+# --- İNATÇI REKLAMI GÖMME OPERASYONU (V4 - SON MERMİ) ---
 st.markdown("""
     <style>
-    /* Üst taraftaki kalabalığı uçurur */
+    /* Üst ve alt kalabalıkları komple uçurur */
     header {visibility: hidden !important;}
+    footer {visibility: hidden !important; display: none !important;}
     .stAppDeployButton {display:none !important;}
 
-    /* Reklam bandının üzerine siyah bir perde çeker */
-    footer {
-        visibility: hidden !important;
-        display: none !important;
-    }
-
-    /* Ekranın en altına yapışık, dükkanın renginde bir bar ekler */
-    .stApp::after {
+    /* Ekranın en altına mermi gibi bir bar çeker */
+    [data-testid="stAppViewContainer"]::after {
         content: 'SOMEKU SCOUT 🕵️‍♂️ - Tüm Hakları Saklıdır';
         display: block;
         position: fixed;
         bottom: 0;
         left: 0;
         width: 100%;
-        height: 50px;
-        background-color: #0e1117; /* Dükkanın arka plan rengiyle aynı yap */
+        height: 40px;
+        background-color: #0e1117; /* Dükkanın arka planı siyahsa kalsın */
         color: #ffffff;
         text-align: center;
-        line-height: 50px;
-        font-size: 12px;
-        z-index: 999999; /* Reklamın üstüne çıkmasını sağlar */
+        line-height: 40px;
+        font-size: 11px;
+        z-index: 2147483647; /* İnternetin en yüksek katmanı! */
     }
 
-    /* Sayfanın en altındaki boşluğu daraltır */
+    /* Sayfanın en altındaki boşluğu ayarlar */
     .main .block-container {
-        padding-bottom: 60px !important;
+        padding-bottom: 50px !important;
     }
     </style>
     """, unsafe_allow_html=True)
-
 
 # --- 🔄 GÜÇLENDİRİLMİŞ VIP TAZELEME MOTORU (V183) ---
 if "user" in st.session_state and st.session_state.get('user'):
