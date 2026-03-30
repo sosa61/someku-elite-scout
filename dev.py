@@ -6,6 +6,9 @@ import random
 import time
 import re
 import streamlit.components.v1 as components
+import pandas as pd
+import matplotlib.pyplot as plt
+
 
 # --- BAĞLANTI AYARLARI ---
 URL = "https://iwgowefraytdbcdgeqdz.supabase.co"
