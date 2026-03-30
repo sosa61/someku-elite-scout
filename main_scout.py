@@ -20,6 +20,20 @@ supabase: Client = create_client(URL, KEY)
 # --- SAYFA AYARLARI ---
 st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️")
 
+# --- TASARIM TEMİZLEME (Mermi Gibi) ---
+hide_st_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            .stAppDeployButton {display:none;}
+            [data-testid="stStatusWidget"] {display:none;}
+            [data-testid="stHeader"] {display:none;}
+            </style>
+            """
+st.markdown(hide_st_style, unsafe_allow_html=True)
+
+
 # --- 🔄 GÜÇLENDİRİLMİŞ VIP TAZELEME MOTORU (V183) ---
 if "user" in st.session_state and st.session_state.get('user'):
     try:
