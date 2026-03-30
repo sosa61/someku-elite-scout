@@ -392,7 +392,7 @@ with tabs[3]:
     else:
         st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
         
-# --- 5. GİZLİ YETENEK AVI (V310 - JİLET TABLO) ---
+# --- 5. GİZLİ YETENEK AVI (V320 - KESİN ÇÖZÜM) ---
 with tabs[4]:
     st.markdown('<h2 style="text-align:center; color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h2>', unsafe_allow_html=True)
     
@@ -413,7 +413,7 @@ with tabs[4]:
             c = supabase.table("users").select("puan").eq("username", user).execute()
             eski_puan = c.data[0].get("puan", 0) if c.data else 0
             yeni_puan = eski_puan + artis
-            if yeni_puan < 0: yeni_puan = 0 # 0 Koruması
+            if yeni_puan < 0: yeni_puan = 0 # 0'ın altına düşürme
             supabase.table("users").update({"puan": yeni_puan}).eq("username", user).execute()
         except: pass
 
@@ -421,9 +421,9 @@ with tabs[4]:
     if 'game_active' not in st.session_state: st.session_state.game_active = False
     if 'target_p' not in st.session_state: st.session_state.target_p = None
 
-    # --- 3. OYUN BAŞLATMA (Takımsız ve CA/PA Filtreli) ---
+    # --- 3. OYUN BAŞLATMA ---
     if st.button("🚀 YENİ AV BAŞLAT (Doğru: +1 | Yanlış: -1)", use_container_width=True):
-        # Takımı olan, CA ve PA'sı olan mermiler
+        # Takımı olan ve PA 165+ olan mermiler
         res_g = supabase.table("oyuncular").select("*").not_.eq("kulup", "None").gte("pa", 165).limit(300).execute()
         if res_g.data:
             st.session_state.target_p = random.choice(res_g.data)
@@ -447,7 +447,7 @@ with tabs[4]:
                 <h1 style="text-align:center; font-size:60px; color:#58a6ff; letter-spacing:10px;">????</h1>
             """, unsafe_allow_html=True)
 
-            tahmin = st.text_input("Tahmin (Soyadı):", key="game_guess_v310").strip().lower()
+            tahmin = st.text_input("Tahmin:", key="game_guess_v320").strip().lower()
             if tahmin and tahmin in p['oyuncu_adi'].lower():
                 st.session_state.game_active = False
                 skor_yaz(st.session_state.user, 1)
@@ -461,36 +461,38 @@ with tabs[4]:
 
     st.markdown("---")
     
-    # --- 4. LİDERLİK TABLOSU (TAMİR EDİLDİ) ---
+    # --- 4. LİDERLİK TABLOSU (MÜHÜRLENMİŞ VERSİYON) ---
     st.markdown("### 🏆 TOP 10 ELITE SCOUTS")
     try:
-        leaders = supabase.table("users").select("username, puan").order("puan", desc=True).limit(10).execute()
-        if leaders.data:
-            # TÜM TABLOYU TEK BİR DEĞİŞKENDE TOPLUYORUZ (ÖNEMLİ!)
-            full_html = '<table style="width:100%; border-collapse: collapse; background:#161b22; border-radius:10px; overflow:hidden;">'
-            full_html += '<tr style="background:#21262d; color:#8b949e;"><th style="padding:12px; text-align:left;">SIRA</th><th style="padding:12px; text-align:left;">SCOUT</th><th style="padding:12px; text-align:left;">PUAN</th></tr>'
+        leaders_res = supabase.table("users").select("username, puan").order("puan", desc=True).limit(10).execute()
+        if leaders_res.data:
+            # Tüm tabloyu tek bir stringde topluyoruz
+            table_string = '<table style="width:100%; border-collapse: collapse; background:#161b22; border-radius:10px; overflow:hidden;">'
+            table_string += '<tr style="background:#21262d; color:#8b949e;"><th style="padding:12px; text-align:left;">SIRA</th><th style="padding:12px; text-align:left;">SCOUT</th><th style="padding:12px; text-align:left;">PUAN</th></tr>'
             
-            for i, u in enumerate(leaders.data):
+            for i, user in enumerate(leaders_res.data):
                 rank = i + 1
                 icon = "👑" if rank == 1 else ("🥈" if rank == 2 else ("🥉" if rank == 3 else "🏃"))
-                name_style = 'style="color:#f2cc60; font-weight:bold;"' if rank == 1 else ""
-                p_val = u.get("puan", 0)
+                name_color = 'style="color:#f2cc60; font-weight:bold;"' if rank == 1 else ""
+                score = user.get("puan", 0)
                 
-                # Her satırı full_html içine ekliyoruz
-                full_html += f'''
+                # Her oyuncuyu table_string'e ekle
+                table_string += f'''
                 <tr style="border-bottom: 1px solid #30363d;">
                     <td style="padding:12px;">{icon} {rank}</td>
-                    <td style="padding:12px;" {name_style}>{u["username"]}</td>
-                    <td style="padding:12px;"><span style="background:#238636; color:white; padding:2px 8px; border-radius:5px; font-weight:bold;">{p_val} PT</span></td>
+                    <td style="padding:12px;" {name_color}>{user["username"]}</td>
+                    <td style="padding:12px;"><span style="background:#238636; color:white; padding:2px 8px; border-radius:5px; font-weight:bold;">{score} PT</span></td>
                 </tr>
                 '''
             
-            full_html += '</table>'
+            # Tabloyu Kapatıyoruz
+            table_string += '</table>'
             
-            # ŞİMDİ TEK SEFERDE BASIYORUZ (HATA BURADAYDI)
-            st.markdown(full_html, unsafe_allow_html=True)
+            # KRİTİK: DÖNGÜDEN ÇIKINCA TEK BİR MARLOW SATIRIYLA BASIYORUZ
+            st.markdown(table_string, unsafe_allow_html=True)
+            
     except Exception as e:
-        st.write("Tablo yüklenemedi.")
+        st.write("Tablo yüklenirken bir hata oluştu.")
 
 # --- 5. BARROW AI (V178 - ÖRNEK OYUNCU VE GENÇ YETENEK ZEKASI) ---
 with tabs[5]:
