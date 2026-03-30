@@ -357,51 +357,69 @@ with tabs[2]:
         use_container_width=True
     )
 
-# --- 4. FAVORİLER (V180 - ANALİZ PANELLİ SÜRÜM) ---
+# --- 4. FAVORİLER (V181 - GÜNCEL ANALİZ VE SADE TASARIM) ---
 with tabs[3]:
     st.markdown('<h2 style="text-align:center; color:#f2cc60;">⭐ FAVORİ SCOUT LİSTEM</h2>', unsafe_allow_html=True)
     
     # Favori Verilerini Çek
-    res_f = supabase.table("favoriler").select("*").order("pa", desc=True).execute()
+    try:
+        res_f = supabase.table("favoriler").select("*").order("pa", desc=True).execute()
+    except Exception as e:
+        st.error(f"Veri çekme hatası: {e}")
+        res_f = None
     
-    if res_f.data:
+    if res_f and res_f.data:
         df_fav = pd.DataFrame(res_f.data)
         
-        # --- ÜST ANALİZ PANELİ (GRAFİKLER) ---
-        with st.expander("📊 LİSTE ANALİZİNİ GÖR (Mevki ve Potansiyel)", expanded=True):
+        # --- ÜST ANALİZ PANELİ (SADELEŞTİRİLMİŞ GRAFİK VE METRİK) ---
+        with st.expander("📊 LİSTE ANALİZİNİ GÖR (Mevki ve Ort. Potansiyel)", expanded=True):
             c1, c2 = st.columns(2)
             
             with c1:
-                # 1. Mevki Dağılımı Grafiği
-                m_counts = df_fav['mevki'].value_counts()
-                fig_pie, ax_pie = plt.subplots(figsize=(5, 5))
-                fig_pie.patch.set_facecolor('#0e1117') # Arka plan uyumu
-                
-                colors = ['#ff4b4b', '#58a6ff', '#238636', '#f2cc60', '#8e44ad']
-                ax_pie.pie(m_counts, labels=m_counts.index, autopct='%1.1f%%', 
-                          startangle=140, colors=colors, textprops={'color':"w", 'fontsize':10})
-                ax_pie.set_title("Mevki Dağılımı", color="white", fontsize=12)
-                st.pyplot(fig_pie)
+                # 1. Mevki Dağılımı (Türkçe ve Farklı Renkli Pasta)
+                st.markdown("##### 🍕 Kadro Dengesi (Mevkiler)")
+                if not df_fav.empty and 'mevki' in df_fav.columns:
+                    m_counts = df_fav['mevki'].value_counts()
+                    fig_pie, ax_pie = plt.subplots(figsize=(5, 5))
+                    fig_pie.patch.set_facecolor('#0e1117')
+                    
+                    # DAHA FARKLI VE CANLI RENKLER (Türkçe Etiketlerle)
+                    # Buradaki renk kodlarını istediğin gibi değiştirebilirsin
+                    new_colors = ['#FF5733', '#33FF57', '#3357FF', '#FF33A8', '#33FFF5', '#F5FF33', '#FF8C33']
+                    
+                    # Mevki isimlerini türkçeleştirme (opsiyonel, eğer veritabanında türkçe değilse)
+                    # labels = [POS_TR_TERSI.get(m, m) for m in m_counts.index]
+                    # labels = m_counts.index # Veritabanındaki mevki isimlerini kullan
+                    
+                    patches, texts, autotexts = ax_pie.pie(m_counts, 
+                                                            labels=m_counts.index, 
+                                                            autopct='%1.1f%%', 
+                                                            startangle=140, 
+                                                            colors=new_colors, 
+                                                            textprops={'color':"w", 'fontsize':10})
+                    
+                    # Pasta dilimlerinin etrafına beyaz ince çizgi ekleyelim
+                    plt.setp(patches, edgecolor='white', linewidth=0.5)
+                    
+                    ax_pie.axis('equal') 
+                    st.pyplot(fig_pie)
+                else:
+                    st.warning("Grafik için mevki verisi bulunamadı.")
             
             with c2:
-                # 2. Ortalama PA Göstergesi
-                avg_pa = round(df_fav['pa'].mean(), 1)
-                st.metric("Ortalama Potansiyel (PA)", f"{avg_pa}")
-                
-                # Potansiyel Grafiği (Sütun)
-                pa_bins = pd.cut(df_fav['pa'], bins=[130, 150, 170, 190, 200], 
-                                labels=['Yedek', 'As', 'Elite', 'Legend'])
-                pa_counts = pa_bins.value_counts().sort_index()
-                
-                fig_bar, ax_bar = plt.subplots(figsize=(5, 4))
-                fig_bar.patch.set_facecolor('#0e1117')
-                ax_bar.set_facecolor('#1a1a1a')
-                
-                pa_counts.plot(kind='bar', color='#238636', ax=ax_bar)
-                ax_bar.tick_params(colors='white', labelsize=10)
-                ax_bar.set_title("Kalite Seviyeleri", color="white")
-                plt.xticks(rotation=0)
-                st.pyplot(fig_bar)
+                # 2. Ortalama PA (Türkçe Metrik)
+                if not df_fav.empty and 'pa' in df_fav.columns:
+                    avg_pa = round(df_fav['pa'].mean(), 1)
+                    st.metric("💎 Ortalama Potansiyel (PA)", f"{avg_pa}")
+                    
+                    st.write("") # Boşluk
+                    st.write("") # Boşluk
+                    
+                    # Kalite seviyesi grafiğini kaldırdım, buraya not ekleyelim
+                    st.info(f"Listenizde şu an **{len(df_fav)}** elite mermi bulunuyor.")
+                    
+                else:
+                    st.metric("💎 Ortalama Potansiyel (PA)", "0.0")
 
         st.markdown("---")
         
@@ -415,7 +433,7 @@ with tabs[3]:
                     <span style="position:absolute; top:10px; right:10px; background:#238636; color:white; padding:2px 8px; border-radius:5px; font-size:11px; font-weight:bold;">PA: {p["pa"]}</span>
                     <h4 style="margin:0;">{p["oyuncu_adi"]}</h4>
                     <p style="font-size:11px; color:#8b949e; margin:5px 0;">🏟️ {p.get("kulup","Serbest")} | 👟 {p["mevki"]}</p>
-                    <a href="{tm_url}" target="_blank" style="color:#58a6ff; font-size:11px; text-decoration:none;">Transfermarkt ➔</a>
+                    <a href="{tm_url}" target="_blank" style="color:#58a6ff; font-size:11px; text-decoration:none;">Transfermarkt Profili ➔</a>
                 </div>
                 ''', unsafe_allow_html=True)
                 
