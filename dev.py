@@ -49,6 +49,19 @@ def get_user_favs(username):
         return [f['oyuncu_adi'] for f in res.data]
     except: return []
 
+# --- OTURUM AYARLARI (EN ÜSTTE OLMALI) ---
+if 'page' not in st.session_state: st.session_state.page = 0
+if 'user' not in st.session_state: st.session_state.user = None # Hata almamak için bunu ekle
+if 'is_vip' not in st.session_state: st.session_state.is_vip = False # VIP durumunu sıfırla
+if 'fav_list' not in st.session_state: st.session_state.fav_list = []
+if 'roulette_player' not in st.session_state: st.session_state.roulette_player = None
+
+# Query Params'tan kullanıcıyı almayı deniyoruz (Sayfa yenilenince giriş kalsın diye)
+query_user = st.query_params.get("user", None)
+if query_user and st.session_state.user is None:
+    st.session_state.user = query_user
+
+
 # --- GİRİŞ ---
 if st.session_state.user is None:
     st.markdown('<h1 style="text-align:center;">🕵️ SOMEKU SCOUT</h1>', unsafe_allow_html=True)
