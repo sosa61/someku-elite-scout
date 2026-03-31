@@ -80,20 +80,24 @@ if 'is_vip' not in st.session_state: st.session_state.is_vip = False # VIP durum
 if 'fav_list' not in st.session_state: st.session_state.fav_list = []
 if 'roulette_player' not in st.session_state: st.session_state.roulette_player = None
 
-# --- 1. ÖNCE URL'DEN KULLANICIYI ÇEK ---
+# --- 1. OTURUM VE URL BİLGİLERİNİ HAZIRLA ---
 query_user = st.query_params.get("user", None)
+giris_yapan_kisi = st.session_state.get("user")
 
-# --- 2. GÜVENLİK KONTROLÜ (GİRİŞTEN SONRA ÇALIŞACAK ŞEKİLDE) ---
-def guvenlik_kontrolu():
-    giris_yapan_kisi = st.session_state.get("user")
-    # Burada giriş formunun başarıyla geçtiğini kontrol ediyoruz
-    if giris_yapan_kisi:
-        if query_user and query_user != giris_yapan_kisi:
-            st.error("⛔ Burası senin mahremin değil! Sadece kendi profilini görebilirsin.")
-            st.stop()
+# --- 2. ZIRHLI GÜVENLİK SÜZGECİ ---
+if query_user:
+    # Eğer adam giriş YAPMAMIŞSA (Hafızada kullanıcı yoksa)
+    if not giris_yapan_kisi:
+        # Sadece giriş ekranını görmesine izin ver, içeriği yükleme
+        pass 
+    # Eğer giriş YAPMIŞSA ama başkasının linkine sızmaya çalışıyorsa
+    elif giris_yapan_kisi != query_user:
+        st.error("⛔ Burası senin mahremin değil! Kendi profiline yönlendiriliyorsun...")
+        st.stop()
 
-# --- 3. OTURUM AYARLARI VE GİRİŞ BÖLÜMÜNDEN HEMEN SONRA BU FONKSİYONU ÇAĞIR ---
-# (Kodun ilerleyen kısımlarında giriş başarılı olduktan sonra guvenlik_kontrolu() yazacağız)
+# --- 3. F5 SONRASI HAFIZAYI TAZELE ---
+if query_user and st.session_state.get("user") is None:
+    st.session_state.user = query_user
 
 # 2. Senaryo: Giriş yapmış ama başkasının linkine sızmaya çalışıyorsa
 if giris_dogrulandi_mi and query_user:
