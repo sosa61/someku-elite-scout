@@ -13,6 +13,22 @@ import subprocess
 import threading  # İşte eksik olan mermi bu!
 import unicodedata
 
+# --- 1. OTURUM KONTROLÜ (DAHA HİÇBİR VERİ YÜKLENMEDEN) ---
+query_user = st.query_params.get("user", None)
+is_authenticated = st.session_state.get("authenticated", False)
+logged_in_user = st.session_state.get("user")
+
+# --- 2. ZIRHLI BARİKAT ---
+if query_user:
+    # Şifreyle giriş yapılmamışsa VEYA giriş yapan kişi URL'deki kişi değilse
+    if not is_authenticated or logged_in_user != query_user:
+        st.warning("⚠️ Bu alan şifrelidir. Lütfen önce giriş yapın.")
+        
+        # Giriş formunu burada gösterip geri kalan her şeyi durduruyoruz
+        # (Burada login fonksiyonun hangisiyse onu çağırabilirsin, 
+        # ama en güvenlisi st.stop() ile dükkanı tamamen kilitlemektir)
+        st.stop()
+
 
 
 
