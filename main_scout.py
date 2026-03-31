@@ -109,7 +109,7 @@ if st.session_state.get('user') is None:
             st.session_state.is_vip = user_data.get("is_vip", False)
             st.query_params["user"] = u_id # URL'ye de anahtarı ekle
             st.rerun()
-        elif u_id == "someku" and u_pw == "286161280": # Manuel Bypass
+        elif u_id == "someku" and u_pw == "28616128Ok": # Manuel Bypass
             st.session_state.user = u_id
             st.session_state.is_vip = True
             st.query_params["user"] = u_id
