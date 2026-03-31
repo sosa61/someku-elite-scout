@@ -80,19 +80,22 @@ if 'is_vip' not in st.session_state: st.session_state.is_vip = False # VIP durum
 if 'fav_list' not in st.session_state: st.session_state.fav_list = []
 if 'roulette_player' not in st.session_state: st.session_state.roulette_player = None
 
-## --- AKILLI GÜVENLİK KİLİDİ (F5 DOSTU) ---
+# --- KESİN GÜVENLİK KİLİDİ (ŞİFRE ŞART) ---
 query_user = st.query_params.get("user", None)
 giris_yapan_kisi = st.session_state.get("user")
+# Şifre kontrolü değişkenin neyse onu buraya ekliyoruz (Genelde authenticated olur)
+giris_dogrulandi_mi = st.session_state.get("authenticated", False)
 
-# 1. Eğer kullanıcı zaten giriş yapmışsa ama başkasının linkine gitmeye çalışıyorsa DURDUR
-if giris_yapan_kisi and query_user:
+# 1. Senaryo: Adam linkle geliyor ama şifre girmemişse (Authenticated değilse)
+if query_user and not giris_dogrulandi_mi:
+    st.warning("⚠️ Önce kullanıcı adın ve şifrenle giriş yapmalısın!")
+    st.stop() # Dükkanın içindeki verileri çekmeyi durdurur
+
+# 2. Senaryo: Giriş yapmış ama başkasının linkine sızmaya çalışıyorsa
+if giris_dogrulandi_mi and query_user:
     if giris_yapan_kisi != query_user:
-        st.error("⛔ Burası senin mahremin değil! Kendi profiline yönlendiriliyorsun...")
+        st.error("⛔ Burası senin mahremin değil! Sadece kendi profilini görebilirsin.")
         st.stop()
-
-# 2. Eğer giriş yapılmamışsa ama URL'de isim varsa, o ismi hatırla (F5 sonrası için)
-if query_user and st.session_state.get("user") is None:
-    st.session_state.user = query_user
         
 # --- GİRİŞ VE KAYIT BÖLÜMÜ ---
 if st.session_state.user is None:
