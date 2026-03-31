@@ -13,7 +13,7 @@ import subprocess
 import threading
 import unicodedata
 
-# --- 1. BAĞLANTI AYARLARI (TERTEMİZ ANAHTAR) ---
+# --- 1. BAĞLANTI AYARLARI ---
 URL = "https://iwgowefraytdbcdgeqdz.supabase.co"
 KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3Z293ZWZyYXl0ZGJjZGdleWR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2MDYxOTAsImV4cCI6MjA1NjE4MjE5MH0.zEjhpC3mi0IkWyYUaG8OFvsAe-IBD4XcR7a2l2mflj4Y0HJfuguU2m-o"
 supabase = create_client(URL, KEY)
@@ -23,6 +23,7 @@ if 'authenticated' not in st.session_state: st.session_state.authenticated = Fal
 if 'user' not in st.session_state: st.session_state.user = None
 if 'is_vip' not in st.session_state: st.session_state.is_vip = False
 if 'fav_list' not in st.session_state: st.session_state.fav_list = []
+if 'page' not in st.session_state: st.session_state.page = 0
 
 # --- 3. GÜVENLİK VE TEK GİRİŞ KAPISI ---
 query_user = st.query_params.get("user", None)
@@ -32,7 +33,7 @@ logged_in_user = st.session_state.get("user")
 # Linkle sızma kontrolü
 if query_user and is_authenticated:
     if logged_in_user != query_user:
-        st.error("⛔ Burası senin mahremin değil! Sadece kendi profilini görebilirsin.")
+        st.error("⛔ Burası senin mahremin değil!")
         st.stop()
 
 # Giriş Ekranı (Eğer şifre girilmemişse)
@@ -62,90 +63,27 @@ if not is_authenticated:
                     st.query_params["user"] = u_id
                     st.rerun()
                 else:
-                    st.error("❌ Hatalı kullanıcı adı veya şifre!")
+                    st.error("❌ Hatalı giriş!")
             except Exception as e:
                 st.error(f"⚠️ Veritabanı Hatası: {e}")
 
     with tab2:
-        st.info("Yeni
+        st.info("Yeni bir hesap oluşturun.")
+        n_user = st.text_input("Yeni Kullanıcı Adı:", key="main_r_user")
+        n_pw = st.text_input("Yeni Şifre:", type="password", key="main_r_pw")
+        if st.button("Hemen Kayıt Ol"):
+            if n_user and n_pw:
+                try:
+                    supabase.table("users").insert({"username": n_user, "password": n_pw, "is_vip": False}).execute()
+                    st.success("✅ Kayıt başarılı! Giriş sekmesine dönüp girebilirsin.")
+                except:
+                    st.error("❌ Bu kullanıcı adı zaten alınmış!")
 
-# --- SAYFA AYARLARI ---
-st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️")
+    st.stop()
 
-# --- 🔄 GÜÇLENDİRİLMİŞ VIP TAZELEME MOTORU (V183) ---
-if "user" in st.session_state and st.session_state.get('user'):
-    try:
-        # Veritabanından durumu çekiyoruz
-        v_res = supabase.table("users").select("is_vip").eq("username", st.session_state.user).execute()
-        
-        if v_res.data and len(v_res.data) > 0:
-            # VIP bilgisini boolean (True/False) olarak zorla işle
-            st.session_state['is_vip'] = bool(v_res.data[0].get('is_vip', False))
-    except Exception as e:
-        # Hata olursa sistemi kilitleme, sessizce devam et
-        pass
-
-
-# BURADAN SONRA TASARIM CSS KODLARIN DEVAM ETSİN
-
-
-# --- TASARIM (CSS) ---
-st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
-    .stApp { background-color: #0d1117; color: white; }
-    .player-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; margin-bottom: 15px; border-left: 5px solid #3b82f6; transition: 0.3s; }
-    .fav-active { border: 2px solid #f2cc60 !important; border-left: 10px solid #f2cc60 !important; box-shadow: 0 0 15px rgba(242,204,96,0.2); }
-    .pa-badge { background: #238636; color: white; padding: 4px 12px; border-radius: 8px; font-weight: bold; float: right; font-size: 1.1rem; }
-    .ann-box { background: #1c2128; border: 1px solid #30363d; padding: 15px; border-radius: 10px; color: #58a6ff; text-align: center; margin-bottom: 20px; border-bottom: 3px solid #3b82f6; font-weight: bold; }
-    .barrow-box { background: #000000; border: 2px solid #ef4444; border-radius: 8px; padding: 20px; margin: 15px 0; }
-    .barrow-text { font-family: 'JetBrains Mono', monospace; color: #ff0000; font-size: 1.1rem; font-weight: bold; }
-    .tm-link { color: #58a6ff !important; text-decoration: none; border: 1px solid #58a6ff; padding: 3px 10px; border-radius: 5px; font-size: 12px; display: inline-block; margin-top: 10px; }
-    .section-header { background: #21262d; padding: 10px; border-radius: 8px; margin: 20px 0 10px 0; border-left: 5px solid #58a6ff; font-weight: bold; }
-    .page-indicator { background: #3b82f6; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; margin: 10px 0; display: inline-block; }
-    </style>
-""", unsafe_allow_html=True)
-
-# --- BARROW ZEKA ---
-BARROW_INSULTS = ["Cebinde kuruş yok hala elit oyuncu peşindesin. Al şunu dua et.", "Taktik bilgin zayıf, bari oyuncun düzgün olsun.", "Yine mi geldin? Barrow senin için mermiyi buldu.", "Bak buraya hıyarto, bütçene göre en mermisi budur."]
-BARROW_KNOWLEDGE = {
-    "messi": ["AM R", "ST", "AM C"], "mbappe": ["ST", "AM L"], "ronaldo": ["ST", "AM L"], "van dijk": ["D C"],
-    "kaleci": ["GK"], "stoper": ["D C"], "sol bek": ["D L"], "sağ bek": ["D R"], "bek": ["D L", "D R"],
-    "orta saha": ["M C", "DM", "AM C"], "forvet": ["ST"], "golcü": ["ST"], "kanat": ["AM L", "AM R"]
-}
-
-def get_user_favs(username):
-    try:
-        res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", username).execute()
-        return [f['oyuncu_adi'] for f in res.data]
-    except: return []
-
-    
-    # --- YAN MENÜ (SIDEBAR) AYARLARI ---
-with st.sidebar:
-    st.markdown(f"### 👤 Hoş geldin, {st.session_state.user}")
-    
-    # VIP Durumunu Göster (Gözüksün ki adam gurur duysun)
-    if st.session_state.get('is_vip', False):
-        st.success("🌟 VIP SCOUT ÜYESİ")
-    else:
-        st.info("🆓 STANDART ÜYE")
-    
-    st.markdown("---")
-    
-    # --- GÜVENLİ ÇIKIŞ BUTONU ---
-    if st.button("🚪 Güvenli Çıkış Yap", use_container_width=True):
-        # Session verilerini mermi gibi temizle
-        st.session_state.user = None
-        st.session_state.is_vip = False
-        # URL'deki kullanıcı parametresini sil
-        st.query_params.clear()
-        st.success("Başarıyla çıkış yapıldı. Yönlendiriliyorsun...")
-        st.rerun() # Sayfayı yenileyip giriş ekranına atar
-
-
-tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🕵️ YETENEK AVI", "🤖 BARROW AI", "🛠️ ADMIN"])
-
+# --- 4. 🔄 GÜÇLENDİRİLMİŞ VIP TAZELEME MOTORU ---
+# Bu kısım sadece giriş başarılı olduktan sonra çalışır
+if st.session_state.get('user'):
 # --- 1. SCOUT ---
 with tabs[0]:
     POS_TR = {"Hepsi": "Hepsi", "Kaleci": "GK", "Stoper": "D C", "Sol Bek": "D L", "Sağ Bek": "D R", "Ön Libero": "DM", "Merkez Orta Saha": "M C", "Sol Kanat": "AM L", "Sağ Kanat": "AM R", "Ofansif Orta Saha": "AM C", "Forvet": "ST"}
