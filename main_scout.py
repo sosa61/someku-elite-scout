@@ -605,15 +605,16 @@ with tabs[4]:
     except:
         st.write("Tablo yüklenemedi.")
 
-# --- 5. BARROW AI (V188 - AKILLI MEVKİ ANALİZİ) ---
+# --- 5. BARROW AI (V550 - MASTER SCOUT EDITION) ---
 with tabs[5]:
-    st.markdown('<div style="text-align:center;"><h1 style="color:#ef4444;">🤵 BARROW AI</h1></div>', unsafe_allow_html=True)
+    st.markdown('<div style="text-align:center;"><h1 style="color:#ef4444;">🤵 BARROW AI</h1><p style="color:#8b949e;">Yapay Zeka Destekli Scout Danışmanı</p></div>', unsafe_allow_html=True)
     
     user_is_vip = st.session_state.get('is_vip', False)
     curr_user = st.session_state.get('user')
     
     if "barrow_player" not in st.session_state: st.session_state.barrow_player = None
 
+    # --- VIP VE HAK KONTROLÜ ---
     can_ask = True
     if not user_is_vip:
         u_data = supabase.table("users").select("barrow_count", "last_barrow_date").eq("username", curr_user).execute()
@@ -626,66 +627,88 @@ with tabs[5]:
                 count = 0
             if count >= 3:
                 can_ask = False
-                st.warning(f"🔒 Barrow: 'Günlük 3 mermi hakkın doldu hıyarto! Daha fazlası için VIP ol.'")
-                st.markdown(f'''<a href="https://www.shopier.com/fmscout/45690641" target="_blank" style="text-decoration:none;"><button style="width:100%; background:#ef4444; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">SINIRSIZ BARROW İÇİN VIP OL</button></a>''', unsafe_allow_html=True)
+                st.warning("🔒 Günlük 3 ücretsiz analiz hakkınız dolmuştur. Daha fazla analiz için VIP paketine geçebilirsiniz.")
+                st.markdown(f'''<a href="https://www.shopier.com/fmscout/45690641" target="_blank" style="text-decoration:none;"><button style="width:100%; background:#ef4444; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">SINIRSIZ ANALİZ İÇİN VIP OL</button></a>''', unsafe_allow_html=True)
 
-    b_in = st.text_input("Barrow'a emir ver (Örn: 'Messi gibi bir genç', 'Hummels tarzı defans'):", key="b_in_v178", disabled=not can_ask)
+    # --- BARROW GİRİŞ ALANI ---
+    st.info("💡 Not: Ben bir yapay zekayım, bazen verilerde ufak sapmalar yapabilirim. Lütfen analizleri transfermarkt ile teyit etmeyi unutma!")
+    b_in = st.text_input("Barrow'a kriterlerini söyle (Örn: '5m euroya kadar 19 yaş Arjantinli sağ bek'):", key="b_v550", disabled=not can_ask)
     
-    if st.button("BARROWA SOR", disabled=not can_ask):
+    if st.button("ANALİZİ BAŞLAT", disabled=not can_ask):
         if b_in:
             if not user_is_vip:
                 new_count = u_data.data[0].get('barrow_count', 0) + 1
                 supabase.table("users").update({"barrow_count": new_count}).eq("username", curr_user).execute()
 
-            BARROW_INSULTS = ["Bütçen buysa git halısaha maçı ayarla hıyarto!", "Yine mi sen? Al şu mermiyi de kaybol.", "Messi'yi rüyanda görürsün ama bir mermi bulalım bakalım..."]
-            st.markdown(f'<div style="background:#1a1a1a; padding:15px; border-left:5px solid #ef4444; color:#ef4444; margin-bottom:20px;">{random.choice(BARROW_INSULTS)}</div>', unsafe_allow_html=True)
+            st.write("🔍 Veritabanı taranıyor, kriterlerinize en uygun profil seçiliyor...")
             
-            bq = supabase.table("oyuncular").select("*").gte("pa", 135)
+            bq = supabase.table("oyuncular").select("*").gte("pa", 130)
             low_in = b_in.lower()
             
-            # --- 🛡️ GÜÇLENDİRİLMİŞ MEVKİ MOTORU ---
-            m_list = []
-            
-            # 1. Örnek Oyuncu Analizi
-            scout_knowledge = {
-                "messi": ["AM R", "AM C", "ST"], "ronaldo": ["ST", "AM L"], "neymar": ["AM L", "AM C"],
-                "hummels": ["D C"], "van dijk": ["D C"], "modric": ["M C"], "de bruyne": ["AM C", "M C"],
-                "haaland": ["ST"], "mbappe": ["ST", "AM L"], "musiala": ["AM C", "AM L"], "arda güler": ["AM C", "AM R"]
+            # --- 1. PARA / DEĞER ANALİZİ (Milyon ve Bin Euro) ---
+            # "5m", "500bin", "1m 5m arası" gibi ifadeleri yakalar
+            price_nums = re.findall(r'(\d+)\s*(m|milyon|bin|k)', low_in)
+            if price_nums:
+                # "1m 5m arası" gibi bir aralık var mı?
+                range_price = re.search(r'(\d+)\s*(?:m|milyon)?\s*(?:ile|ve|ila|-|–)\s*(\d+)\s*(m|milyon)', low_in)
+                if range_price:
+                    p1, p2 = int(range_price.group(1)) * 1_000_000, int(range_price.group(2)) * 1_000_000
+                    bq = bq.gte("deger_num", min(p1, p2)).lte("deger_num", max(p1, p2))
+                else:
+                    val, unit = price_nums[0]
+                    total_val = int(val) * 1_000_000 if unit in ["m", "milyon"] else int(val) * 1_000
+                    if any(x in low_in for x in ["en fazla", "max", "kadar", "altı"]):
+                        bq = bq.lte("deger_num", total_val)
+                    elif any(x in low_in for x in ["en az", "min", "üstü"]):
+                        bq = bq.gte("deger_num", total_val)
+                    else: # Varsayılan: Belirtilen rakama kadar olanları getir
+                        bq = bq.lte("deger_num", total_val)
+
+            # --- 2. YAŞ ANALİZİ ---
+            age_range = re.search(r'(\d+)\s*(?:ile|ve|ila|-|–)\s*(\d+)\s*yaş', low_in)
+            age_nums = re.findall(r'(\d+)\s*yaş', low_in)
+            if age_range:
+                a1, a2 = int(age_range.group(1)), int(age_range.group(2))
+                bq = bq.gte("yas", min(a1, a2)).lte("yas", max(a1, a2))
+            elif any(x in low_in for x in ["en fazla", "en çok", "max", "kadar"]) and age_nums:
+                bq = bq.lte("yas", int(age_nums[0]))
+            elif age_nums:
+                bq = bq.eq("yas", int(age_nums[0]))
+
+            # --- 3. MEVKİ ANALİZİ (TÜRKÇE) ---
+            m_map = {
+                "kaleci": "GK", "sağ bek": "D R", "sol bek": "D L", "stoper": "D C", "defans": "D C",
+                "ön libero": "DM", "orta saha": "M C", "on numara": "AM C", "10 numara": "AM C",
+                "sağ kanat": "AM R", "sol kanat": "AM L", "forvet": "ST", "santrafor": "ST"
             }
-            for pk, pv in scout_knowledge.items():
-                if pk in low_in:
-                    m_list.extend(pv)
-                    if any(x in low_in for x in ["genç", "gibi", "tarzı"]): bq = bq.lte("yas", 21)
+            for k, v in m_map.items():
+                if k in low_in:
+                    bq = bq.ilike("mevki", f"%{v}%")
+                    break
 
-            # 2. Kesin Mevki Kelimeleri (Hata payını sıfıra indirmek için)
-            if any(x in low_in for x in ["kaleci", "gk", "file bekçisi"]): m_list.append("GK")
-            elif any(x in low_in for x in ["stoper", "defans", "dc"]): m_list.append("D C")
-            elif any(x in low_in for x in ["sol bek", "dl"]): m_list.append("D L")
-            elif any(x in low_in for x in ["sağ bek", "dr"]): m_list.append("D R")
-            elif any(x in low_in for x in ["ön libero", "dm"]): m_list.append("DM")
-            elif any(x in low_in for x in ["orta saha", "mc"]): m_list.append("M C")
-            elif any(x in low_in for x in ["sol kanat", "aml"]): m_list.append("AM L")
-            elif any(x in low_in for x in ["sağ kanat", "amr"]): m_list.append("AM R")
-            elif any(x in low_in for x in ["ofansif orta", "amc"]): m_list.append("AM C")
-            elif any(x in low_in for x in ["forvet", "golcü", "st", "santrafor"]): m_list.append("ST")
+            # --- 4. BÖLGE VE ÜLKE ANALİZİ ---
+            regions = {
+                "güney amerika": ["Argentina", "Brazil", "Uruguay", "Colombia", "Chile", "Ecuador"],
+                "iskandinav": ["Norway", "Sweden", "Denmark", "Finland", "Iceland"],
+                "afrika": ["Nigeria", "Senegal", "Ivory Coast", "Ghana", "Cameroon", "Algeria", "Morocco", "Egypt"],
+                "balkan": ["Croatia", "Serbia", "Bosnia", "Albania", "Slovenia", "Montenegro", "Bulgaria", "Greece"]
+            }
+            found_region = False
+            for reg, countries in regions.items():
+                if reg in low_in:
+                    bq = bq.in_("ulke", countries)
+                    found_region = True
+                    break
             
-            if m_list:
-                # Mevkileri tekilleştir ve filtrele
-                or_filter = ",".join([f'mevki.ilike.%{m}%' for m in set(m_list)])
-                bq = bq.or_(or_filter)
+            if not found_region:
+                # Özel ülke araması (Arjantinli, Fransız vb. veya direkt ülke adı)
+                tr_to_en_country = {"arjantin": "Argentina", "brezilya": "Brazil", "fransa": "France", "almanya": "Germany", "türkiye": "Turkey", "portekiz": "Portugal"}
+                for tr, en in tr_to_en_country.items():
+                    if tr in low_in:
+                        bq = bq.eq("ulke", en)
+                        break
 
-            # --- YAŞ ANALİZİ ---
-            nums = re.findall(r'\d+', low_in)
-            range_match = re.search(r'(\d+)\s*[-|ile|ve|ila|–]\s*(\d+)', low_in)
-            if range_match:
-                n1, n2 = int(range_match.group(1)), int(range_match.group(2))
-                bq = bq.gte("yas", min(n1, n2)).lte("yas", max(n1, n2))
-            elif any(x in low_in for x in ["en fazla", "max", "altı"]) and nums:
-                bq = bq.lte("yas", int(nums[0]))
-            elif nums and "yaş" in low_in: bq = bq.eq("yas", int(nums[0]))
-            elif not any(x in low_in for x in scout_knowledge.keys()): bq = bq.lte("yas", 28)
-
-            res_b = bq.limit(100).execute()
+            res_b = bq.limit(50).execute()
             if res_b.data:
                 st.session_state.barrow_player = random.choice(res_b.data)
             else:
@@ -695,41 +718,48 @@ with tabs[5]:
     # --- OYUNCU KARTI ---
     if st.session_state.barrow_player and st.session_state.barrow_player != "empty":
         p = st.session_state.barrow_player
+        # Favori kontrolü (Sadece giriş yapan kullanıcıya özel)
         f_check = supabase.table("favoriler").select("oyuncu_adi").eq("oyuncu_adi", p['oyuncu_adi']).eq("kullanici_adi", curr_user).execute()
         is_f = len(f_check.data) > 0
+        
         tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
-        border_color = "#238636" if is_f else "#ef4444"
         
         st.markdown(f'''
-        <div style="background:#000; border:2px solid {border_color}; padding:20px; border-radius:15px; margin-top:20px; position:relative;">
-            <span style="position:absolute; top:10px; right:10px; background:{border_color}; color:white; padding:3px 10px; border-radius:5px; font-weight:bold; font-size:12px;">PA: {p["pa"]}</span>
-            <h2 style="color:{border_color}; margin:0;">{p["oyuncu_adi"]}</h2>
-            <p style="color:#00ff41; font-family:'JetBrains Mono', monospace; font-size:14px; margin:15px 0;">
-                🌍 Ülke: {p.get("ulke", "Bilinmiyor")}<br>
-                🏟️ Kulüp: {p.get("kulup", "Serbest")}<br>
-                👟 Mevki: {p.get("mevki", "-")}<br>
-                🎂 Yaş: {p.get("yas", "-")}<br>
-                💰 Değer: {p.get("deger", "-")}
-            </p>
-            <a href="{tm_url}" target="_blank" style="display:inline-block; background:#1a1a1a; color:#58a6ff; padding:5px 10px; border-radius:5px; text-decoration:none; font-size:12px; border:1px solid #30363d;">Transfermarkt Profili ➔</a>
+        <div style="background:#111; border:2px solid #ef4444; padding:25px; border-radius:20px; margin-top:20px; position:relative; box-shadow: 0 10px 30px rgba(239, 68, 68, 0.2);">
+            <div style="position:absolute; top:15px; right:15px; text-align:right;">
+                <span style="background:#ef4444; color:white; padding:5px 12px; border-radius:8px; font-weight:bold; font-size:14px;">PA: {p["pa"]}</span><br>
+                <span style="color:#8b949e; font-size:12px; display:block; margin-top:5px;">CA: {p.get("ca", "-")}</span>
+            </div>
+            <h2 style="color:#fff; margin:0; font-size:28px;">{p["oyuncu_adi"]}</h2>
+            <hr style="border:0; border-top:1px solid #333; margin:15px 0;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; color:#ccc; font-size:15px;">
+                <div>🌍 <b>Ülke:</b> {p.get("ulke", "-")}</div>
+                <div>🏟️ <b>Kulüp:</b> {p.get("kulup", "Serbest")}</div>
+                <div>👟 <b>Mevki:</b> {p.get("mevki", "-")}</div>
+                <div>🎂 <b>Yaş:</b> {p.get("yas", "-")}</div>
+                <div style="grid-column: span 2; color:#238636; font-weight:bold; font-size:18px; margin-top:5px;">💰 Değer: {p.get("deger", "Bilinmiyor")}</div>
+            </div>
+            <div style="margin-top:20px;">
+                <a href="{tm_url}" target="_blank" style="text-decoration:none; color:#58a6ff; font-size:14px; border:1px solid #30363d; padding:8px 15px; border-radius:8px; background:#1a1a1a;">Transfermarkt Profili ➔</a>
+            </div>
         </div>
         ''', unsafe_allow_html=True)
 
-        if st.button("⭐ Listeye Ekle / Çıkar", key="barrow_fav_final"):
+        if st.button("⭐ Favori Listeme Ekle / Çıkar", key="barrow_fav_v550"):
             if is_f:
                 supabase.table("favoriler").delete().eq("oyuncu_adi", p['oyuncu_adi']).eq("kullanici_adi", curr_user).execute()
-                st.toast("Mermi listeden çıkarıldı!")
+                st.toast("Oyuncu favorilerinden çıkarıldı.")
             else:
                 supabase.table("favoriler").insert({
                     "oyuncu_adi": p['oyuncu_adi'], "kulup": p.get('kulup','Serbest'),
                     "pa": p['pa'], "mevki": p['mevki'], "ca": p.get('ca', 0),
-                    "kullanici_adi": curr_user
+                    "kullanici_adi": curr_user # Sadece bu kullanıcı görecek
                 }).execute()
-                st.toast("Mermi listeye eklendi!")
+                st.toast("Oyuncu favorilerine eklendi!")
             st.rerun()
 
     elif st.session_state.barrow_player == "empty":
-        st.error("Barrow: 'O kriterlerde mermi bulamadım hıyarto!'")
+        st.warning("Aradığınız kriterlere uygun bir profil bulunamadı. Lütfen kriterlerinizi esnetmeyi deneyin.")
 
 # --- 6. ADMIN (V135 - TAM YETKİLİ YÖNETİM MERKEZİ) ---
 with tabs[6]: 
