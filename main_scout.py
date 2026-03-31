@@ -13,16 +13,18 @@ import subprocess
 import threading
 import unicodedata
 
-# --- BAĞLANTI AYARLARI (ANAHTAR DÜZELTİLDİ) ---
+# --- BAĞLANTI AYARLARI (GARANTİ VERSİYON) ---
 URL = "https://iwgowefraytdbcdgeqdz.supabase.co"
-# Anahtarı senin için tek parça ve tertemiz hale getirdim:
-KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3Z293ZWZyYXl0ZGJjZGdleWR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2MDYxOTAsImV4cCI6MjA1NjE4MjE5MH0.zEjhpC3mi0IkWyYUaG8OFvsAe-IBD4XcR7a2l2mflj4Y0HJfuguU2m-o"
 
-# Bağlantıyı kurmayı dene
+# Anahtarı buradaki gibi iki tırnak içinde, aralarında boşluk olmadan yapıştır:
+p1 = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3Z293ZWZyYXl0ZGJjZGdleWR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2MDYxOTAsImV4cCI6MjA1NjE4MjE5MH0.zEjhpC3mi0I"
+p2 = "kWyYUaG8OFvsAe-IBD4XcR7a2l2mflj4Y0HJfuguU2m-o"
+KEY = p1 + p2
+
 try:
     supabase = create_client(URL, KEY)
 except Exception as e:
-    st.error(f"Bağlantı kurulum hatası: {e}")
+    st.error(f"Bağlantı hatası: {e}")
 
 # --- OTURUM AYARLARI ---
 if 'authenticated' not in st.session_state: st.session_state.authenticated = False
@@ -30,24 +32,20 @@ if 'user' not in st.session_state: st.session_state.user = None
 if 'is_vip' not in st.session_state: st.session_state.is_vip = False
 if 'fav_list' not in st.session_state: st.session_state.fav_list = []
 
-# --- GÜVENLİK VE URL ---
+# --- GÜVENLİK VE GİRİŞ (ZIRHLI) ---
 query_user = st.query_params.get("user", None)
 is_authenticated = st.session_state.get("authenticated", False)
 logged_in_user = st.session_state.get("user")
 
-if query_user:
-    if not is_authenticated:
-        pass 
-    elif logged_in_user != query_user:
-        st.error("⛔ Burası senin mahremin değil! Kendi hesabına yönlendiriliyorsun...")
+if query_user and is_authenticated:
+    if logged_in_user != query_user:
+        st.error("⛔ Burası senin mahremin değil!")
         st.stop()
 
-# --- GİRİŞ VE KAYIT EKRANI ---
 if not is_authenticated:
     st.markdown('<h1 style="text-align:center;">🕵️ SOMEKU SCOUT</h1>', unsafe_allow_html=True)
-    if query_user:
-        st.warning("⚠️ Bu profil kilitlidir. Görmek için önce giriş yapmalısın!")
-
+    
+    # Giriş ve Kayıt Sekmeleri
     tab1, tab2 = st.tabs(["Giriş Yap", "Kayıt Ol"])
 
     with tab1:
@@ -69,29 +67,18 @@ if not is_authenticated:
                     st.query_params["user"] = u_id
                     st.rerun()
                 else:
-                    st.error("❌ Hatalı kullanıcı adı veya şifre!")
+                    st.error("❌ Hatalı giriş!")
             except Exception as e:
-                st.error(f"❌ Veritabanı hatası: {e}")
+                st.error(f"Veritabanı erişilemedi: {e}")
 
     with tab2:
-        new_user = st.text_input("Yeni Kullanıcı Adı:", key="reg_user")
-        new_pw = st.text_input("Yeni Şifre:", type="password", key="reg_pw")
-        confirm_pw = st.text_input("Şifre Tekrar:", type="password", key="reg_pw_conf")
+        st.info("Yeni hesap oluşturmak için alanları doldur.")
+        new_user = st.text_input("Kullanıcı Adı:", key="reg_user")
+        new_pw = st.text_input("Şifre:", type="password", key="reg_pw")
         if st.button("Kayıt Ol"):
-            if not new_user or not new_pw:
-                st.error("❌ Alanları boş bırakma!")
-            elif new_pw != confirm_pw:
-                st.error("❌ Şifreler eşleşmiyor!")
-            else:
-                try:
-                    check = supabase.table("users").select("username").eq("username", new_user).execute()
-                    if check.data:
-                        st.error("❌ Bu kullanıcı adı zaten alınmış!")
-                    else:
-                        supabase.table("users").insert({"username": new_user, "password": new_pw, "is_vip": False}).execute()
-                        st.success("✅ Kayıt başarılı! Giriş sekmesine dönüp giriş yapabilirsin.")
-                except Exception as e:
-                    st.error(f"Kayıt hatası: {e}")
+            if new_user and new_pw:
+                supabase.table("users").insert({"username": new_user, "password": new_pw, "is_vip": False}).execute()
+                st.success("✅ Kayıt tamam! Giriş yapabilirsin.")
     st.stop()
 
 # --- BAĞLANTI AYARLARI ---
