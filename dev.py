@@ -10,37 +10,111 @@ import matplotlib.pyplot as plt
 import datetime
 import os
 import subprocess
-import threading  # İşte eksik olan mermi bu!
+import threading
 import unicodedata
 
-
-
-
-
-# --- BAĞLANTI AYARLARI ---
+# --- 1. BAĞLANTI AYARLARI ---
 URL = "https://iwgowefraytdbcdgeqdz.supabase.co"
-KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3Z293ZWZyYXl0ZGJjZGdlcWR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MzM3MDEsImV4cCI6MjA5MDIwOTcwMX0.kWYUaG8OFvsAe-IBD4XcR7a2l2mflj4Y0HJfugU2m-o"
-supabase: Client = create_client(URL, KEY)
+KEY = "sb_publishable_NHESQOd8-v3tYpVPcz88-w_vypIPQ8Z"
+
+try:
+    supabase = create_client(URL, KEY)
+except Exception as e:
+    st.error(f"Bağlantı kurulum hatası: {e}")
+
+# --- 2. OTURUM AYARLARI ---
+if 'authenticated' not in st.session_state: st.session_state.authenticated = False
+if 'user' not in st.session_state: st.session_state.user = None
+if 'is_vip' not in st.session_state: st.session_state.is_vip = False
+if 'fav_list' not in st.session_state: st.session_state.fav_list = []
+if 'page' not in st.session_state: st.session_state.page = 0
+# --- 3. 🔄 F5 VE HAFIZA KONTROLÜ (ZIRHLI VERSİYON) ---
+query_user = st.query_params.get("user", None)
+is_authenticated = st.session_state.get("authenticated", False)
+
+# EĞER GİZLİ SEKMEDEN LİNKLE GELİNİYORSA:
+# (Yani URL'de isim var ama bu tarayıcıda henüz şifre girilmemişse)
+if query_user and not is_authenticated:
+    # Hafızayı zorla boş tut, URL'deki isme inanma!
+    st.session_state.user = None 
+    st.session_state.authenticated = False
+
+# --- 5. GİRİŞ VE KAYIT EKRANI ---
+if not is_authenticated:
+    st.markdown('<h1 style="text-align:center;">🕵️ SOMEKU SCOUT</h1>', unsafe_allow_html=True)
+    if query_user:
+        st.warning("⚠️ Bu profil kilitlidir. Görmek için önce giriş yapmalısın!")
+
+    auth_tabs = st.tabs(["Giriş Yap", "Kayıt Ol"])
+
+    with auth_tabs[0]:
+        u_id = st.text_input("Kullanıcı Adı:", key="main_l_user")
+        u_pw = st.text_input("Şifre:", type="password", key="main_l_pw")
+        if st.button("Sisteme Giriş Yap"):
+            try:
+                res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
+                if res.data:
+                    st.session_state.authenticated = True
+                    st.session_state.user = u_id
+                    st.session_state.is_vip = bool(res.data[0].get("is_vip", False))
+                    st.query_params["user"] = u_id
+                    st.rerun()
+                elif u_id == "someku" and u_pw == "28616128Ok":
+                    st.session_state.authenticated = True
+                    st.session_state.user = u_id
+                    st.session_state.is_vip = True
+                    st.query_params["user"] = u_id
+                    st.rerun()
+                else:
+                    st.error("❌ Hatalı kullanıcı adı veya şifre!")
+            except Exception as e:
+                st.error(f"⚠️ Giriş Hatası: {e}")
+
+    with auth_tabs[1]:
+        st.info("✨ Yeni bir hesap oluşturun.")
+        new_user = st.text_input("Yeni Kullanıcı Adı:", key="reg_user")
+        new_email = st.text_input("E-posta Adresi:", key="reg_email")
+        new_pw = st.text_input("Yeni Şifre:", type="password", key="reg_pw")
+        if st.button("Hemen Kayıt Ol", use_container_width=True):
+            if new_user and new_email and new_pw:
+                check = supabase.table("users").select("*").or_(f"username.eq.{new_user},email.eq.{new_email}").execute()
+                if check.data:
+                    st.error("❌ Bu kullanıcı adı veya e-posta zaten kullanılıyor!")
+                else:
+                    data = {"username": new_user, "email": new_email, "password": new_pw, "is_vip": False, "puan": 0}
+                    supabase.table("users").insert(data).execute()
+                    st.success("✅ Kayıt başarılı! Giriş sekmesine dönebilirsin.")
+    st.stop()
+
+# --- 6. YAN MENÜ VE ÇIKİŞ BUTONU ---
+with st.sidebar:
+    st.markdown(f"### 👤 Hoş geldin, {st.session_state.user}")
+    if st.session_state.is_vip:
+        st.success("🌟 VIP SCOUT ÜYESİ")
+    else:
+        st.info("🆓 STANDART ÜYE")
+    
+    st.markdown("---")
+    if st.button("🚪 Güvenli Çıkış Yap", use_container_width=True):
+        st.session_state.clear() # Tüm hafızayı boşalt
+        st.query_params.clear()  # URL'yi temizle
+        st.rerun()
+
+# --- 7. VIP TAZELEME MOTORU ---
+try:
+    v_res = supabase.table("users").select("is_vip").eq("username", st.session_state.user).execute()
+    if v_res.data:
+        st.session_state.is_vip = bool(v_res.data[0].get("is_vip", False))
+except:
+    pass
+
+# Sayfa ayarlarını dükkanın içine girdikten sonra yapıyoruz
+st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️")
+
+# Buradan aşağısı senin tabs = st.tabs([...]) kodlarınla devam edecek...
 
 # --- SAYFA AYARLARI ---
 st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️")
-
-# --- 🔄 GÜÇLENDİRİLMİŞ VIP TAZELEME MOTORU (V183) ---
-if "user" in st.session_state and st.session_state.get('user'):
-    try:
-        # Veritabanından durumu çekiyoruz
-        v_res = supabase.table("users").select("is_vip").eq("username", st.session_state.user).execute()
-        
-        if v_res.data and len(v_res.data) > 0:
-            # VIP bilgisini boolean (True/False) olarak zorla işle
-            st.session_state['is_vip'] = bool(v_res.data[0].get('is_vip', False))
-    except Exception as e:
-        # Hata olursa sistemi kilitleme, sessizce devam et
-        pass
-
-
-# BURADAN SONRA TASARIM CSS KODLARIN DEVAM ETSİN
-
 
 # --- TASARIM (CSS) ---
 st.markdown("""
@@ -48,126 +122,13 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
     .stApp { background-color: #0d1117; color: white; }
     .player-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; margin-bottom: 15px; border-left: 5px solid #3b82f6; transition: 0.3s; }
-    .fav-active { border: 2px solid #f2cc60 !important; border-left: 10px solid #f2cc60 !important; box-shadow: 0 0 15px rgba(242,204,96,0.2); }
-    .pa-badge { background: #238636; color: white; padding: 4px 12px; border-radius: 8px; font-weight: bold; float: right; font-size: 1.1rem; }
-    .ann-box { background: #1c2128; border: 1px solid #30363d; padding: 15px; border-radius: 10px; color: #58a6ff; text-align: center; margin-bottom: 20px; border-bottom: 3px solid #3b82f6; font-weight: bold; }
-    .barrow-box { background: #000000; border: 2px solid #ef4444; border-radius: 8px; padding: 20px; margin: 15px 0; }
-    .barrow-text { font-family: 'JetBrains Mono', monospace; color: #ff0000; font-size: 1.1rem; font-weight: bold; }
-    .tm-link { color: #58a6ff !important; text-decoration: none; border: 1px solid #58a6ff; padding: 3px 10px; border-radius: 5px; font-size: 12px; display: inline-block; margin-top: 10px; }
-    .section-header { background: #21262d; padding: 10px; border-radius: 8px; margin: 20px 0 10px 0; border-left: 5px solid #58a6ff; font-weight: bold; }
-    .page-indicator { background: #3b82f6; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; margin: 10px 0; display: inline-block; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- BARROW ZEKA ---
-BARROW_INSULTS = ["Cebinde kuruş yok hala elit oyuncu peşindesin. Al şunu dua et.", "Taktik bilgin zayıf, bari oyuncun düzgün olsun.", "Yine mi geldin? Barrow senin için mermiyi buldu.", "Bak buraya hıyarto, bütçene göre en mermisi budur."]
-BARROW_KNOWLEDGE = {
-    "messi": ["AM R", "ST", "AM C"], "mbappe": ["ST", "AM L"], "ronaldo": ["ST", "AM L"], "van dijk": ["D C"],
-    "kaleci": ["GK"], "stoper": ["D C"], "sol bek": ["D L"], "sağ bek": ["D R"], "bek": ["D L", "D R"],
-    "orta saha": ["M C", "DM", "AM C"], "forvet": ["ST"], "golcü": ["ST"], "kanat": ["AM L", "AM R"]
-}
-
-def get_user_favs(username):
-    try:
-        res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", username).execute()
-        return [f['oyuncu_adi'] for f in res.data]
-    except: return []
-
-# --- OTURUM AYARLARI (EN ÜSTTE OLMALI) ---
-if 'page' not in st.session_state: st.session_state.page = 0
-if 'user' not in st.session_state: st.session_state.user = None # Hata almamak için bunu ekle
-if 'is_vip' not in st.session_state: st.session_state.is_vip = False # VIP durumunu sıfırla
-if 'fav_list' not in st.session_state: st.session_state.fav_list = []
-if 'roulette_player' not in st.session_state: st.session_state.roulette_player = None
-
-# Query Params'tan kullanıcıyı almayı deniyoruz (Sayfa yenilenince giriş kalsın diye)
-query_user = st.query_params.get("user", None)
-
-# --- KESİN GÜVENLİK KİLİDİ (Hatasız Versiyon) ---
-giris_yapan_kisi = st.session_state.get("user")
-
-if query_user and query_user != giris_yapan_kisi:
-    st.error("⛔ Burası senin mahremin değil! Sadece kendi profilini görebilirsin.")
-    st.stop()
-
-if query_user and st.session_state.user is None:
-    st.session_state.user = query_user
-# --- GİRİŞ VE KAYIT BÖLÜMÜ ---
-if st.session_state.user is None:
-    st.markdown('<h1 style="text-align:center;">🕵️ SOMEKU SCOUT</h1>', unsafe_allow_html=True)
-    u_id = st.text_input("Kullanıcı Adı:")
-    u_pw = st.text_input("Şifre:", type="password")
-    
-    if st.button("Giriş"):
-        res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
-        
-        if res.data:
-            user_data = res.data[0]
-            st.session_state.user = u_id
-            st.session_state.is_vip = user_data.get("is_vip", False)
-            st.query_params["user"] = u_id
-            st.rerun()
-        elif u_id == "someku" and u_pw == "28616128Ok":
-            st.session_state.user = u_id
-            st.session_state.is_vip = True
-            st.query_params["user"] = u_id
-            st.rerun()
-        else:
-            st.error("❌ Hatalı kullanıcı adı veya şifre!")
-
-    # --- KAYIT OLMA BÖLÜMÜ (Giriş Bloğunun İçinde Ama Butonun Altında) ---
-    st.markdown("---")
-    with st.expander("✨ Hesabın yok mu? Hemen Kayıt Ol"):
-        new_user = st.text_input("Yeni Kullanıcı Adı:", key="reg_user")
-        new_email = st.text_input("E-posta Adresi:", key="reg_email")
-        new_pw = st.text_input("Yeni Şifre:", type="password", key="reg_pw")
-        
-        if st.button("Kayıt Ol", use_container_width=True):
-            if new_user and new_email and new_pw:
-                check = supabase.table("users").select("*").or_(f"username.eq.{new_user},email.eq.{new_email}").execute()
-                
-                if check.data:
-                    st.error("❌ Bu kullanıcı adı veya e-posta zaten kullanılıyor!")
-                else:
-                    data = {
-                        "username": new_user,
-                        "email": new_email,
-                        "password": new_pw,
-                        "is_vip": False,
-                        "puan": 0
-                    }
-                    supabase.table("users").insert(data).execute()
-                    st.success("✅ Kayıt başarılı! Yukarıdan giriş yapabilirsin.")
-            else:
-                st.warning("⚠️ Lütfen tüm alanları doldur!")
-                
-    # Giriş yapmayan herkesi burada durduruyoruz
-    st.stop()
-    
-    # --- YAN MENÜ (SIDEBAR) AYARLARI ---
-with st.sidebar:
-    st.markdown(f"### 👤 Hoş geldin, {st.session_state.user}")
-    
-    # VIP Durumunu Göster (Gözüksün ki adam gurur duysun)
-    if st.session_state.get('is_vip', False):
-        st.success("🌟 VIP SCOUT ÜYESİ")
-    else:
-        st.info("🆓 STANDART ÜYE")
-    
-    st.markdown("---")
-    
-    # --- GÜVENLİ ÇIKIŞ BUTONU ---
-    if st.button("🚪 Güvenli Çıkış Yap", use_container_width=True):
-        # Session verilerini mermi gibi temizle
-        st.session_state.user = None
-        st.session_state.is_vip = False
-        # URL'deki kullanıcı parametresini sil
-        st.query_params.clear()
-        st.success("Başarıyla çıkış yapıldı. Yönlendiriliyorsun...")
-        st.rerun() # Sayfayı yenileyip giriş ekranına atar
-
-
+# --- ANA SEKMELER ---
 tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🕵️ YETENEK AVI", "🤖 BARROW AI", "🛠️ ADMIN"])
+
+# (Buradan aşağısı senin gönderdiğin SCOUT, RULET, 11 KUR vb. kodlarınla devam ediyor...)
 
 # --- 1. SCOUT ---
 with tabs[0]:
@@ -190,6 +151,7 @@ with tabs[0]:
     with v1: age_f = st.slider("🎂 Yaş Aralığı:", 14, 50, (14, 25))
     with v2: pa_f = st.slider("📊 PA Aralığı:", 100, 200, (135, 200))
     
+   # Sadece giriş yapan kullanıcının favorilerini çek (Satır 105-107)
     f_res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", curr_user).execute()
     st.session_state.fav_list = [x['oyuncu_adi'] for x in f_res.data] if f_res.data else []
 
@@ -423,13 +385,17 @@ with tabs[2]:
     kadro_txt = f"Diziliş: {tactic}\n" + "\n".join([f"{p[0]}: {p[1]}" for p in positions])
     st.download_button(label="📄 TXT İNDİR", data=kadro_txt, file_name="mermi-kadro.txt", use_container_width=True)
 
-# --- 4. FAVORİLER (V149 - GÜNCEL TABLO UYUMLU) ---
+# --- 4. FAVORİLER (KİŞİYE ÖZEL) ---
 with tabs[3]:
-    st.markdown('<h2 style="text-align:center;">⭐ KALICI FAVORİLERİN</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 style="text-align:center;">⭐ SENİN FAVORİLERİN</h2>', unsafe_allow_html=True)
     
-    # Yeni tablo yapısına göre verileri çekiyoruz
-    res = supabase.table("favoriler").select("*").order("created_at", desc=True).execute()
-    
+    # KRİTİK: Sadece giriş yapan kullanıcıya (st.session_state.user) ait olanları çek!
+    res = supabase.table("favoriler")\
+        .select("*")\
+        .eq("kullanici_adi", st.session_state.user)\
+        .order("created_at", desc=True)\
+        .execute()
+        
     if res.data:
         # Favorileri şık kartlar halinde gösterelim
         for p in res.data:
