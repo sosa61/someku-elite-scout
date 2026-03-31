@@ -83,14 +83,17 @@ if 'roulette_player' not in st.session_state: st.session_state.roulette_player =
 # Query Params'tan kullanıcıyı almayı deniyoruz (Sayfa yenilenince giriş kalsın diye)
 query_user = st.query_params.get("user", None)
 
-# --- KESİN GÜVENLİK KİLİDİ (Hatasız Versiyon) ---
+# --- KESİN GÜVENLİK KİLİDİ (F5 VE GİRİŞ DOSTU) ---
 giris_yapan_kisi = st.session_state.get("user")
 
-if query_user and query_user != giris_yapan_kisi:
-    st.error("⛔ Burası senin mahremin değil! Sadece kendi profilini görebilirsin.")
-    st.stop()
+# Eğer URL'de bir isim varsa VE kullanıcı sisteme giriş yapmışsa kontrol et
+if query_user and giris_yapan_kisi:
+    if query_user != giris_yapan_kisi:
+        st.error("⛔ Burası senin mahremin değil! Sadece kendi profilini görebilirsin.")
+        st.stop()
 
-if query_user and st.session_state.user is None:
+# Giriş yapılmamışsa URL'deki kullanıcıyı session'a bağla (Login ekranı için)
+if query_user and st.session_state.get("user") is None:
     st.session_state.user = query_user
 # --- GİRİŞ VE KAYIT BÖLÜMÜ ---
 if st.session_state.user is None:
