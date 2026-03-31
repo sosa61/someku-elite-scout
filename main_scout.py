@@ -10,28 +10,12 @@ import matplotlib.pyplot as plt
 import datetime
 import os
 import subprocess
-import threading  # İşte eksik olan mermi bu!
+import threading
 import unicodedata
 
-import streamlit as st
-
-Ömer, o son attığın görseldeki "NameError: name 'supabase' is not defined" hatası şu anlama geliyor: Güvenlik bariyerini ve giriş formunu çok yukarı taşıdık ama dükkanın veritabanı bağlantısını (supabase = ...) daha aşağıda bıraktık. Bilgisayar giriş yapmaya çalışırken "Supabase de kim? Tanımıyorum" diyor. 🕵️‍♂️⚽
-
-Bu işi şimdi hata payı bırakmadan kökten çözüyoruz. GitHub'daki dosyanın en başından (1. satırdan) başlayarak giriş butonunun bittiği yere kadar olan kısmı komple sil ve tam olarak şunu yapıştır:
-
-🛠️ Kesin ve Hatasız "Zırhlı Giriş" Modülü
-Python
-import streamlit as st
-from supabase import create_client, client
-import urllib.parse
-import pandas as pd
-import random
-import time
-import re
-
-# --- BAĞLANTI AYARLARI (GİRİŞTEN ÖNCE OLMALI) ---
+# --- BAĞLANTI AYARLARI ---
 URL = "https://iwgowefraytdbcdgeqdz.supabase.co"
-KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." # Buraya senin uzun anahtarın gelecek
+KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3Z293ZWZyYXl0ZGJjZGdleWR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2MDYxOTAsImV4cCI6MjA1NjE4MjE5MH0.zEjH6ImFub24iLCJpYXQiOjE3NDA2MDYxOTAsImV4cCI6MjA1NjE4MjE5MH0.zEjhpC3mi0IzdXBhYmFzZIsInJlZiI6Iml3Z293ZWZyYXl0ZGJjZGdleWR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2MDYxOTAsImV4cCI6MjA1NjE4MjE5MH0.kWyYUaG8OFvsAe-IBD4XcR7a2l2mflj4Y0HJfuguU2m-o"
 supabase = create_client(URL, KEY)
 
 # --- OTURUM AYARLARI ---
@@ -40,52 +24,69 @@ if 'user' not in st.session_state: st.session_state.user = None
 if 'is_vip' not in st.session_state: st.session_state.is_vip = False
 if 'fav_list' not in st.session_state: st.session_state.fav_list = []
 
-# --- 1. URL VE GÜVENLİK KONTROLÜ ---
+# --- GÜVENLİK VE URL KONTROLÜ ---
 query_user = st.query_params.get("user", None)
 is_authenticated = st.session_state.get("authenticated", False)
 logged_in_user = st.session_state.get("user")
 
-# --- 2. ZIRHLI BARİKAT ---
 if query_user:
-    # Şifreyle giriş yapılmamışsa: Sadece giriş formunu göster, stop ile aşağıyı kilitle
     if not is_authenticated:
         pass 
-    # Giriş yapılmış ama başkasının linkine sızılıyorsa
     elif logged_in_user != query_user:
         st.error("⛔ Burası senin mahremin değil! Kendi hesabına yönlendiriliyorsun...")
         st.stop()
 
-# --- 3. GİRİŞ EKRANI (SADECE GİRİŞ YAPILMAMIŞSA) ---
+# --- GİRİŞ VE KAYIT EKRANI ---
 if not is_authenticated:
     st.markdown('<h1 style="text-align:center;">🕵️ SOMEKU SCOUT</h1>', unsafe_allow_html=True)
+    
     if query_user:
         st.warning("⚠️ Bu profil kilitlidir. Görmek için önce giriş yapmalısın!")
 
-    u_id = st.text_input("Kullanıcı Adı:")
-    u_pw = st.text_input("Şifre:", type="password")
-    
-    if st.button("Giriş"):
-        # Artık 'supabase' tanımlı olduğu için hata vermeyecek!
-        res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
-        
-        if res.data:
-            st.session_state.authenticated = True
-            st.session_state.user = u_id
-            st.session_state.is_vip = res.data[0].get("is_vip", False)
-            st.query_params["user"] = u_id
-            st.rerun()
-        elif u_id == "someku" and u_pw == "28616128Ok":
-            st.session_state.authenticated = True
-            st.session_state.user = u_id
-            st.session_state.is_vip = True
-            st.query_params["user"] = u_id
-            st.rerun()
-        else:
-            st.error("❌ Hatalı kullanıcı adı veya şifre!")
-    
-    # Giriş yapılana kadar aşağıdaki kodların (oyuncu listesi vb.) çalışmasını durdur
-    st.stop()
+    tab1, tab2 = st.tabs(["Giriş Yap", "Kayıt Ol"])
 
+    with tab1:
+        u_id = st.text_input("Kullanıcı Adı:", key="login_user")
+        u_pw = st.text_input("Şifre:", type="password", key="login_pw")
+        
+        if st.button("Giriş Yap"):
+            res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
+            if res.data:
+                st.session_state.authenticated = True
+                st.session_state.user = u_id
+                st.session_state.is_vip = res.data[0].get("is_vip", False)
+                st.query_params["user"] = u_id
+                st.rerun()
+            elif u_id == "someku" and u_pw == "28616128Ok":
+                st.session_state.authenticated = True
+                st.session_state.user = u_id
+                st.session_state.is_vip = True
+                st.query_params["user"] = u_id
+                st.rerun()
+            else:
+                st.error("❌ Hatalı kullanıcı adı veya şifre!")
+
+    with tab2:
+        new_user = st.text_input("Yeni Kullanıcı Adı:", key="reg_user")
+        new_pw = st.text_input("Yeni Şifre:", type="password", key="reg_pw")
+        confirm_pw = st.text_input("Şifre Tekrar:", type="password", key="reg_pw_conf")
+        
+        if st.button("Kayıt Ol"):
+            if not new_user or not new_pw:
+                st.error("❌ Alanları boş bırakma!")
+            elif new_pw != confirm_pw:
+                st.error("❌ Şifreler eşleşmiyor!")
+            else:
+                # Kullanıcı var mı kontrol et
+                check = supabase.table("users").select("username").eq("username", new_user).execute()
+                if check.data:
+                    st.error("❌ Bu kullanıcı adı zaten alınmış!")
+                else:
+                    data = {"username": new_user, "password": new_pw, "is_vip": False}
+                    supabase.table("users").insert(data).execute()
+                    st.success("✅ Kayıt başarılı! Giriş yapabilirsin.")
+    
+    st.stop()
 
 
 # --- BAĞLANTI AYARLARI ---
