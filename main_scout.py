@@ -13,23 +13,22 @@ import subprocess
 import threading  # İşte eksik olan mermi bu!
 import unicodedata
 
-# --- 1. OTURUM KONTROLÜ (DAHA HİÇBİR VERİ YÜKLENMEDEN) ---
+# --- 1. OTURUM KONTROLÜ ---
 query_user = st.query_params.get("user", None)
 is_authenticated = st.session_state.get("authenticated", False)
 logged_in_user = st.session_state.get("user")
 
 # --- 2. ZIRHLI BARİKAT ---
 if query_user:
-    # Şifreyle giriş yapılmamışsa VEYA giriş yapan kişi URL'deki kişi değilse
-    if not is_authenticated or logged_in_user != query_user:
+    # EĞER ŞİFREYLE GİRİŞ YAPILMAMIŞSA (authenticated False ise)
+    if not is_authenticated:
         st.warning("⚠️ Bu alan şifrelidir. Lütfen önce giriş yapın.")
-        
-        # Giriş formunu burada gösterip geri kalan her şeyi durduruyoruz
-        # (Burada login fonksiyonun hangisiyse onu çağırabilirsin, 
-        # ama en güvenlisi st.stop() ile dükkanı tamamen kilitlemektir)
+        st.stop() # Alt taraftaki verileri asla yüklemez!
+    
+    # EĞER GİRİŞ YAPILMIŞ AMA BAŞKASININ HESABINA SIZILIYORSA
+    elif logged_in_user != query_user:
+        st.error("⛔ Burası senin mahremin değil! Kendi hesabına yönlendiriliyorsun...")
         st.stop()
-
-
 
 
 
