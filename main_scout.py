@@ -15,8 +15,13 @@ import unicodedata
 
 # --- 1. BAĞLANTI AYARLARI ---
 URL = "https://iwgowefraytdbcdgeqdz.supabase.co"
+# ÖNEMLİ: Eğer bu KEY hata verirse, Supabase panelinden anon key'i tekrar kopyala!
 KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3Z293ZWZyYXl0ZGJjZGdleWR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2MDYxOTAsImV4cCI6MjA1NjE4MjE5MH0.zEjhpC3mi0IkWyYUaG8OFvsAe-IBD4XcR7a2l2mflj4Y0HJfuguU2m-o"
-supabase = create_client(URL, KEY)
+
+try:
+    supabase = create_client(URL, KEY)
+except Exception as e:
+    st.error(f"Bağlantı kurulum hatası: {e}")
 
 # --- 2. OTURUM AYARLARI ---
 if 'authenticated' not in st.session_state: st.session_state.authenticated = False
@@ -25,7 +30,7 @@ if 'is_vip' not in st.session_state: st.session_state.is_vip = False
 if 'fav_list' not in st.session_state: st.session_state.fav_list = []
 if 'page' not in st.session_state: st.session_state.page = 0
 
-# --- 3. GÜVENLİK VE URL ---
+# --- 3. GÜVENLİK ---
 query_user = st.query_params.get("user", None)
 is_authenticated = st.session_state.get("authenticated", False)
 logged_in_user = st.session_state.get("user")
@@ -35,17 +40,16 @@ if query_user and is_authenticated:
         st.error("⛔ Burası senin mahremin değil!")
         st.stop()
 
-# --- 4. GİRİŞ VE KAYIT EKRANI ---
+# --- 4. GİRİŞ EKRANI ---
 if not is_authenticated:
     st.markdown('<h1 style="text-align:center;">🕵️ SOMEKU SCOUT</h1>', unsafe_allow_html=True)
     if query_user:
         st.warning("⚠️ Bu profil kilitlidir. Görmek için önce giriş yapmalısın!")
 
-    tab1, tab2 = st.tabs(["Giriş Yap", "Kayıt Ol"])
-
-    with tab1:
-        u_id = st.text_input("Kullanıcı Adı:", key="login_field")
-        u_pw = st.text_input("Şifre:", type="password", key="password_field")
+    t1, t2 = st.tabs(["Giriş Yap", "Kayıt Ol"])
+    with t1:
+        u_id = st.text_input("Kullanıcı Adı:", key="l_u")
+        u_pw = st.text_input("Şifre:", type="password", key="l_p")
         if st.button("Sisteme Giriş Yap"):
             try:
                 res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
@@ -62,24 +66,22 @@ if not is_authenticated:
                     st.query_params["user"] = u_id
                     st.rerun()
                 else:
-                    st.error("❌ Hatalı giriş bilgileri!")
+                    st.error("❌ Hatalı giriş!")
             except Exception as e:
-                st.error(f"⚠️ Bağlantı hatası: {e}")
-
-    with tab2:
-        st.info("Yeni bir scout hesabı oluşturun.")
-        n_user = st.text_input("Kullanıcı Adı:", key="reg_user_field")
-        n_pw = st.text_input("Şifre:", type="password", key="reg_pw_field")
-        if st.button("Hemen Kayıt Ol"):
+                st.error(f"⚠️ Veritabanı Hatası: {e}")
+    with t2:
+        n_user = st.text_input("Yeni Kullanıcı Adı:", key="r_u")
+        n_pw = st.text_input("Şifre:", type="password", key="r_p")
+        if st.button("Kayıt Ol"):
             if n_user and n_pw:
                 try:
                     supabase.table("users").insert({"username": n_user, "password": n_pw, "is_vip": False}).execute()
-                    st.success("✅ Kayıt başarılı! Giriş sekmesinden girebilirsin.")
+                    st.success("✅ Kayıt başarılı!")
                 except:
-                    st.error("❌ Bu kullanıcı adı zaten sistemde var!")
+                    st.error("❌ Bu isim alınmış.")
     st.stop()
 
-# --- 5. VIP TAZELEME (Giriş sonrası çalışır) ---
+# --- 5. VIP TAZELEME ---
 if st.session_state.user:
     try:
         v_res = supabase.table("users").select("is_vip").eq("username", st.session_state.user).execute()
@@ -88,7 +90,6 @@ if st.session_state.user:
     except:
         pass
 
-# --- 6. SAYFA YAPILANDIRMASI ---
 st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️")
 
 
