@@ -481,7 +481,7 @@ with tabs[4]:
         if any(x in m for x in ["ST", "CF", "AM R", "AM L", "MR", "ML", "LW", "RW"]): return "🔥 HÜCUM BÖLGESİ"
         if any(x in m for x in ["D C", "DC", "D R", "DR", "D L", "DL", "SW"]): return "🛡️ SAVUNMA BÖLGESİ"
         if any(x in m for x in ["M C", "MC", "DM", "AM C", "AMC", "M "]): return "🧠 ORTA SAHA BÖLGESİ"
-        return "🏃 SAHA İÇİ"
+     
 
     # --- DURUM YÖNETİMİ ---
     if 'game_active' not in st.session_state: st.session_state.game_active = False
