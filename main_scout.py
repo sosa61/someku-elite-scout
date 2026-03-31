@@ -15,35 +15,49 @@ import unicodedata
 
 import streamlit as st
 
-# --- OTURUM AYARLARI (EN ÜSTTE OLMALI) ---
+Ömer, o son attığın görseldeki "NameError: name 'supabase' is not defined" hatası şu anlama geliyor: Güvenlik bariyerini ve giriş formunu çok yukarı taşıdık ama dükkanın veritabanı bağlantısını (supabase = ...) daha aşağıda bıraktık. Bilgisayar giriş yapmaya çalışırken "Supabase de kim? Tanımıyorum" diyor. 🕵️‍♂️⚽
+
+Bu işi şimdi hata payı bırakmadan kökten çözüyoruz. GitHub'daki dosyanın en başından (1. satırdan) başlayarak giriş butonunun bittiği yere kadar olan kısmı komple sil ve tam olarak şunu yapıştır:
+
+🛠️ Kesin ve Hatasız "Zırhlı Giriş" Modülü
+Python
+import streamlit as st
+from supabase import create_client, client
+import urllib.parse
+import pandas as pd
+import random
+import time
+import re
+
+# --- BAĞLANTI AYARLARI (GİRİŞTEN ÖNCE OLMALI) ---
+URL = "https://iwgowefraytdbcdgeqdz.supabase.co"
+KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." # Buraya senin uzun anahtarın gelecek
+supabase = create_client(URL, KEY)
+
+# --- OTURUM AYARLARI ---
 if 'authenticated' not in st.session_state: st.session_state.authenticated = False
 if 'user' not in st.session_state: st.session_state.user = None
 if 'is_vip' not in st.session_state: st.session_state.is_vip = False
 if 'fav_list' not in st.session_state: st.session_state.fav_list = []
-if 'page' not in st.session_state: st.session_state.page = 0
 
-# --- 1. OTURUM VE URL BİLGİLERİ ---
+# --- 1. URL VE GÜVENLİK KONTROLÜ ---
 query_user = st.query_params.get("user", None)
-giris_yapan_kisi = st.session_state.get("user")
 is_authenticated = st.session_state.get("authenticated", False)
+logged_in_user = st.session_state.get("user")
 
-# --- 2. KESİN GÜVENLİK BARİYERİ (ZIRHLI) ---
+# --- 2. ZIRHLI BARİKAT ---
 if query_user:
-    # EĞER ŞİFREYLE GİRİŞ YAPILMAMIŞSA (Linkle sızmaya çalışılıyorsa)
+    # Şifreyle giriş yapılmamışsa: Sadece giriş formunu göster, stop ile aşağıyı kilitle
     if not is_authenticated:
-        # Sadece giriş ekranını görmesine izin ver, içeriği (stop ile) kilitli tut
         pass 
-    
-    # EĞER GİRİŞ YAPILMIŞ AMA BAŞKASININ LİNKİNE SIZILMAYA ÇALIŞILIYORSA
-    elif giris_yapan_kisi != query_user:
+    # Giriş yapılmış ama başkasının linkine sızılıyorsa
+    elif logged_in_user != query_user:
         st.error("⛔ Burası senin mahremin değil! Kendi hesabına yönlendiriliyorsun...")
         st.stop()
 
-# --- 3. GİRİŞ VE KAYIT BÖLÜMÜ ---
+# --- 3. GİRİŞ EKRANI (SADECE GİRİŞ YAPILMAMIŞSA) ---
 if not is_authenticated:
     st.markdown('<h1 style="text-align:center;">🕵️ SOMEKU SCOUT</h1>', unsafe_allow_html=True)
-    
-    # URL'de isim varsa (someku gibi) uyarımızı gösterelim
     if query_user:
         st.warning("⚠️ Bu profil kilitlidir. Görmek için önce giriş yapmalısın!")
 
@@ -51,30 +65,25 @@ if not is_authenticated:
     u_pw = st.text_input("Şifre:", type="password")
     
     if st.button("Giriş"):
+        # Artık 'supabase' tanımlı olduğu için hata vermeyecek!
         res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
         
-        # Giriş Başarılı Kontrolü
-        is_success = False
-        user_vip_status = False
-
         if res.data:
-            is_success = True
-            user_vip_status = res.data[0].get("is_vip", False)
-        elif u_id == "someku" and u_pw == "28616128Ok": # Yedek Admin Girişi
-            is_success = True
-            user_vip_status = True
-
-        if is_success:
-            # --- ANAHTARI ÇEVİRİYORUZ ---
             st.session_state.authenticated = True
             st.session_state.user = u_id
-            st.session_state.is_vip = user_vip_status
+            st.session_state.is_vip = res.data[0].get("is_vip", False)
+            st.query_params["user"] = u_id
+            st.rerun()
+        elif u_id == "someku" and u_pw == "28616128Ok":
+            st.session_state.authenticated = True
+            st.session_state.user = u_id
+            st.session_state.is_vip = True
             st.query_params["user"] = u_id
             st.rerun()
         else:
             st.error("❌ Hatalı kullanıcı adı veya şifre!")
     
-    # Giriş yapılmadığı sürece kodun buradan aşağı akmasını engelle
+    # Giriş yapılana kadar aşağıdaki kodların (oyuncu listesi vb.) çalışmasını durdur
     st.stop()
 
 
