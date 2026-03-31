@@ -151,6 +151,7 @@ with tabs[0]:
     with v1: age_f = st.slider("🎂 Yaş Aralığı:", 14, 50, (14, 25))
     with v2: pa_f = st.slider("📊 PA Aralığı:", 100, 200, (135, 200))
     
+   # Sadece giriş yapan kullanıcının favorilerini çek (Satır 105-107)
     f_res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", curr_user).execute()
     st.session_state.fav_list = [x['oyuncu_adi'] for x in f_res.data] if f_res.data else []
 
@@ -384,13 +385,17 @@ with tabs[2]:
     kadro_txt = f"Diziliş: {tactic}\n" + "\n".join([f"{p[0]}: {p[1]}" for p in positions])
     st.download_button(label="📄 TXT İNDİR", data=kadro_txt, file_name="mermi-kadro.txt", use_container_width=True)
 
-# --- 4. FAVORİLER (V149 - GÜNCEL TABLO UYUMLU) ---
+# --- 4. FAVORİLER (KİŞİYE ÖZEL) ---
 with tabs[3]:
-    st.markdown('<h2 style="text-align:center;">⭐ KALICI FAVORİLERİN</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 style="text-align:center;">⭐ SENİN FAVORİLERİN</h2>', unsafe_allow_html=True)
     
-    # Yeni tablo yapısına göre verileri çekiyoruz
-    res = supabase.table("favoriler").select("*").order("created_at", desc=True).execute()
-    
+    # KRİTİK: Sadece giriş yapan kullanıcıya (st.session_state.user) ait olanları çek!
+    res = supabase.table("favoriler")\
+        .select("*")\
+        .eq("kullanici_adi", st.session_state.user)\
+        .order("created_at", desc=True)\
+        .execute()
+        
     if res.data:
         # Favorileri şık kartlar halinde gösterelim
         for p in res.data:
