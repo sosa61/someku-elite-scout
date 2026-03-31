@@ -13,10 +13,10 @@ import subprocess
 import threading
 import unicodedata
 
-# --- 1. BAĞLANTI AYARLARI ---
+# --- 1. BAĞLANTI AYARLARI (YENİ ANAHTAR ÇAKILDI) ---
 URL = "https://iwgowefraytdbcdgeqdz.supabase.co"
-# ÖNEMLİ: Eğer bu KEY hata verirse, Supabase panelinden anon key'i tekrar kopyala!
-KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3Z293ZWZyYXl0ZGJjZGdleWR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2MDYxOTAsImV4cCI6MjA1NjE4MjE5MH0.zEjhpC3mi0IkWyYUaG8OFvsAe-IBD4XcR7a2l2mflj4Y0HJfuguU2m-o"
+# İşte o mermi gibi anahtar:
+KEY = "sb_publishable_NHESQOd8-v3tYpVPcz88-w_vypIPQ8Z"
 
 try:
     supabase = create_client(URL, KEY)
@@ -40,13 +40,14 @@ if query_user and is_authenticated:
         st.error("⛔ Burası senin mahremin değil!")
         st.stop()
 
-# --- 4. GİRİŞ EKRANI ---
+# --- 4. GİRİŞ EKRANI (ZIRHLI) ---
 if not is_authenticated:
     st.markdown('<h1 style="text-align:center;">🕵️ SOMEKU SCOUT</h1>', unsafe_allow_html=True)
     if query_user:
         st.warning("⚠️ Bu profil kilitlidir. Görmek için önce giriş yapmalısın!")
 
     t1, t2 = st.tabs(["Giriş Yap", "Kayıt Ol"])
+    
     with t1:
         u_id = st.text_input("Kullanıcı Adı:", key="l_u")
         u_pw = st.text_input("Şifre:", type="password", key="l_p")
@@ -66,22 +67,23 @@ if not is_authenticated:
                     st.query_params["user"] = u_id
                     st.rerun()
                 else:
-                    st.error("❌ Hatalı giriş!")
+                    st.error("❌ Hatalı giriş bilgileri!")
             except Exception as e:
-                st.error(f"⚠️ Veritabanı Hatası: {e}")
+                st.error(f"⚠️ Giriş Hatası: {e}")
+                
     with t2:
         n_user = st.text_input("Yeni Kullanıcı Adı:", key="r_u")
-        n_pw = st.text_input("Şifre:", type="password", key="r_p")
-        if st.button("Kayıt Ol"):
+        n_pw = st.text_input("Yeni Şifre:", type="password", key="r_p")
+        if st.button("Hemen Kayıt Ol"):
             if n_user and n_pw:
                 try:
                     supabase.table("users").insert({"username": n_user, "password": n_pw, "is_vip": False}).execute()
-                    st.success("✅ Kayıt başarılı!")
+                    st.success("✅ Kayıt başarılı! Giriş sekmesine geçebilirsin.")
                 except:
-                    st.error("❌ Bu isim alınmış.")
+                    st.error("❌ Bu isim zaten sistemde var.")
     st.stop()
 
-# --- 5. VIP TAZELEME ---
+# --- 5. VIP TAZELEME MOTORU ---
 if st.session_state.user:
     try:
         v_res = supabase.table("users").select("is_vip").eq("username", st.session_state.user).execute()
