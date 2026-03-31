@@ -874,3 +874,30 @@ with col3:
                 <p>Bu bölgeye sadece ana scout (someku) erişebilir.</p>
             </div>
         """, unsafe_allow_html=True)
+        
+        
+        # --- OTOMATİK GÜNCELLEME BEKÇİSİ (BARROW ÖZEL) ---
+import os
+import subprocess
+import time
+import threading
+
+def check_for_updates():
+    while True:
+        try:
+            # GitHub'da yeni mermi var mı diye bak
+            subprocess.run(["git", "fetch"], check=True, capture_output=True)
+            status = subprocess.run(["git", "status", "-uno"], capture_output=True, text=True).stdout
+            
+            if "Your branch is behind" in status:
+                # Yeni mermi gelmiş! Hemen çek ve dükkanı yenile
+                subprocess.run(["git", "pull"], check=True)
+                # Dükkanı yeniden başlat (Bu işlem Streamlit'i tetikler)
+                os._exit(0) 
+        except:
+            pass
+        time.sleep(60) # Her 60 saniyede bir GitHub'ı kolla
+
+# Bekçiyi arka planda çalıştır
+threading.Thread(target=check_for_updates, daemon=True).start()
+
