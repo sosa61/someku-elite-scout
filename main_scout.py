@@ -20,40 +20,6 @@ supabase: Client = create_client(URL, KEY)
 # --- SAYFA AYARLARI ---
 st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️")
 
-import streamlit as st
-
-# --- İNATÇI REKLAMI GÖMME OPERASYONU (V4 - SON MERMİ) ---
-st.markdown("""
-    <style>
-    /* Üst ve alt kalabalıkları komple uçurur */
-    header {visibility: hidden !important;}
-    footer {visibility: hidden !important; display: none !important;}
-    .stAppDeployButton {display:none !important;}
-
-    /* Ekranın en altına mermi gibi bir bar çeker */
-    [data-testid="stAppViewContainer"]::after {
-        content: 'SOMEKU SCOUT 🕵️‍♂️ - Tüm Hakları Saklıdır';
-        display: block;
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 40px;
-        background-color: #0e1117; /* Dükkanın arka planı siyahsa kalsın */
-        color: #ffffff;
-        text-align: center;
-        line-height: 40px;
-        font-size: 11px;
-        z-index: 2147483647; /* İnternetin en yüksek katmanı! */
-    }
-
-    /* Sayfanın en altındaki boşluğu ayarlar */
-    .main .block-container {
-        padding-bottom: 50px !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
 # --- 🔄 GÜÇLENDİRİLMİŞ VIP TAZELEME MOTORU (V183) ---
 if "user" in st.session_state and st.session_state.get('user'):
     try:
@@ -783,35 +749,31 @@ with tabs[6]:
                         st.write(f"**Barrow Hak:** `{u.get('barrow_count', 0)}/3`")
                     
                     with col2:
-                        # VIP Tarih ve Yetki Ayarı
+                        # VIP Tarih Ayarı
                         db_date = u.get('last_barrow_date')
                         try:
-                            if db_date:
-                                default_date = datetime.datetime.strptime(str(db_date), "%Y-%m-%d").date()
-                            else:
-                                default_date = datetime.date.today()
-                        except Exception:
+                            default_date = datetime.datetime.strptime(db_date, "%Y-%m-%d").date() if db_date else datetime.date.today()
+                        except:
                             default_date = datetime.date.today()
-
+                        
                         new_date = st.date_input(f"VIP Bitiş Tarihi:", value=default_date, key=f"date_{u['username']}")
                         is_vip_toggle = st.checkbox("VIP Yetkisi Ver", value=u.get('is_vip', False), key=f"check_{u['username']}")
 
                     with col3:
                         st.write(" İşlemler")
                         if st.button("💾 GÜNCELLE", key=f"upd_{u['username']}", use_container_width=True):
-                            update_data = {
+                            supabase.table("users").update({
                                 "is_vip": is_vip_toggle,
                                 "last_barrow_date": str(new_date)
-                            }
-                            supabase.table("users").update(update_data).eq("username", u['username']).execute()
+                            }).eq("username", u['username']).execute()
                             st.success("Güncellendi!")
                             st.rerun()
-                        
+                            
                         if u['username'] != "someku":
                             if st.button("🗑️ SİL", key=f"del_{u['username']}", use_container_width=True):
                                 supabase.table("users").delete().eq("username", u['username']).execute()
+                                st.warning("Kullanıcı silindi.")
                                 st.rerun()
-
 
         # --- B. OYUNCU DENETİMİ ---
         with adm_tabs[1]:
@@ -863,28 +825,3 @@ with tabs[6]:
                 <p>Bu bölgeye sadece ana scout (someku) erişebilir.</p>
             </div>
         """, unsafe_allow_html=True)
-        
-        
-        # --- OTOMATİK GÜNCELLEME BEKÇİSİ (BARROW ÖZEL) ---
-import os
-import subprocess
-import time
-import threading
-
-def check_for_updates():
-    while True:
-        try:
-                    with col2:
-                        # VIP Tarih Ayarı - Hizalamaya DİKKAT!
-                        db_date = u.get('last_barrow_date')
-                        try:
-                            if db_date:
-                                default_date = datetime.datetime.strptime(str(db_date), "%Y-%m-%d").date()
-                            else:
-                                default_date = datetime.date.today()
-                        except:
-                            default_date = datetime.date.today()
-                        
-                        new_date = st.date_input(f"VIP Bitiş Tarihi:", value=default_date, key=f"date_{u['username']}")
-                        is_vip_toggle = st.checkbox("VIP Yetkisi Ver", value=u.get('is_vip', False), key=f"check_{u['username']}")
-
