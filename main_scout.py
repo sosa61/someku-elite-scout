@@ -451,23 +451,13 @@ with tabs[3]:
     else:
         st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
         
-# --- 5. GİZLİ YETENEK AVI (V520 - KESKİN SCOUT & OTO-SIFIRLAMA) ---
+# --- 5. GİZLİ YETENEK AVI (V530 - KESKİN DÖRTLÜ BÖLGE) ---
 with tabs[4]:
     import unicodedata
     import time
     import random
     st.markdown('<h2 style="text-align:center; color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h2>', unsafe_allow_html=True)
     
-    # --- OYUN KURALLARI ---
-    with st.expander("📖 Oyun Kuralları & Analiz Notları", expanded=True):
-        st.markdown("""
-        1. **Bölgesel Mevki:** Analiz kolaylığı için mevkiler ana bölgeler (Hücum, Orta Saha, Savunma, Kaleci) olarak gruplanmıştır.
-        2. **Bonservis:** Oyuncu kiralıksa, kiralık gittiği yer değil **asıl ait olduğu kulüp** görünür.
-        3. **Veri Akışı:** Son 10s PA, son 5s CA bilgileri analiz dosyasından şak diye açılır.
-        4. **Akıllı Tespit:** Sen harf yazdığın an elit adaylar aşağıya dizilir. Seçtiğin an sistem kutuyu temizler ve karar verir.
-        5. **⚠️ Not:** Yapay zeka verileri %99 doğrudur; nadir sapmalarda scout sabrını koru!
-        """)
-
     # --- YARDIMCI FONKSİYONLAR ---
     def metin_temizle(metin):
         if not metin: return ""
@@ -477,22 +467,29 @@ with tabs[4]:
 
     def bolgesel_mevki_yap(m):
         m = str(m).upper()
+        # 1. KALECİ
         if "GK" in m: return "🧤 KALECİ"
-        if any(x in m for x in ["ST", "CF", "AM R", "AM L", "MR", "ML", "LW", "RW"]): return "🔥 HÜCUM BÖLGESİ"
-        if any(x in m for x in ["D C", "DC", "D R", "DR", "D L", "DL", "SW"]): return "🛡️ SAVUNMA BÖLGESİ"
-        if any(x in m for x in ["M C", "MC", "DM", "AM C", "AMC", "M "]): return "🧠 ORTA SAHA BÖLGESİ"
-     
+        
+        # 2. HÜCUM BÖLGESİ (Forvetler ve Kanatlar)
+        if any(x in m for x in ["ST", "CF", "AM R", "AM L", "MR", "ML", "LW", "RW"]): 
+            return "🔥 HÜCUM BÖLGESİ"
+        
+        # 3. SAVUNMA BÖLGESİ (Stoperler, Bekler ve Liberolar)
+        if any(x in m for x in ["D C", "DC", "D R", "DR", "D L", "DL", "SW", "WBR", "WBL"]): 
+            return "🛡️ SAVUNMA BÖLGESİ"
+        
+        # 4. ORTA SAHA BÖLGESİ (Geri kalan her şey: MC, DM, AMC, M)
+        return "🧠 ORTA SAHA BÖLGESİ"
 
     # --- DURUM YÖNETİMİ ---
     if 'game_active' not in st.session_state: st.session_state.game_active = False
     if 'target_p' not in st.session_state: st.session_state.target_p = None
     if 'last_result' not in st.session_state: st.session_state.last_result = None
-    # Kutuyu sıfırlamak için özel bir state tutuyoruz
     if 'input_key' not in st.session_state: st.session_state.input_key = 0
 
     def yeni_av_tetikle():
         st.session_state.last_result = None
-        st.session_state.input_key += 1 # Anahtarı değiştirerek kutuyu sıfırlıyoruz
+        st.session_state.input_key += 1
         res_g = supabase.table("oyuncular").select("*").not_.eq("kulup", "None").gte("pa", 165).execute()
         if res_g.data:
             st.session_state.all_player_names = sorted(list(set([r['oyuncu_adi'] for r in res_g.data])))
@@ -516,7 +513,6 @@ with tabs[4]:
             pa_hint = f"🔥 PA: {p['pa']}" if kalan <= 10 else "🔥 PA: ??"
             ca_hint = f"📊 CA: {p.get('ca','?')}" if kalan <= 5 else "📊 CA: ??"
             
-            # --- ÜSTTEKİ KART ---
             st.markdown(f"""
                 <div style="background:#161b22; padding:20px; border-radius:15px; border:2px solid #30363d; text-align:center;">
                     <h2 style="color:#f2cc60; margin:0;">{bolgesel_mevki_yap(p['mevki'])}</h2>
@@ -531,7 +527,6 @@ with tabs[4]:
                 </div>
             """, unsafe_allow_html=True)
 
-            # --- ALTAKİ ARAMA (OTO-SIFIRLAMALI) ---
             st.write("")
             query = st.text_input("Hedef ismini yazmaya başla...", key=f"input_{st.session_state.input_key}").strip()
             
@@ -539,15 +534,13 @@ with tabs[4]:
                 matches = [name for name in st.session_state.all_player_names if metin_temizle(query) in metin_temizle(name)][:5]
                 
                 if matches:
-                    st.write("🎯 **Potansiyel Hedefler (Tıkla ve Teşhis Et):**")
+                    st.write("🎯 **Potansiyel Hedefler (Analiz Et):**")
                     for match in matches:
                         if st.button(f"📍 {match}", key=f"btn_{match}", use_container_width=True):
-                            # Tıklandığı an kutuyu sıfırlamak için anahtarı artır
                             st.session_state.input_key += 1
                             if metin_temizle(match) == metin_temizle(p['oyuncu_adi']):
                                 st.session_state.last_result = "WIN"
                                 st.session_state.game_active = False
-                                # Puan Güncelleme
                                 try:
                                     c = supabase.table("users").select("puan").eq("username", st.session_state.user).execute()
                                     eski = c.data[0].get("puan", 0) if c.data else 0
@@ -585,6 +578,7 @@ with tabs[4]:
         
         yeni_av_tetikle()
         st.rerun()
+
 
 
     # --- 5. LİDERLİK TABLOSU (SADE VE GÜVENLİ) ---
