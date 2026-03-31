@@ -28,23 +28,16 @@ if 'user' not in st.session_state: st.session_state.user = None
 if 'is_vip' not in st.session_state: st.session_state.is_vip = False
 if 'fav_list' not in st.session_state: st.session_state.fav_list = []
 if 'page' not in st.session_state: st.session_state.page = 0
-
-# --- 3. 🔄 F5 VE HAFIZA KONTROLÜ (KRİTİK) ---
+# --- 3. 🔄 F5 VE HAFIZA KONTROLÜ (ZIRHLI VERSİYON) ---
 query_user = st.query_params.get("user", None)
-
-# Eğer F5 atıldıysa ve hafıza silindiyse, URL'den geri yükle
-if query_user and not st.session_state.user:
-    st.session_state.user = query_user
-    st.session_state.authenticated = True
-
-# --- 4. GÜVENLİK BARİYERİ ---
 is_authenticated = st.session_state.get("authenticated", False)
-logged_in_user = st.session_state.get("user")
 
-if query_user and is_authenticated:
-    if logged_in_user != query_user:
-        st.error("⛔ Burası senin mahremin değil!")
-        st.stop()
+# EĞER GİZLİ SEKMEDEN LİNKLE GELİNİYORSA:
+# (Yani URL'de isim var ama bu tarayıcıda henüz şifre girilmemişse)
+if query_user and not is_authenticated:
+    # Hafızayı zorla boş tut, URL'deki isme inanma!
+    st.session_state.user = None 
+    st.session_state.authenticated = False
 
 # --- 5. GİRİŞ VE KAYIT EKRANI ---
 if not is_authenticated:
