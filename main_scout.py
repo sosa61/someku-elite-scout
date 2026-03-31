@@ -25,18 +25,17 @@ if 'is_vip' not in st.session_state: st.session_state.is_vip = False
 if 'fav_list' not in st.session_state: st.session_state.fav_list = []
 if 'page' not in st.session_state: st.session_state.page = 0
 
-# --- 3. GÜVENLİK VE TEK GİRİŞ KAPISI ---
+# --- 3. GÜVENLİK VE URL ---
 query_user = st.query_params.get("user", None)
 is_authenticated = st.session_state.get("authenticated", False)
 logged_in_user = st.session_state.get("user")
 
-# Linkle sızma kontrolü
 if query_user and is_authenticated:
     if logged_in_user != query_user:
         st.error("⛔ Burası senin mahremin değil!")
         st.stop()
 
-# Giriş Ekranı (Eğer şifre girilmemişse)
+# --- 4. GİRİŞ VE KAYIT EKRANI ---
 if not is_authenticated:
     st.markdown('<h1 style="text-align:center;">🕵️ SOMEKU SCOUT</h1>', unsafe_allow_html=True)
     if query_user:
@@ -45,15 +44,15 @@ if not is_authenticated:
     tab1, tab2 = st.tabs(["Giriş Yap", "Kayıt Ol"])
 
     with tab1:
-        u_id = st.text_input("Kullanıcı Adı:", key="main_l_user")
-        u_pw = st.text_input("Şifre:", type="password", key="main_l_pw")
+        u_id = st.text_input("Kullanıcı Adı:", key="login_field")
+        u_pw = st.text_input("Şifre:", type="password", key="password_field")
         if st.button("Sisteme Giriş Yap"):
             try:
                 res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
                 if res.data:
                     st.session_state.authenticated = True
                     st.session_state.user = u_id
-                    st.session_state.is_vip = res.data[0].get("is_vip", False)
+                    st.session_state.is_vip = bool(res.data[0].get("is_vip", False))
                     st.query_params["user"] = u_id
                     st.rerun()
                 elif u_id == "someku" and u_pw == "28616128Ok":
@@ -63,27 +62,36 @@ if not is_authenticated:
                     st.query_params["user"] = u_id
                     st.rerun()
                 else:
-                    st.error("❌ Hatalı giriş!")
+                    st.error("❌ Hatalı giriş bilgileri!")
             except Exception as e:
-                st.error(f"⚠️ Veritabanı Hatası: {e}")
+                st.error(f"⚠️ Bağlantı hatası: {e}")
 
     with tab2:
-        st.info("Yeni bir hesap oluşturun.")
-        n_user = st.text_input("Yeni Kullanıcı Adı:", key="main_r_user")
-        n_pw = st.text_input("Yeni Şifre:", type="password", key="main_r_pw")
+        st.info("Yeni bir scout hesabı oluşturun.")
+        n_user = st.text_input("Kullanıcı Adı:", key="reg_user_field")
+        n_pw = st.text_input("Şifre:", type="password", key="reg_pw_field")
         if st.button("Hemen Kayıt Ol"):
             if n_user and n_pw:
                 try:
                     supabase.table("users").insert({"username": n_user, "password": n_pw, "is_vip": False}).execute()
-                    st.success("✅ Kayıt başarılı! Giriş sekmesine dönüp girebilirsin.")
+                    st.success("✅ Kayıt başarılı! Giriş sekmesinden girebilirsin.")
                 except:
-                    st.error("❌ Bu kullanıcı adı zaten alınmış!")
-
+                    st.error("❌ Bu kullanıcı adı zaten sistemde var!")
     st.stop()
 
-# --- 4. 🔄 GÜÇLENDİRİLMİŞ VIP TAZELEME MOTORU ---
-# Bu kısım sadece giriş başarılı olduktan sonra çalışır
-if st.session_state.get('user'):
+# --- 5. VIP TAZELEME (Giriş sonrası çalışır) ---
+if st.session_state.user:
+    try:
+        v_res = supabase.table("users").select("is_vip").eq("username", st.session_state.user).execute()
+        if v_res.data:
+            st.session_state.is_vip = bool(v_res.data[0].get("is_vip", False))
+    except:
+        pass
+
+# --- 6. SAYFA YAPILANDIRMASI ---
+st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️")
+
+
 # --- 1. SCOUT ---
 with tabs[0]:
     POS_TR = {"Hepsi": "Hepsi", "Kaleci": "GK", "Stoper": "D C", "Sol Bek": "D L", "Sağ Bek": "D R", "Ön Libero": "DM", "Merkez Orta Saha": "M C", "Sol Kanat": "AM L", "Sağ Kanat": "AM R", "Ofansif Orta Saha": "AM C", "Forvet": "ST"}
