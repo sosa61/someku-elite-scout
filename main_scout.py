@@ -763,135 +763,84 @@ with tabs[6]:
         st.markdown("---")
         adm_tabs = st.tabs(["👥 Kullanıcı & VIP", "🔍 Oyuncu Denetimi", "🛠️ Sistem Bakımı"])
 
+# --- 6. ADMIN (V186 - TAM YETKİLİ) ---
+with tabs[6]: 
+    if st.session_state.get('user') == "someku":
+        st.markdown('<h1 style="color:#ff4b4b; text-align:center;">🛡️ YÖNETİM MERKEZİ</h1>', unsafe_allow_html=True)
+        
+        # --- GENEL İSTATİSTİKLER ---
+        try:
+            u_res = supabase.table("users").select("*").execute()
+            users_list = u_res.data if u_res.data else []
+            res_count = supabase.table("oyuncular").select("*", count="exact").limit(1).execute()
+            total_players = res_count.count
+            vip_count = len([u for u in users_list if u.get('is_vip')])
+
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Toplam Oyuncu", f"{total_players:,}".replace(",", "."))
+            c2.metric("Kayıtlı Kullanıcı", len(users_list))
+            c3.metric("Aktif VIP", vip_count)
+            c4.success("Sistem: Aktif")
+        except:
+            users_list = []
+
+        st.markdown("---")
+        # SEKMELERİ TANIMLA
+        adm_tabs = st.tabs(["👥 Kullanıcı & VIP", "🔍 Oyuncu Denetimi", "🛠️ Sistem Bakımı", "⭐ Favori Takibi"])
+
         # --- A. KULLANICI & VIP YÖNETİMİ ---
         with adm_tabs[0]:
-            st.write("### 👥 Kullanıcı Listesi ve Yetkilendirme")
-            
-            # Arama filtresi (Kullanıcılar arasında)
-            search_u = st.text_input("Kullanıcı Ara:", placeholder="Kullanıcı adı yazın...")
-            
+            st.write("### 👥 Kullanıcı Listesi")
+            search_u = st.text_input("Kullanıcı Ara:", key="adm_search_u")
             for u in users_list:
-                # Arama yapılıyorsa filtrele
-                if search_u and search_u.lower() not in u['username'].lower():
-                    continue
-                    
-                with st.expander(f"{'🌟' if u.get('is_vip') else '⚪'} {u['username']} - {u.get('email', 'E-posta Yok')}"):
-                    col1, col2, col3 = st.columns([2, 2, 1])
-                    
+                if search_u and search_u.lower() not in u['username'].lower(): continue
+                with st.expander(f"{'🌟' if u.get('is_vip') else '⚪'} {u['username']}"):
+                    col1, col2 = st.columns(2)
                     with col1:
-                        st.write(f"**Şifre:** `{u.get('password')}`")
-                        st.write(f"**Puan:** `{u.get('puan', 0)}` SC")
-                        st.write(f"**Barrow Hak:** `{u.get('barrow_count', 0)}/3`")
-                    
+                        st.write(f"Şifre: `{u.get('password')}`")
+                        is_vip_toggle = st.checkbox("VIP Yetkisi", value=u.get('is_vip', False), key=f"v_{u['username']}")
                     with col2:
-                        # VIP Tarih Ayarı
-                        db_date = u.get('last_barrow_date')
-                        try:
-                            default_date = datetime.datetime.strptime(db_date, "%Y-%m-%d").date() if db_date else datetime.date.today()
-                        except:
-                            default_date = datetime.date.today()
-                        
-                        new_date = st.date_input(f"VIP Bitiş Tarihi:", value=default_date, key=f"date_{u['username']}")
-                        is_vip_toggle = st.checkbox("VIP Yetkisi Ver", value=u.get('is_vip', False), key=f"check_{u['username']}")
-
-                    with col3:
-                        st.write(" İşlemler")
-                        if st.button("💾 GÜNCELLE", key=f"upd_{u['username']}", use_container_width=True):
-                            supabase.table("users").update({
-                                "is_vip": is_vip_toggle,
-                                "last_barrow_date": str(new_date)
-                            }).eq("username", u['username']).execute()
-                            st.success("Güncellendi!")
+                        if st.button("💾 GÜNCELLE", key=f"u_{u['username']}"):
+                            supabase.table("users").update({"is_vip": is_vip_toggle}).eq("username", u['username']).execute()
                             st.rerun()
-                            
-                        if u['username'] != "someku":
-                            if st.button("🗑️ SİL", key=f"del_{u['username']}", use_container_width=True):
-                                supabase.table("users").delete().eq("username", u['username']).execute()
-                                st.warning("Kullanıcı silindi.")
-                                st.rerun()
 
         # --- B. OYUNCU DENETİMİ ---
         with adm_tabs[1]:
-            st.write("### ✏️ Oyuncu Bilgisi Güncelle")
-            target_p_name = st.text_input("Düzenlenecek Oyuncu Adı (Tam Eşleşme):")
-            if target_p_name:
-                p_data = supabase.table("oyuncular").select("*").eq("oyuncu_adi", target_p_name).execute()
+            st.write("### ✏️ Oyuncu Güncelle")
+            target_p = st.text_input("Oyuncu Adı (Tam):")
+            if target_p:
+                p_data = supabase.table("oyuncular").select("*").eq("oyuncu_adi", target_p).execute()
                 if p_data.data:
-                    p_edit = p_data.data[0]
-                    e1, e2, e3 = st.columns(3)
-                    new_pa = e1.number_input("PA:", value=int(p_edit['pa']))
-                    new_ca = e2.number_input("CA:", value=int(p_edit.get('ca', 0)))
-                    new_club = e3.text_input("Kulüp:", value=p_edit.get('kulup', ''))
-                    
-                    if st.button("DEĞİŞİKLİKLERİ KAYDET"):
-                        supabase.table("oyuncular").update({
-                            "pa": new_pa, 
-                            "ca": new_ca, 
-                            "kulup": new_club
-                        }).eq("oyuncu_adi", target_p_name).execute()
-                        st.success("Oyuncu mermi gibi güncellendi!")
-                else:
-                    st.error("Oyuncu bulunamadı.")
+                    new_pa = st.number_input("PA:", value=int(p_data.data[0]['pa']))
+                    if st.button("KAYDET"):
+                        supabase.table("oyuncular").update({"pa": new_pa}).eq("oyuncu_adi", target_p).execute()
+                        st.success("Güncellendi!")
 
         # --- C. SİSTEM BAKIMI ---
         with adm_tabs[2]:
-            st.write("### 🛠️ Kritik Sistem Araçları")
-            
-            c_sec1, c_sec2 = st.columns(2)
-            
-            with c_sec1:
-                if st.button("🧹 ÖNBELLEĞİ TEMİZLE", use_container_width=True):
-                    st.cache_data.clear()
-                    st.success("Streamlit cache temizlendi.")
-                
-                st.info("Bu işlem sayfanın yavaşlamasını önler.")
+            st.write("### 🛠️ Araçlar")
+            if st.button("🧹 ÖNBELLEĞİ TEMİZLE"):
+                st.cache_data.clear()
+                st.success("Temizlendi.")
 
-            with c_sec2:
-                # Toplu Puan Sıfırlama vb. eklenebilir
-                if st.button("📉 TÜM BARROW HAKLARINI SIFIRLA", use_container_width=True):
-                    supabase.table("users").update({"barrow_count": 0}).execute()
-                    st.success("Tüm standart üyelerin günlük hakları sıfırlandı.")
-
-    else:
-        st.markdown("""
-            <div style="text-align:center; padding:50px;">
-                <h1 style="font-size:100px;">🚫</h1>
-                <h2>YETKİSİZ ERİŞİM</h2>
-                <p>Bu bölgeye sadece ana scout (someku) erişebilir.</p>
-            </div>
-        """, unsafe_allow_html=True)
-
-# Admin Sekmelerini Güncelle (Üstteki satırı bununla değiştir)
-        adm_tabs = st.tabs(["👥 Kullanıcı & VIP", "🔍 Oyuncu Denetimi", "🛠️ Sistem Bakımı", "⭐ Favori Takibi"])
-
-        # --- D. FAVORİ TAKİBİ (YENİ EKLEME) ---
+        # --- D. FAVORİ TAKİBİ (İŞTE BURASI!) ---
         with adm_tabs[3]:
-            st.write("### ⭐ Tüm Scoutların Favori Listeleri")
+            st.write("### ⭐ Scout Favori Takibi")
             try:
-                # Tüm favorileri çek
                 all_favs = supabase.table("favoriler").select("*").order("created_at", desc=True).execute()
-                
                 if all_favs.data:
-                    # Kullanıcı adına göre gruplayarak gösterelim
                     fav_df = pd.DataFrame(all_favs.data)
-                    
-                    search_fav_user = st.text_input("Scout adına göre filtrele:", placeholder="Örn: ramazan")
-                    
+                    search_f = st.text_input("Scout Ara:", key="adm_search_f")
                     for scout in fav_df['kullanici_adi'].unique():
-                        if search_fav_user and search_fav_user.lower() not in scout.lower():
-                            continue
-                            
+                        if search_f and search_f.lower() not in scout.lower(): continue
                         scout_favs = fav_df[fav_df['kullanici_adi'] == scout]
                         with st.expander(f"👤 {scout} ({len(scout_favs)} Oyuncu)"):
                             for _, row in scout_favs.iterrows():
-                                st.markdown(f"""
-                                <div style="padding:8px; border-bottom:1px solid #30363d; display:flex; justify-content:space-between;">
-                                    <span>🎯 <b>{row['oyuncu_adi']}</b> <small>({row.get('mevki','-')})</small></span>
-                                    <span style="color:#238636; font-weight:bold;">PA: {row['pa']}</span>
-                                </div>
-                                """, unsafe_allow_html=True)
+                                st.write(f"🎯 **{row['oyuncu_adi']}** - PA: {row['pa']}")
                 else:
-                    st.info("Henüz kimse favori eklememiş.")
+                    st.info("Henüz favori yok.")
             except Exception as e:
-                st.error(f"Favori verileri çekilemedi: {e}")
-        
+                st.error(f"Hata: {e}")
+
+    else:
+        st.error("🚫 YETKİSİZ ERİŞİM! Bu bölge sadece 'someku' içindir.")
