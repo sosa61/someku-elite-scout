@@ -80,18 +80,17 @@ if 'is_vip' not in st.session_state: st.session_state.is_vip = False # VIP durum
 if 'fav_list' not in st.session_state: st.session_state.fav_list = []
 if 'roulette_player' not in st.session_state: st.session_state.roulette_player = None
 
-# Query Params'tan kullanıcıyı almayı deniyoruz (Sayfa yenilenince giriş kalsın diye)
+# 1. URL'den kullanıcıyı çek
 query_user = st.query_params.get("user", None)
 
-# --- ZIRHLI GÜVENLİK KİLİDİ (GİRİŞ ŞART) ---
-# 1. Giriş yapmış olan gerçek kişiyi al
+# 2. Giriş yapmış kişiyi al
 giris_yapan_kisi = st.session_state.get("user")
 
-# 2. Eğer URL'de bir isim varsa ama adam giriş yapmamışsa veya başkasıysa
-if query_user:
-    if giris_yapan_kisi is None or query_user != giris_yapan_kisi:
-        st.error("⛔ Burası mahrem alan! Önce kendi hesabınla giriş yapmalısın.")
-        # Burada sadece giriş formunu göster, oyuncuları/verileri çekmeyi durdur
+# --- ZIRHLI AMA F5 DOSTU KİLİT ---
+# Eğer kullanıcı login ekranını geçmişse ve bir ismi varsa kontrol et
+if giris_yapan_kisi: 
+    if query_user and query_user != giris_yapan_kisi:
+        st.error("⛔ Burası senin mahremin değil! Sadece kendi profilini görebilirsin.")
         st.stop()
         
 # --- GİRİŞ VE KAYIT BÖLÜMÜ ---
