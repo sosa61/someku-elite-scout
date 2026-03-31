@@ -783,45 +783,34 @@ with tabs[6]:
                         st.write(f"**Barrow Hak:** `{u.get('barrow_count', 0)}/3`")
                     
                     with col2:
-                       # VIP Tarih ve Yetki Ayarı
-# Veritabanından mevcut tarihi çek, yoksa bugünü baz al
-db_date = u.get('last_barrow_date')
-try:
-    if db_date:
-        # Eğer tarih string gelirse parse et, gelmezse bugünü ver
-        default_date = datetime.datetime.strptime(str(db_date), "%Y-%m-%d").date()
-    else:
-        default_date = datetime.date.today()
-except Exception:
-    default_date = datetime.date.today()
+                        # VIP Tarih ve Yetki Ayarı
+                        db_date = u.get('last_barrow_date')
+                        try:
+                            if db_date:
+                                default_date = datetime.datetime.strptime(str(db_date), "%Y-%m-%d").date()
+                            else:
+                                default_date = datetime.date.today()
+                        except Exception:
+                            default_date = datetime.date.today()
 
-# Kullanıcıya tarih seçtir
-new_date = st.date_input(f"VIP Bitiş Tarihi:", value=default_date, key=f"date_{u['username']}")
-is_vip_toggle = st.checkbox("VIP Yetkisi Ver", value=u.get('is_vip', False), key=f"check_{u['username']}")
+                        new_date = st.date_input(f"VIP Bitiş Tarihi:", value=default_date, key=f"date_{u['username']}")
+                        is_vip_toggle = st.checkbox("VIP Yetkisi Ver", value=u.get('is_vip', False), key=f"check_{u['username']}")
 
-with col3:
-    st.write(" İşlemler")
-    if st.button("💾 GÜNCELLE", key=f"upd_{u['username']}", use_container_width=True):
-        # MERMİYİ BURADA SIKIYORUZ: Hem VIP durumunu hem de tarihi aynı anda çak!
-        update_data = {
-            "is_vip": is_vip_toggle,
-            "last_barrow_date": str(new_date)
-        }
-        
-        # Supabase'e mermiyi gönder
-        res = supabase.table("users").update(update_data).eq("username", u['username']).execute()
-        
-        if res:
-            st.success(f"✅ {u['username']} güncellendi! Tarih: {new_date}")
-            st.rerun()
-        else:
-            st.error("❌ Veritabanı hatası! Mermi hedefe gitmedi.")
-            
-    if u['username'] != "someku":
-        if st.button("🗑️ SİL", key=f"del_{u['username']}", use_container_width=True):
-            supabase.table("users").delete().eq("username", u['username']).execute()
-            st.warning("Kullanıcı silindi.")
-            st.rerun()
+                    with col3:
+                        st.write(" İşlemler")
+                        if st.button("💾 GÜNCELLE", key=f"upd_{u['username']}", use_container_width=True):
+                            update_data = {
+                                "is_vip": is_vip_toggle,
+                                "last_barrow_date": str(new_date)
+                            }
+                            supabase.table("users").update(update_data).eq("username", u['username']).execute()
+                            st.success("Güncellendi!")
+                            st.rerun()
+                        
+                        if u['username'] != "someku":
+                            if st.button("🗑️ SİL", key=f"del_{u['username']}", use_container_width=True):
+                                supabase.table("users").delete().eq("username", u['username']).execute()
+                                st.rerun()
 
 
         # --- B. OYUNCU DENETİMİ ---
