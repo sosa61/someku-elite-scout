@@ -80,30 +80,27 @@ if 'is_vip' not in st.session_state: st.session_state.is_vip = False # VIP durum
 if 'fav_list' not in st.session_state: st.session_state.fav_list = []
 if 'roulette_player' not in st.session_state: st.session_state.roulette_player = None
 
-# --- 1. OTURUM BİLGİLERİNİ KONTROL ET ---
-# URL'deki ismi al
+# --- 1. OTURUM VE URL BİLGİLERİ ---
 query_user = st.query_params.get("user", None)
+giris_yapan_kisi = st.session_state.get("user")
+# Şifreyle giriş yapılıp yapılmadığını kontrol eden ana kilit:
+is_authenticated = st.session_state.get("authenticated", False)
 
-# Hafızadaki 'authenticated' (şifreyle giriş) durumunu kontrol et
-is_logged_in = st.session_state.get("authenticated", False)
-current_user = st.session_state.get("user")
-
-# --- 2. ZIRHLI GÜVENLİK BARİYERİ ---
+# --- 2. KESİN GÜVENLİK BARİYERİ ---
 if query_user:
-    # EĞER ŞİFREYLE GİRİŞ YAPILMAMIŞSA: İçeriyi gösterme, durdur!
-    if not is_logged_in:
-        st.warning("⚠️ Bu profili görmek için önce kullanıcı adın ve şifrenle giriş yapmalısın.")
-        st.stop() # Sayfanın geri kalanını (verileri) asla yüklemez!
+    # EĞER ŞİFRE GİRİLMEMİŞSE (Yeni bir tarayıcıdan linkle geliniyorsa)
+    if not is_authenticated:
+        st.warning("⚠️ Bu profil kilitlidir. Görmek için önce kullanıcı adın ve şifrenle giriş yapmalısın!")
+        st.stop() # BURASI KRİTİK: Alt taraftaki oyuncu çekme kodlarını ASLA çalıştırmaz.
     
-    # EĞER BAŞKASININ HESABINA SIZMAYA ÇALIŞIYORSA: Durdur!
-    elif current_user != query_user:
+    # EĞER GİRİŞ YAPILMIŞ AMA BAŞKASININ LİNKİNE SIZILMAYA ÇALIŞILIYORSA
+    elif giris_yapan_kisi != query_user:
         st.error("⛔ Burası senin mahremin değil! Kendi hesabına yönlendiriliyorsun...")
         st.stop()
 
-# --- 3. F5 YAPINCA SİSTEMİN SENİ UNUTMAMASI İÇİN ---
-if query_user and st.session_state.get("user") is None:
+# --- 3. F5 DOSTU HAFIZA (Sadece giriş yapılmışsa çalışır) ---
+if is_authenticated and query_user and st.session_state.get("user") is None:
     st.session_state.user = query_user
-        
 # --- GİRİŞ VE KAYIT BÖLÜMÜ ---
 if st.session_state.user is None:
     st.markdown('<h1 style="text-align:center;">🕵️ SOMEKU SCOUT</h1>', unsafe_allow_html=True)
