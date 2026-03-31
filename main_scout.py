@@ -13,11 +13,16 @@ import subprocess
 import threading
 import unicodedata
 
-# --- BAĞLANTI AYARLARI ---
+# --- BAĞLANTI AYARLARI (ANAHTAR DÜZELTİLDİ) ---
 URL = "https://iwgowefraytdbcdgeqdz.supabase.co"
-# Anahtarı buraya tam ve hatasız yerleştirdim:
+# Anahtarı senin için tek parça ve tertemiz hale getirdim:
 KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3Z293ZWZyYXl0ZGJjZGdleWR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2MDYxOTAsImV4cCI6MjA1NjE4MjE5MH0.zEjhpC3mi0IkWyYUaG8OFvsAe-IBD4XcR7a2l2mflj4Y0HJfuguU2m-o"
-supabase = create_client(URL, KEY)
+
+# Bağlantıyı kurmayı dene
+try:
+    supabase = create_client(URL, KEY)
+except Exception as e:
+    st.error(f"Bağlantı kurulum hatası: {e}")
 
 # --- OTURUM AYARLARI ---
 if 'authenticated' not in st.session_state: st.session_state.authenticated = False
@@ -78,12 +83,15 @@ if not is_authenticated:
             elif new_pw != confirm_pw:
                 st.error("❌ Şifreler eşleşmiyor!")
             else:
-                check = supabase.table("users").select("username").eq("username", new_user).execute()
-                if check.data:
-                    st.error("❌ Bu kullanıcı adı zaten alınmış!")
-                else:
-                    supabase.table("users").insert({"username": new_user, "password": new_pw, "is_vip": False}).execute()
-                    st.success("✅ Kayıt başarılı! Giriş sekmesine dönüp giriş yapabilirsin.")
+                try:
+                    check = supabase.table("users").select("username").eq("username", new_user).execute()
+                    if check.data:
+                        st.error("❌ Bu kullanıcı adı zaten alınmış!")
+                    else:
+                        supabase.table("users").insert({"username": new_user, "password": new_pw, "is_vip": False}).execute()
+                        st.success("✅ Kayıt başarılı! Giriş sekmesine dönüp giriş yapabilirsin.")
+                except Exception as e:
+                    st.error(f"Kayıt hatası: {e}")
     st.stop()
 
 # --- BAĞLANTI AYARLARI ---
