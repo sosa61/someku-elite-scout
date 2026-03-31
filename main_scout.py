@@ -15,7 +15,8 @@ import unicodedata
 
 # --- BAĞLANTI AYARLARI ---
 URL = "https://iwgowefraytdbcdgeqdz.supabase.co"
-KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3Z293ZWZyYXl0ZGJjZGdleWR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2MDYxOTAsImV4cCI6MjA1NjE4MjE5MH0.zEjH6ImFub24iLCJpYXQiOjE3NDA2MDYxOTAsImV4cCI6MjA1NjE4MjE5MH0.zEjhpC3mi0IzdXBhYmFzZIsInJlZiI6Iml3Z293ZWZyYXl0ZGJjZGdleWR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2MDYxOTAsImV4cCI6MjA1NjE4MjE5MH0.kWyYUaG8OFvsAe-IBD4XcR7a2l2mflj4Y0HJfuguU2m-o"
+# Anahtarı buraya tam ve hatasız yerleştirdim:
+KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3Z293ZWZyYXl0ZGJjZGdleWR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2MDYxOTAsImV4cCI6MjA1NjE4MjE5MH0.zEjhpC3mi0IkWyYUaG8OFvsAe-IBD4XcR7a2l2mflj4Y0HJfuguU2m-o"
 supabase = create_client(URL, KEY)
 
 # --- OTURUM AYARLARI ---
@@ -24,7 +25,7 @@ if 'user' not in st.session_state: st.session_state.user = None
 if 'is_vip' not in st.session_state: st.session_state.is_vip = False
 if 'fav_list' not in st.session_state: st.session_state.fav_list = []
 
-# --- GÜVENLİK VE URL KONTROLÜ ---
+# --- GÜVENLİK VE URL ---
 query_user = st.query_params.get("user", None)
 is_authenticated = st.session_state.get("authenticated", False)
 logged_in_user = st.session_state.get("user")
@@ -39,7 +40,6 @@ if query_user:
 # --- GİRİŞ VE KAYIT EKRANI ---
 if not is_authenticated:
     st.markdown('<h1 style="text-align:center;">🕵️ SOMEKU SCOUT</h1>', unsafe_allow_html=True)
-    
     if query_user:
         st.warning("⚠️ Bu profil kilitlidir. Görmek için önce giriş yapmalısın!")
 
@@ -48,46 +48,43 @@ if not is_authenticated:
     with tab1:
         u_id = st.text_input("Kullanıcı Adı:", key="login_user")
         u_pw = st.text_input("Şifre:", type="password", key="login_pw")
-        
         if st.button("Giriş Yap"):
-            res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
-            if res.data:
-                st.session_state.authenticated = True
-                st.session_state.user = u_id
-                st.session_state.is_vip = res.data[0].get("is_vip", False)
-                st.query_params["user"] = u_id
-                st.rerun()
-            elif u_id == "someku" and u_pw == "28616128Ok":
-                st.session_state.authenticated = True
-                st.session_state.user = u_id
-                st.session_state.is_vip = True
-                st.query_params["user"] = u_id
-                st.rerun()
-            else:
-                st.error("❌ Hatalı kullanıcı adı veya şifre!")
+            try:
+                res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
+                if res.data:
+                    st.session_state.authenticated = True
+                    st.session_state.user = u_id
+                    st.session_state.is_vip = res.data[0].get("is_vip", False)
+                    st.query_params["user"] = u_id
+                    st.rerun()
+                elif u_id == "someku" and u_pw == "28616128Ok":
+                    st.session_state.authenticated = True
+                    st.session_state.user = u_id
+                    st.session_state.is_vip = True
+                    st.query_params["user"] = u_id
+                    st.rerun()
+                else:
+                    st.error("❌ Hatalı kullanıcı adı veya şifre!")
+            except Exception as e:
+                st.error(f"❌ Veritabanı hatası: {e}")
 
     with tab2:
         new_user = st.text_input("Yeni Kullanıcı Adı:", key="reg_user")
         new_pw = st.text_input("Yeni Şifre:", type="password", key="reg_pw")
         confirm_pw = st.text_input("Şifre Tekrar:", type="password", key="reg_pw_conf")
-        
         if st.button("Kayıt Ol"):
             if not new_user or not new_pw:
                 st.error("❌ Alanları boş bırakma!")
             elif new_pw != confirm_pw:
                 st.error("❌ Şifreler eşleşmiyor!")
             else:
-                # Kullanıcı var mı kontrol et
                 check = supabase.table("users").select("username").eq("username", new_user).execute()
                 if check.data:
                     st.error("❌ Bu kullanıcı adı zaten alınmış!")
                 else:
-                    data = {"username": new_user, "password": new_pw, "is_vip": False}
-                    supabase.table("users").insert(data).execute()
-                    st.success("✅ Kayıt başarılı! Giriş yapabilirsin.")
-    
+                    supabase.table("users").insert({"username": new_user, "password": new_pw, "is_vip": False}).execute()
+                    st.success("✅ Kayıt başarılı! Giriş sekmesine dönüp giriş yapabilirsin.")
     st.stop()
-
 
 # --- BAĞLANTI AYARLARI ---
 URL = "https://iwgowefraytdbcdgeqdz.supabase.co"
