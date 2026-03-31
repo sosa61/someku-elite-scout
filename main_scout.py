@@ -80,22 +80,27 @@ if 'is_vip' not in st.session_state: st.session_state.is_vip = False # VIP durum
 if 'fav_list' not in st.session_state: st.session_state.fav_list = []
 if 'roulette_player' not in st.session_state: st.session_state.roulette_player = None
 
-# --- 1. OTURUM VE URL BİLGİLERİNİ HAZIRLA ---
+# --- 1. OTURUM BİLGİLERİNİ KONTROL ET ---
+# URL'deki ismi al
 query_user = st.query_params.get("user", None)
-giris_yapan_kisi = st.session_state.get("user")
 
-# --- 2. ZIRHLI GÜVENLİK SÜZGECİ ---
+# Hafızadaki 'authenticated' (şifreyle giriş) durumunu kontrol et
+is_logged_in = st.session_state.get("authenticated", False)
+current_user = st.session_state.get("user")
+
+# --- 2. ZIRHLI GÜVENLİK BARİYERİ ---
 if query_user:
-    # Eğer adam giriş YAPMAMIŞSA (Hafızada kullanıcı yoksa)
-    if not giris_yapan_kisi:
-        # Sadece giriş ekranını görmesine izin ver, içeriği yükleme
-        pass 
-    # Eğer giriş YAPMIŞSA ama başkasının linkine sızmaya çalışıyorsa
-    elif giris_yapan_kisi != query_user:
-        st.error("⛔ Burası senin mahremin değil! Kendi profiline yönlendiriliyorsun...")
+    # EĞER ŞİFREYLE GİRİŞ YAPILMAMIŞSA: İçeriyi gösterme, durdur!
+    if not is_logged_in:
+        st.warning("⚠️ Bu profili görmek için önce kullanıcı adın ve şifrenle giriş yapmalısın.")
+        st.stop() # Sayfanın geri kalanını (verileri) asla yüklemez!
+    
+    # EĞER BAŞKASININ HESABINA SIZMAYA ÇALIŞIYORSA: Durdur!
+    elif current_user != query_user:
+        st.error("⛔ Burası senin mahremin değil! Kendi hesabına yönlendiriliyorsun...")
         st.stop()
 
-# --- 3. F5 SONRASI HAFIZAYI TAZELE ---
+# --- 3. F5 YAPINCA SİSTEMİN SENİ UNUTMAMASI İÇİN ---
 if query_user and st.session_state.get("user") is None:
     st.session_state.user = query_user
         
