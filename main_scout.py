@@ -86,28 +86,38 @@ if query_user and st.session_state.user is None:
     st.session_state.user = query_user
 
 
-# --- GİRİŞ VE KAYIT BÖLÜMÜ ---
-if st.session_state.user is None:
-    st.markdown('<h1 style="text-align:center;">🕵️ SOMEKU SCOUT</h1>', unsafe_allow_html=True)
+# --- 🛡️ AKILLI GİRİŞ VE OTOMATİK TANIMA (V580) ---
+# 1. URL'de kullanıcı var mı? Varsa hemen tanı
+if "user" in st.query_params and st.session_state.get('user') is None:
+    st.session_state.user = st.query_params["user"]
+    # Burada istersen Supabase'den VIP kontrolü de yapabilirsin
+    st.rerun()
+
+# 2. Eğer kullanıcı hala None ise Giriş Ekranını Göster
+if st.session_state.get('user') is None:
+    st.markdown('<h1 style="text-align:center;">🕵️ FM SCOUT GİRİŞ</h1>', unsafe_allow_html=True)
     u_id = st.text_input("Kullanıcı Adı:")
     u_pw = st.text_input("Şifre:", type="password")
     
-    if st.button("Giriş"):
+    if st.button("Dükkanı Aç"):
+        # Veritabanı Kontrolü
         res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
         
         if res.data:
             user_data = res.data[0]
             st.session_state.user = u_id
             st.session_state.is_vip = user_data.get("is_vip", False)
-            st.query_params["user"] = u_id
+            st.query_params["user"] = u_id # URL'ye de anahtarı ekle
             st.rerun()
-        elif u_id == "someku" and u_pw == "28616128Ok":
+        elif u_id == "someku" and u_pw == "286161280": # Manuel Bypass
             st.session_state.user = u_id
             st.session_state.is_vip = True
             st.query_params["user"] = u_id
             st.rerun()
         else:
-            st.error("❌ Hatalı kullanıcı adı veya şifre!")
+            st.error("❌ Hatalı teşhis! Bilgileri kontrol et scout.")
+    
+    st.stop() # Sadece giriş ekranındayken dur, giriş yapınca bu satır atlanacak!
 
     # --- KAYIT OLMA BÖLÜMÜ (Giriş Bloğunun İçinde Ama Butonun Altında) ---
     st.markdown("---")
