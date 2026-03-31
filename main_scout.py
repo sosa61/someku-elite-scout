@@ -15,7 +15,7 @@ import unicodedata
 
 # --- 1. BAĞLANTI AYARLARI (YENİ ANAHTAR ÇAKILDI) ---
 URL = "https://iwgowefraytdbcdgeqdz.supabase.co"
-# İşte o mermi gibi anahtar:
+# Az önce attığın o taze mermi:
 KEY = "sb_publishable_NHESQOd8-v3tYpVPcz88-w_vypIPQ8Z"
 
 try:
@@ -30,7 +30,7 @@ if 'is_vip' not in st.session_state: st.session_state.is_vip = False
 if 'fav_list' not in st.session_state: st.session_state.fav_list = []
 if 'page' not in st.session_state: st.session_state.page = 0
 
-# --- 3. GÜVENLİK ---
+# --- 3. GÜVENLİK VE URL ---
 query_user = st.query_params.get("user", None)
 is_authenticated = st.session_state.get("authenticated", False)
 logged_in_user = st.session_state.get("user")
@@ -40,17 +40,18 @@ if query_user and is_authenticated:
         st.error("⛔ Burası senin mahremin değil!")
         st.stop()
 
-# --- 4. GİRİŞ EKRANI (ZIRHLI) ---
+# --- 4. GİRİŞ VE KAYIT EKRANI ---
 if not is_authenticated:
     st.markdown('<h1 style="text-align:center;">🕵️ SOMEKU SCOUT</h1>', unsafe_allow_html=True)
     if query_user:
         st.warning("⚠️ Bu profil kilitlidir. Görmek için önce giriş yapmalısın!")
 
-    t1, t2 = st.tabs(["Giriş Yap", "Kayıt Ol"])
-    
-    with t1:
-        u_id = st.text_input("Kullanıcı Adı:", key="l_u")
-        u_pw = st.text_input("Şifre:", type="password", key="l_p")
+    # İşte o hatayı düzelten kısım: Sekmeleri burada tanımlıyoruz
+    giris_tabs = st.tabs(["Giriş Yap", "Kayıt Ol"])
+
+    with giris_tabs[0]:
+        u_id = st.text_input("Kullanıcı Adı:", key="l_u_field")
+        u_pw = st.text_input("Şifre:", type="password", key="l_p_field")
         if st.button("Sisteme Giriş Yap"):
             try:
                 res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
@@ -69,18 +70,21 @@ if not is_authenticated:
                 else:
                     st.error("❌ Hatalı giriş bilgileri!")
             except Exception as e:
-                st.error(f"⚠️ Giriş Hatası: {e}")
-                
-    with t2:
-        n_user = st.text_input("Yeni Kullanıcı Adı:", key="r_u")
-        n_pw = st.text_input("Yeni Şifre:", type="password", key="r_p")
+                st.error(f"⚠️ Bağlantı hatası: {e}")
+
+    with giris_tabs[1]:
+        st.info("Yeni bir scout hesabı oluşturun.")
+        n_user = st.text_input("Yeni Kullanıcı Adı:", key="r_u_field")
+        n_pw = st.text_input("Yeni Şifre:", type="password", key="r_p_field")
         if st.button("Hemen Kayıt Ol"):
             if n_user and n_pw:
                 try:
                     supabase.table("users").insert({"username": n_user, "password": n_pw, "is_vip": False}).execute()
-                    st.success("✅ Kayıt başarılı! Giriş sekmesine geçebilirsin.")
+                    st.success("✅ Kayıt başarılı! Giriş sekmesinden girebilirsin.")
                 except:
                     st.error("❌ Bu isim zaten sistemde var.")
+    
+    # Giriş yapmayan buradan aşağı geçemez
     st.stop()
 
 # --- 5. VIP TAZELEME MOTORU ---
@@ -93,7 +97,6 @@ if st.session_state.user:
         pass
 
 st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️")
-
 
 # --- 1. SCOUT ---
 with tabs[0]:
