@@ -98,12 +98,6 @@ if query_user:
 # --- 3. F5 SONRASI HAFIZAYI TAZELE ---
 if query_user and st.session_state.get("user") is None:
     st.session_state.user = query_user
-
-# 2. Senaryo: Giriş yapmış ama başkasının linkine sızmaya çalışıyorsa
-if giris_dogrulandi_mi and query_user:
-    if giris_yapan_kisi != query_user:
-        st.error("⛔ Burası senin mahremin değil! Sadece kendi profilini görebilirsin.")
-        st.stop()
         
 # --- GİRİŞ VE KAYIT BÖLÜMÜ ---
 if st.session_state.user is None:
