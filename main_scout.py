@@ -853,21 +853,21 @@ with tabs[6]:
         """, unsafe_allow_html=True)
         
         
-        # --- TAM OTOMATİK GÜNCELLEME BEKÇİSİ (HİÇ DOKUNMA) ---
+# --- TAM OTOMATİK GÜNCELLEME BEKÇİSİ (V2 - KESKİN NİŞANCI) ---
 def check_for_updates():
     while True:
         try:
             # GitHub'dan yeni bir şey var mı diye kontrol et
-            subprocess.run(["git", "fetch"], capture_output=True)
+            subprocess.run(["git", "fetch", "--all"], capture_output=True)
             status = subprocess.run(["git", "status", "-uno"], capture_output=True, text=True).stdout
+            
             if "Your branch is behind" in status:
-                # Yeni kod varsa çek ve dükkanı yeniden başlat
-                subprocess.run(["git", "pull"])
-                os._exit(0) # Programı kapat, nohup onu otomatik geri açacak
+                # EĞER YENİ KOD VARSA: Senin elinle yazdığın o mermiyi otomatik sıkıyoruz
+                subprocess.run(["git", "reset", "--hard", "origin/main"])
+                os._exit(0) # Programı kapat, nohup (while döngüsü) onu otomatik geri açacak
         except:
             pass
         time.sleep(60) # Her 1 dakikada bir kontrol et
 
 # Bekçiyi arka planda başlat
 threading.Thread(target=check_for_updates, daemon=True).start()
-
