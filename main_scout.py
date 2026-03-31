@@ -451,7 +451,7 @@ with tabs[3]:
     else:
         st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
         
-# --- 5. GİZLİ YETENEK AVI (V500 - BÖLGESEL MEVKİ & KESKİN ARA REZERV) ---
+# --- 5. GİZLİ YETENEK AVI (V510 - ELİT SCOUT & DİNAMİK LİSTE) ---
 with tabs[4]:
     import unicodedata
     import time
@@ -459,13 +459,13 @@ with tabs[4]:
     st.markdown('<h2 style="text-align:center; color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h2>', unsafe_allow_html=True)
     
     # --- OYUN KURALLARI ---
-    with st.expander("📖 Oyun Kuralları & Bilgilendirme"):
+    with st.expander("📖 Oyun Kuralları & Scout Notları"):
         st.markdown("""
-        1. **Bölgesel Mevki:** Hataları önlemek için mevkiler artık ana bölgeler (Hücum, Orta Saha, Savunma, Kaleci) olarak gösterilir.
-        2. **Kulüp Bilgisi:** Oyuncu kiralıksa, asıl kulübü ekrana gelir.
-        3. **İpuçları:** Son 10s PA, son 5s CA bilgisi mermi gibi açılır.
-        4. **Akıllı Arama:** Sen kutuya harf yazmaya başladığında elit oyuncular aşağıda listelenir.
-        5. **⚠️ Önemli:** Sistem yapay zeka destekli olduğu için nadiren veri hataları olabilir, scout sabrıyla oynamaya devam!
+        1. **Bölgesel Analiz:** Mevki karmaşasını bitirdik. Oyuncunun sahadaki ana bölgesi (Hücum, Orta Saha, Savunma, Kaleci) görünür.
+        2. **Kulüp Bağlılığı:** Oyuncu kiralıksa, asıl sözleşmesinin olduğu ana kulüp bilgisi verilir.
+        3. **Veri Analizi:** Son 10 saniye PA (Potansiyel), son 5 saniye CA (Yetenek) verileri şifreli dosyadan açılır.
+        4. **Hızlı Seçim:** Arama kutusuna harf yazınca elit liste dökülür. Enter'a gerek yok, seçtiğin an karar verilir!
+        5. **Not:** Yapay zeka verilerinde nadiren sapmalar olabilir, gerçek bir scout her zaman tetiktedir!
         """)
 
     # --- YARDIMCI FONKSİYONLAR ---
@@ -477,13 +477,9 @@ with tabs[4]:
 
     def bolgesel_mevki_yap(m):
         m = str(m).upper()
-        # KALECİ
         if "GK" in m: return "🧤 KALECİ"
-        # HÜCUM (Forvetler ve Kanatlar)
-        if any(x in m for x in ["ST", "CF", "AM R", "AM L", "MR", "ML", "LW", "RW"]): return "🔥 HÜCUM BÖLGESİ"
-        # SAVUNMA (Bekler ve Stoperler)
+        if any(x in m for x in ["ST", "CF", "AM R", "AM L", "MR", "ML", "LW", "RW"]): return "⚔️ HÜCUM BÖLGESİ"
         if any(x in m for x in ["D C", "DC", "D R", "DR", "D L", "DL", "SW"]): return "🛡️ SAVUNMA BÖLGESİ"
-        # ORTA SAHA (Merkez, Defansif ve Ofansif Orta Sahalar)
         if any(x in m for x in ["M C", "MC", "DM", "AM C", "AMC", "M "]): return "🧠 ORTA SAHA BÖLGESİ"
         return "🏃 SAHA İÇİ"
 
@@ -491,76 +487,72 @@ with tabs[4]:
     if 'game_active' not in st.session_state: st.session_state.game_active = False
     if 'target_p' not in st.session_state: st.session_state.target_p = None
     if 'last_result' not in st.session_state: st.session_state.last_result = None
-    if 'search_query' not in st.session_state: st.session_state.search_query = ""
 
-    def yeni_av_tetikle():
+    def yeni_yetenek_tetikle():
         st.session_state.last_result = None
-        st.session_state.search_query = "" # Arama kutusunu sıfırla
-        # Elit havuzu çek
+        # Tüm elit havuzu çek (PA 165+)
         res_g = supabase.table("oyuncular").select("*").not_.eq("kulup", "None").gte("pa", 165).execute()
         if res_g.data:
-            st.session_state.all_player_names = sorted(list(set([r['oyuncu_adi'] for r in res_g.data])))
+            # Arama listesi için isimleri hazırla
+            st.session_state.full_scout_list = sorted(list(set([r['oyuncu_adi'] for r in res_g.data])))
             st.session_state.target_p = random.choice(res_g.data)
             st.session_state.game_active = True
             st.session_state.game_start_time = time.time()
 
-    # --- BAŞLATMA ---
+    # --- BAŞLATMA BUTONU ---
     if not st.session_state.game_active and st.session_state.last_result is None:
-        if st.button("🚀 YENİ AVI BAŞLAT", use_container_width=True):
-            yeni_av_tetikle()
+        if st.button("🚀 ANALİZİ BAŞLAT (YENİ HEDEF)", use_container_width=True):
+            yeni_yetenek_tetikle()
             st.rerun()
 
-    # --- OYUN ALANI ---
+    # --- ANALİZ ALANI ---
     if st.session_state.game_active and st.session_state.target_p:
         p = st.session_state.target_p
         kalan = max(0, int(30 - (time.time() - st.session_state.game_start_time)))
         yuzde = (kalan / 30) * 100
         
         if kalan > 0:
-            pa_hint = f"🔥 PA: {p['pa']}" if kalan <= 10 else "🔥 PA: ??"
+            pa_hint = f"📈 PA: {p['pa']}" if kalan <= 10 else "📈 PA: ??"
             ca_hint = f"📊 CA: {p.get('ca','?')}" if kalan <= 5 else "📊 CA: ??"
             
             st.markdown(f"""
                 <div style="background:#161b22; padding:20px; border-radius:15px; border:2px solid #30363d; text-align:center;">
                     <h2 style="color:#f2cc60; margin:0;">{bolgesel_mevki_yap(p['mevki'])}</h2>
                     <div style="width:100%; background:#333; height:12px; border-radius:10px; margin:15px 0;">
-                        <div style="width:{yuzde}%; background:#238636; height:100%; border-radius:10px;"></div>
+                        <div style="width:{yuzde}%; background:#3b82f6; height:100%; border-radius:10px;"></div>
                     </div>
                     <p style="font-size:22px;">🎂 <b>{p['yas']} Yaş</b> | 🏟️ <b>{p['kulup']}</b></p>
                     <div style="display:flex; justify-content:center; gap:20px; font-weight:bold; font-size:18px;">
                         <span style="color:#f2cc60;">{pa_hint}</span>
                         <span style="color:#58a6ff;">{ca_hint}</span>
                     </div>
-                    <p style="color:#8b949e; margin-top:10px;">⏳ Kalan: {kalan}s</p>
+                    <p style="color:#8b949e; margin-top:10px;">⏳ Veri Analiz Süresi: {kalan}s</p>
                 </div>
             """, unsafe_allow_html=True)
 
-            # --- AKILLI ARAMA (YAZDIKÇA ÇIKAN) ---
+            # --- DİNAMİK SEÇİM KUTUSU ---
             st.write("")
-            query = st.text_input("Oyuncunun adını yazmaya başla...", key="player_search_input").strip()
+            tahmin = st.selectbox(
+                "Yetenek İsmini Yaz ve Listeden Seç:",
+                options=[""] + st.session_state.full_scout_list,
+                index=0,
+                key="scout_search_box",
+                help="Harf yazmaya başlayınca seçenekler dökülür."
+            )
             
-            if query:
-                # Yazılan harflere göre eşleşenleri bul
-                matches = [name for name in st.session_state.all_player_names if metin_temizle(query) in metin_temizle(name)][:5]
-                
-                if matches:
-                    st.write("🎯 **Eşleşenler (Seçmek için tıkla):**")
-                    for match in matches:
-                        if st.button(f"📍 {match}", key=f"btn_{match}", use_container_width=True):
-                            if metin_temizle(match) == metin_temizle(p['oyuncu_adi']):
-                                st.session_state.last_result = "WIN"
-                                st.session_state.game_active = False
-                                # Puan Güncelleme
-                                try:
-                                    c = supabase.table("users").select("puan").eq("username", st.session_state.user).execute()
-                                    eski = c.data[0].get("puan", 0) if c.data else 0
-                                    supabase.table("users").update({"puan": eski + 1}).eq("username", st.session_state.user).execute()
-                                except: pass
-                            else:
-                                st.error("❌ Bu o mermi değil!")
-                            st.rerun()
+            if tahmin != "":
+                if metin_temizle(tahmin) == metin_temizle(p['oyuncu_adi']):
+                    st.session_state.last_result = "WIN"
+                    st.session_state.game_active = False
+                    # Puan Güncelleme
+                    try:
+                        c = supabase.table("users").select("puan").eq("username", st.session_state.user).execute()
+                        eski = c.data[0].get("puan", 0) if c.data else 0
+                        supabase.table("users").update({"puan": eski + 1}).eq("username", st.session_state.user).execute()
+                    except: pass
+                    st.rerun()
                 else:
-                    st.warning("⚠️ Eşleşen oyuncu bulunamadı.")
+                    st.error("❌ Hatalı Teşhis! Bu yetenek hedefimizdeki isim değil.")
 
             time.sleep(0.5)
             st.rerun()
@@ -569,26 +561,27 @@ with tabs[4]:
             st.session_state.game_active = False
             st.rerun()
 
-    # --- SONUÇ VE GERİ SAYIM ---
+    # --- ANALİZ SONUCU ---
     if st.session_state.last_result:
         p = st.session_state.target_p
         if st.session_state.last_result == "WIN":
             st.balloons()
-            st.success(f"🎯 HELAL! Aranan Mermi: {p['oyuncu_adi']}")
+            st.success(f"🎯 TEBRİKLER! Hedef Yetenek Tespit Edildi: {p['oyuncu_adi']}")
         else:
-            st.error(f"⌛ SÜRE BİTTİ! Aranan Mermi: {p['oyuncu_adi']}")
+            st.error(f"⌛ ZAMAN DOLDU! Aranan Yetenek: {p['oyuncu_adi']}")
 
-        if st.button("🚫 Durdur / Vazgeç"):
+        if st.button("🚫 Operasyonu Durdur"):
             st.session_state.last_result = None
             st.rerun()
 
         placeholder = st.empty()
         for i in range(5, 0, -1):
-            placeholder.info(f"🔄 {i} saniye içinde yeni av başlayacak...")
+            placeholder.info(f"🔄 {i} saniye içinde yeni hedef belirlenecek...")
             time.sleep(1)
         
-        yeni_av_tetikle()
+        yeni_yetenek_tetikle()
         st.rerun()
+
 
     # --- 5. LİDERLİK TABLOSU (SADE VE GÜVENLİ) ---
     st.subheader("🏆 TOP 10 ELITE SCOUTS")
