@@ -451,13 +451,23 @@ with tabs[3]:
     else:
         st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
         
-# --- 5. GİZLİ YETENEK AVI (V520 - KESKİN GÖRÜŞ & OTO-TEMİZLİK) ---
+# --- 5. GİZLİ YETENEK AVI (V520 - KESKİN SCOUT & OTO-SIFIRLAMA) ---
 with tabs[4]:
     import unicodedata
     import time
     import random
     st.markdown('<h2 style="text-align:center; color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h2>', unsafe_allow_html=True)
     
+    # --- OYUN KURALLARI ---
+    with st.expander("📖 Oyun Kuralları & Analiz Notları", expanded=True):
+        st.markdown("""
+        1. **Bölgesel Mevki:** Analiz kolaylığı için mevkiler ana bölgeler (Hücum, Orta Saha, Savunma, Kaleci) olarak gruplanmıştır.
+        2. **Bonservis:** Oyuncu kiralıksa, kiralık gittiği yer değil **asıl ait olduğu kulüp** görünür.
+        3. **Veri Akışı:** Son 10s PA, son 5s CA bilgileri analiz dosyasından şak diye açılır.
+        4. **Akıllı Tespit:** Sen harf yazdığın an elit adaylar aşağıya dizilir. Seçtiğin an sistem kutuyu temizler ve karar verir.
+        5. **⚠️ Not:** Yapay zeka verileri %99 doğrudur; nadir sapmalarda scout sabrını koru!
+        """)
+
     # --- YARDIMCI FONKSİYONLAR ---
     def metin_temizle(metin):
         if not metin: return ""
@@ -477,11 +487,12 @@ with tabs[4]:
     if 'game_active' not in st.session_state: st.session_state.game_active = False
     if 'target_p' not in st.session_state: st.session_state.target_p = None
     if 'last_result' not in st.session_state: st.session_state.last_result = None
-    if 'search_val' not in st.session_state: st.session_state.search_val = ""
+    # Kutuyu sıfırlamak için özel bir state tutuyoruz
+    if 'input_key' not in st.session_state: st.session_state.input_key = 0
 
     def yeni_av_tetikle():
         st.session_state.last_result = None
-        st.session_state.search_val = "" # Arama kutusunu her yeni oyunda sıfırla
+        st.session_state.input_key += 1 # Anahtarı değiştirerek kutuyu sıfırlıyoruz
         res_g = supabase.table("oyuncular").select("*").not_.eq("kulup", "None").gte("pa", 165).execute()
         if res_g.data:
             st.session_state.all_player_names = sorted(list(set([r['oyuncu_adi'] for r in res_g.data])))
@@ -507,35 +518,36 @@ with tabs[4]:
             
             # --- ÜSTTEKİ KART ---
             st.markdown(f"""
-                <div style="background:#161b22; padding:20px; border-radius:15px; border:2px solid #30363d; text-align:center; margin-bottom:10px;">
+                <div style="background:#161b22; padding:20px; border-radius:15px; border:2px solid #30363d; text-align:center;">
                     <h2 style="color:#f2cc60; margin:0;">{bolgesel_mevki_yap(p['mevki'])}</h2>
                     <div style="width:100%; background:#333; height:10px; border-radius:10px; margin:10px 0;">
-                        <div style="width:{yuzde}%; background:#238636; height:100%; border-radius:10px;"></div>
+                        <div style="width:{yuzde}%; background:#3b82f6; height:100%; border-radius:10px;"></div>
                     </div>
-                    <p style="font-size:18px;">🎂 <b>{p['yas']} Yaş</b> | 🏟️ <b>{p['kulup']}</b></p>
-                    <div style="display:flex; justify-content:center; gap:15px; font-weight:bold; font-size:16px;">
+                    <p style="font-size:20px;">🎂 <b>{p['yas']} Yaş</b> | 🏟️ <b>{p['kulup']}</b></p>
+                    <div style="display:flex; justify-content:center; gap:20px; font-weight:bold; font-size:17px;">
                         <span style="color:#f2cc60;">{pa_hint}</span>
                         <span style="color:#58a6ff;">{ca_hint}</span>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
 
-            # --- ALTAKİ ARAMA KUTUSU ---
-            # value parametresine session_state bağlayarak temizlenmesini sağlıyoruz
-            query = st.text_input("Hedef ismi yazmaya başla...", value=st.session_state.search_val, key="p_input").strip()
+            # --- ALTAKİ ARAMA (OTO-SIFIRLAMALI) ---
+            st.write("")
+            query = st.text_input("Hedef ismini yazmaya başla...", key=f"input_{st.session_state.input_key}").strip()
             
             if query:
                 matches = [name for name in st.session_state.all_player_names if metin_temizle(query) in metin_temizle(name)][:5]
                 
                 if matches:
-                    st.write("🎯 **Hedef Seçenekleri (Analiz Et):**")
+                    st.write("🎯 **Potansiyel Hedefler (Tıkla ve Teşhis Et):**")
                     for match in matches:
-                        # Butona basıldığı an inputu temizlemek için search_val'i boşaltıyoruz
                         if st.button(f"📍 {match}", key=f"btn_{match}", use_container_width=True):
-                            st.session_state.search_val = "" # Giriş kutusunu temizle
+                            # Tıklandığı an kutuyu sıfırlamak için anahtarı artır
+                            st.session_state.input_key += 1
                             if metin_temizle(match) == metin_temizle(p['oyuncu_adi']):
                                 st.session_state.last_result = "WIN"
                                 st.session_state.game_active = False
+                                # Puan Güncelleme
                                 try:
                                     c = supabase.table("users").select("puan").eq("username", st.session_state.user).execute()
                                     eski = c.data[0].get("puan", 0) if c.data else 0
@@ -544,9 +556,8 @@ with tabs[4]:
                             else:
                                 st.error("❌ Yanlış Teşhis! Hedef bu değil.")
                             st.rerun()
-            
-            # Ekranın sürekli güncellenmesi için
-            time.sleep(0.1)
+
+            time.sleep(0.5)
             st.rerun()
         else:
             st.session_state.last_result = "LOSE"
@@ -560,16 +571,16 @@ with tabs[4]:
             st.balloons()
             st.success(f"🎯 HEDEF TESPİT EDİLDİ: {p['oyuncu_adi']}")
         else:
-            st.error(f"⌛ VERİ ANALİZİ BAŞARISIZ! Hedef şuydu: {p['oyuncu_adi']}")
+            st.error(f"⌛ VERİ ANALİZİ BAŞARISIZ! Aranan Hedef: {p['oyuncu_adi']}")
 
-        if st.button("🚫 Operasyonu Durdur"):
+        if st.button("🚫 Durdur / Vazgeç"):
             st.session_state.last_result = None
-            st.session_state.search_val = ""
+            st.session_state.input_key += 1
             st.rerun()
 
         placeholder = st.empty()
         for i in range(5, 0, -1):
-            placeholder.info(f"🔄 {i} saniye içinde yeni analiz başlayacak...")
+            placeholder.info(f"🔄 {i} saniye içinde yeni hedef belirlenecek...")
             time.sleep(1)
         
         yeni_av_tetikle()
