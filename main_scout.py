@@ -13,22 +13,69 @@ import subprocess
 import threading  # İşte eksik olan mermi bu!
 import unicodedata
 
-# --- 1. OTURUM KONTROLÜ ---
-query_user = st.query_params.get("user", None)
-is_authenticated = st.session_state.get("authenticated", False)
-logged_in_user = st.session_state.get("user")
+import streamlit as st
 
-# --- 2. ZIRHLI BARİKAT ---
+# --- OTURUM AYARLARI (EN ÜSTTE OLMALI) ---
+if 'authenticated' not in st.session_state: st.session_state.authenticated = False
+if 'user' not in st.session_state: st.session_state.user = None
+if 'is_vip' not in st.session_state: st.session_state.is_vip = False
+if 'fav_list' not in st.session_state: st.session_state.fav_list = []
+if 'page' not in st.session_state: st.session_state.page = 0
+
+# --- 1. OTURUM VE URL BİLGİLERİ ---
+query_user = st.query_params.get("user", None)
+giris_yapan_kisi = st.session_state.get("user")
+is_authenticated = st.session_state.get("authenticated", False)
+
+# --- 2. KESİN GÜVENLİK BARİYERİ (ZIRHLI) ---
 if query_user:
-    # EĞER ŞİFREYLE GİRİŞ YAPILMAMIŞSA (authenticated False ise)
+    # EĞER ŞİFREYLE GİRİŞ YAPILMAMIŞSA (Linkle sızmaya çalışılıyorsa)
     if not is_authenticated:
-        st.warning("⚠️ Bu alan şifrelidir. Lütfen önce giriş yapın.")
-        st.stop() # Alt taraftaki verileri asla yüklemez!
+        # Sadece giriş ekranını görmesine izin ver, içeriği (stop ile) kilitli tut
+        pass 
     
-    # EĞER GİRİŞ YAPILMIŞ AMA BAŞKASININ HESABINA SIZILIYORSA
-    elif logged_in_user != query_user:
+    # EĞER GİRİŞ YAPILMIŞ AMA BAŞKASININ LİNKİNE SIZILMAYA ÇALIŞILIYORSA
+    elif giris_yapan_kisi != query_user:
         st.error("⛔ Burası senin mahremin değil! Kendi hesabına yönlendiriliyorsun...")
         st.stop()
+
+# --- 3. GİRİŞ VE KAYIT BÖLÜMÜ ---
+if not is_authenticated:
+    st.markdown('<h1 style="text-align:center;">🕵️ SOMEKU SCOUT</h1>', unsafe_allow_html=True)
+    
+    # URL'de isim varsa (someku gibi) uyarımızı gösterelim
+    if query_user:
+        st.warning("⚠️ Bu profil kilitlidir. Görmek için önce giriş yapmalısın!")
+
+    u_id = st.text_input("Kullanıcı Adı:")
+    u_pw = st.text_input("Şifre:", type="password")
+    
+    if st.button("Giriş"):
+        res = supabase.table("users").select("*").eq("username", u_id).eq("password", u_pw).execute()
+        
+        # Giriş Başarılı Kontrolü
+        is_success = False
+        user_vip_status = False
+
+        if res.data:
+            is_success = True
+            user_vip_status = res.data[0].get("is_vip", False)
+        elif u_id == "someku" and u_pw == "28616128Ok": # Yedek Admin Girişi
+            is_success = True
+            user_vip_status = True
+
+        if is_success:
+            # --- ANAHTARI ÇEVİRİYORUZ ---
+            st.session_state.authenticated = True
+            st.session_state.user = u_id
+            st.session_state.is_vip = user_vip_status
+            st.query_params["user"] = u_id
+            st.rerun()
+        else:
+            st.error("❌ Hatalı kullanıcı adı veya şifre!")
+    
+    # Giriş yapılmadığı sürece kodun buradan aşağı akmasını engelle
+    st.stop()
 
 
 
