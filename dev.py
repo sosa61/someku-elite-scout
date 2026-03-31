@@ -80,10 +80,13 @@ if 'is_vip' not in st.session_state: st.session_state.is_vip = False # VIP durum
 if 'fav_list' not in st.session_state: st.session_state.fav_list = []
 if 'roulette_player' not in st.session_state: st.session_state.roulette_player = None
 
-# Query Params'tan kullanıcıyı almayı deniyoruz (Sayfa yenilenince giriş kalsın diye)
-query_user = st.query_params.get("user", None)
-if query_user and st.session_state.user is None:
-    st.session_state.user = query_user
+# --- KESİN GÜVENLİK KİLİDİ (KİMSE KİMSEYE GİREMEZ) ---
+    giris_yapan_kisi = st.session_state.get("user")
+    
+    # URL'den gelen kişi ile giriş yapan kişi aynı değilse (boş değilse)
+    if query_user and query_user != giris_yapan_kisi:
+        st.error("⛔ Burası senin mahremin değil! Sadece kendi profilini görebilirsin.")
+        st.stop() # Dükkanı o an kilitler, hiçbir veri göstermez.
 
 
 # --- GİRİŞ VE KAYIT BÖLÜMÜ ---
