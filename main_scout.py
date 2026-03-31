@@ -860,4 +860,38 @@ with tabs[6]:
                 <p>Bu bölgeye sadece ana scout (someku) erişebilir.</p>
             </div>
         """, unsafe_allow_html=True)
+
+# Admin Sekmelerini Güncelle (Üstteki satırı bununla değiştir)
+        adm_tabs = st.tabs(["👥 Kullanıcı & VIP", "🔍 Oyuncu Denetimi", "🛠️ Sistem Bakımı", "⭐ Favori Takibi"])
+
+        # --- D. FAVORİ TAKİBİ (YENİ EKLEME) ---
+        with adm_tabs[3]:
+            st.write("### ⭐ Tüm Scoutların Favori Listeleri")
+            try:
+                # Tüm favorileri çek
+                all_favs = supabase.table("favoriler").select("*").order("created_at", desc=True).execute()
+                
+                if all_favs.data:
+                    # Kullanıcı adına göre gruplayarak gösterelim
+                    fav_df = pd.DataFrame(all_favs.data)
+                    
+                    search_fav_user = st.text_input("Scout adına göre filtrele:", placeholder="Örn: ramazan")
+                    
+                    for scout in fav_df['kullanici_adi'].unique():
+                        if search_fav_user and search_fav_user.lower() not in scout.lower():
+                            continue
+                            
+                        scout_favs = fav_df[fav_df['kullanici_adi'] == scout]
+                        with st.expander(f"👤 {scout} ({len(scout_favs)} Oyuncu)"):
+                            for _, row in scout_favs.iterrows():
+                                st.markdown(f"""
+                                <div style="padding:8px; border-bottom:1px solid #30363d; display:flex; justify-content:space-between;">
+                                    <span>🎯 <b>{row['oyuncu_adi']}</b> <small>({row.get('mevki','-')})</small></span>
+                                    <span style="color:#238636; font-weight:bold;">PA: {row['pa']}</span>
+                                </div>
+                                """, unsafe_allow_html=True)
+                else:
+                    st.info("Henüz kimse favori eklememiş.")
+            except Exception as e:
+                st.error(f"Favori verileri çekilemedi: {e}")
         
