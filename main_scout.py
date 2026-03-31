@@ -451,13 +451,23 @@ with tabs[3]:
     else:
         st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
         
-# --- 5. GİZLİ YETENEK AVI (V530 - KESKİN DÖRTLÜ BÖLGE) ---
+# --- 5. GİZLİ YETENEK AVI (V540 - KESKİN KURALLAR & NET BÖLGELER) ---
 with tabs[4]:
     import unicodedata
     import time
     import random
     st.markdown('<h2 style="text-align:center; color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h2>', unsafe_allow_html=True)
     
+    # --- OYUN KURALLARI ---
+    with st.expander("📖 Oyun Kuralları & Analiz Notları", expanded=True):
+        st.markdown("""
+        1. **Bölgesel Analiz:** Mevki karmaşasını bitirdik. Oyuncular 4 ana bölgede (Hücum, Orta Saha, Savunma, Kaleci) analiz edilir.
+        2. **Bonservis Kuralı:** Oyuncu kiralıksa, kiralık gittiği yer değil **asıl ait olduğu kulüp** görünür.
+        3. **İpucu Akışı:** Son 10s PA (Potansiyel), son 5s CA (Yetenek) verileri sistemden şak diye açılır.
+        4. **Akıllı Tespit:** Harf yazdığın an elit adaylar aşağıya dizilir. Seçtiğin an sistem kutuyu temizler ve teşhisi koyar.
+        5. **⚠️ Önemli:** Sistem yapay zeka destekli olduğu için nadiren veri sapmaları olabilir; gerçek bir scout her zaman tetiktedir!
+        """)
+
     # --- YARDIMCI FONKSİYONLAR ---
     def metin_temizle(metin):
         if not metin: return ""
@@ -478,7 +488,7 @@ with tabs[4]:
         if any(x in m for x in ["D C", "DC", "D R", "DR", "D L", "DL", "SW", "WBR", "WBL"]): 
             return "🛡️ SAVUNMA BÖLGESİ"
         
-        # 4. ORTA SAHA BÖLGESİ (Geri kalan her şey: MC, DM, AMC, M)
+        # 4. ORTA SAHA BÖLGESİ (Diğer tüm orta saha türevleri)
         return "🧠 ORTA SAHA BÖLGESİ"
 
     # --- DURUM YÖNETİMİ ---
@@ -489,7 +499,7 @@ with tabs[4]:
 
     def yeni_av_tetikle():
         st.session_state.last_result = None
-        st.session_state.input_key += 1
+        st.session_state.input_key += 1 # Kutuyu sıfırlamak için anahtarı değiştir
         res_g = supabase.table("oyuncular").select("*").not_.eq("kulup", "None").gte("pa", 165).execute()
         if res_g.data:
             st.session_state.all_player_names = sorted(list(set([r['oyuncu_adi'] for r in res_g.data])))
@@ -537,7 +547,7 @@ with tabs[4]:
                     st.write("🎯 **Potansiyel Hedefler (Analiz Et):**")
                     for match in matches:
                         if st.button(f"📍 {match}", key=f"btn_{match}", use_container_width=True):
-                            st.session_state.input_key += 1
+                            st.session_state.input_key += 1 # Kutuyu sıfırla
                             if metin_temizle(match) == metin_temizle(p['oyuncu_adi']):
                                 st.session_state.last_result = "WIN"
                                 st.session_state.game_active = False
@@ -578,6 +588,7 @@ with tabs[4]:
         
         yeni_av_tetikle()
         st.rerun()
+
 
 
 
