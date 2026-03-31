@@ -6,9 +6,14 @@ import random
 import time
 import re
 import streamlit.components.v1 as components
-import pandas as pd
 import matplotlib.pyplot as plt
 import datetime
+import os
+import subprocess
+import threading  # İşte eksik olan mermi bu!
+import unicodedata
+
+
 
 
 
