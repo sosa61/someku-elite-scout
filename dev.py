@@ -144,13 +144,15 @@ with tabs[0]:
         reg_f = st.selectbox("🌍 Bölge Seç:", list(REG_TR.keys()))
         country_f = st.text_input("Uyruk (Direkt Ülke):")
     with f3: 
-        sort_f = st.selectbox("🔃 Sıralama Ölçütü:", ["pa", "ca", "yas", "deger_num"]) # deger_num kullanıyoruz
+        # HATA DÜZELTME: deger_num kaldırıldı, mevcut sütunlar eklendi
+        sort_f = st.selectbox("🔃 Sıralama Ölçütü:", ["pa", "ca", "yas"]) 
         sort_dir = st.selectbox("↕️ Sıralama Yönü:", ["En Yüksek / En Büyük", "En Düşük / En Küçük"])
     
-    v1, v2, v3 = st.columns(3) # 3 sütuna çıkardık
+    v1, v2, v3 = st.columns(3)
     with v1: age_f = st.slider("🎂 Yaş Aralığı:", 14, 50, (14, 25))
     with v2: pa_f = st.slider("📊 PA Aralığı:", 100, 200, (135, 200))
-    with v3: val_f = st.slider("💰 Bütçe (Milyon £):", 0, 100, (0, 100))
+    # GÜNCELLEME: Bütçe 300 Milyon £ yapıldı
+    with v3: val_f = st.slider("💰 Bütçe (Milyon £):", 0, 300, (0, 300))
     
     is_descending = True if sort_dir == "En Yüksek / En Büyük" else False
 
@@ -158,14 +160,10 @@ with tabs[0]:
     f_res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", curr_user).execute()
     st.session_state.fav_list = [x['oyuncu_adi'] for x in f_res.data] if f_res.data else []
 
-    # ANA SORGULAMA (Değer filtresi eklendi)
-    # deger_num > 0 yaparak 'Paha Biçilemez' veya 'Bilinmiyor' olanları eliyoruz
+    # ANA SORGULAMA (Hatalı deger_num filtreleri temizlendi)
     query = supabase.table("oyuncular").select("*")\
         .gte("yas", age_f[0]).lte("yas", age_f[1])\
-        .gte("pa", pa_f[0]).lte("pa", pa_f[1])\
-        .gt("deger_num", 0)\
-        .gte("deger_num", val_f[0] * 1000000)\
-        .lte("deger_num", val_f[1] * 1000000)
+        .gte("pa", pa_f[0]).lte("pa", pa_f[1])
 
     if name_f: query = query.ilike("oyuncu_adi", f"%{name_f}%")
     if team_f: query = query.ilike("kulup", f"%{team_f}%")
@@ -175,6 +173,7 @@ with tabs[0]:
     if pos_f != "Hepsi": query = query.ilike("mevki", f"%{POS_TR[pos_f]}%")
     if reg_f != "Hepsi": query = query.in_("ulke", REG_TR[reg_f])
     
+    # Veritabanı sorgusunu çalıştır
     res = query.order(sort_f, desc=is_descending).range(st.session_state.page*12, (st.session_state.page*12)+11).execute()
     
     if res.data:
