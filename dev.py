@@ -144,35 +144,37 @@ with tabs[0]:
         reg_f = st.selectbox("🌍 Bölge Seç:", list(REG_TR.keys()))
         country_f = st.text_input("Uyruk (Direkt Ülke):")
     with f3: 
-        sort_f = st.selectbox("🔃 Sıralama Ölçütü:", ["pa", "ca", "yas", "deger"])
-        # YENİ: Sıralama Yönü Seçeneği
+        sort_f = st.selectbox("🔃 Sıralama Ölçütü:", ["pa", "ca", "yas", "deger_num"]) # deger_num kullanıyoruz
         sort_dir = st.selectbox("↕️ Sıralama Yönü:", ["En Yüksek / En Büyük", "En Düşük / En Küçük"])
     
-    v1, v2 = st.columns(2)
+    v1, v2, v3 = st.columns(3) # 3 sütuna çıkardık
     with v1: age_f = st.slider("🎂 Yaş Aralığı:", 14, 50, (14, 25))
     with v2: pa_f = st.slider("📊 PA Aralığı:", 100, 200, (135, 200))
+    with v3: val_f = st.slider("💰 Bütçe (Milyon £):", 0, 100, (0, 100))
     
-    # Sıralama mantığını belirle
     is_descending = True if sort_dir == "En Yüksek / En Büyük" else False
 
-   # Sadece giriş yapan kullanıcının favorilerini çek (Satır 105-107)
+    # Favori listesini çek
     f_res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", curr_user).execute()
     st.session_state.fav_list = [x['oyuncu_adi'] for x in f_res.data] if f_res.data else []
 
-    query = supabase.table("oyuncular").select("*").gte("yas", age_f[0]).lte("yas", age_f[1]).gte("pa", pa_f[0]).lte("pa", pa_f[1])
+    # ANA SORGULAMA (Değer filtresi eklendi)
+    # deger_num > 0 yaparak 'Paha Biçilemez' veya 'Bilinmiyor' olanları eliyoruz
+    query = supabase.table("oyuncular").select("*")\
+        .gte("yas", age_f[0]).lte("yas", age_f[1])\
+        .gte("pa", pa_f[0]).lte("pa", pa_f[1])\
+        .gt("deger_num", 0)\
+        .gte("deger_num", val_f[0] * 1000000)\
+        .lte("deger_num", val_f[1] * 1000000)
+
     if name_f: query = query.ilike("oyuncu_adi", f"%{name_f}%")
     if team_f: query = query.ilike("kulup", f"%{team_f}%")
     if country_f: query = query.ilike("ulke", f"%{country_f}%")
-    if pos_f := st.session_state.get('pos_f_temp', 'Hepsi'): # Mevki seçimi için basit kontrol
-         pass # Mevki aşağıda seçiliyor
-
-    # Mevki Seçimi (Mevcut yapı bozulmasın diye f3 içine veya slider üstüne eklenebilir)
-    pos_f = st.selectbox("👟 Mevki Seç:", list(POS_TR.keys()))
     
+    pos_f = st.selectbox("👟 Mevki Seç:", list(POS_TR.keys()))
     if pos_f != "Hepsi": query = query.ilike("mevki", f"%{POS_TR[pos_f]}%")
     if reg_f != "Hepsi": query = query.in_("ulke", REG_TR[reg_f])
     
-    # Güncellenmiş Sıralama Sorgusu
     res = query.order(sort_f, desc=is_descending).range(st.session_state.page*12, (st.session_state.page*12)+11).execute()
     
     if res.data:
@@ -182,8 +184,7 @@ with tabs[0]:
             is_fav = p['oyuncu_adi'] in st.session_state.fav_list
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
             pa_val, ca_val = p.get("pa", 0), p.get("ca", "-")
-            raw_val = str(p.get('deger', ''))
-            display_val = "❌ Satılık Değil" if "300.000.000" in raw_val else (raw_val if raw_val not in ["0","£0","None",""] else "💎 Paha Biçilemez")
+            display_val = p.get('deger', 'Bilinmiyor')
 
             with cols[i%2]:
                 if pa_val > 150 and not user_is_vip:
@@ -191,12 +192,13 @@ with tabs[0]:
                 else:
                     card_border = "#238636" if is_fav else "#30363d"
                     bg_effect = "rgba(35, 134, 54, 0.08)" if is_fav else "rgba(255, 255, 255, 0.02)"
-                    st.markdown(f'''<div style="padding:15px; border-radius:15px; margin-bottom:10px; border: 2px solid {card_border}; background: {bg_effect}; position:relative;"><div style="display:flex; justify-content:space-between;"><div><h4 style="margin:0; font-size:16px;">{p["oyuncu_adi"]}</h4><p style="font-size:11px; color:#8b949e; margin:2px 0;">🌍 {p.get("ulke","Bilinmiyor")} | 🎂 {p["yas"]} Yaş</p></div><div style="text-align:right;"><span style="background:#238636; color:white; padding:2px 8px; border-radius:5px; font-size:11px; font-weight:bold;">PA: {p["pa"]}</span><p style="font-size:10px; color:#58a6ff; margin-top:3px;">CA: {ca_val}</p></div></div><div style="border-top:1px solid #30363d; margin-top:10px; padding-top:10px; font-size:12px;"><p style="margin:0;">🏟️ <b>Kulüp:</b> {p.get("kulup","Serbest")}</p><p style="margin:0;">👟 <b>Mevki:</b> {p.get("mevki","--")}</p><p style="margin:0; color:#00ff41;">💰 <b>Değer:</b> {display_val}</p></div><div style="margin-top:10px;"><a href="{tm_url}" target="_blank" style="color:#58a6ff; font-size:11px; text-decoration:none; font-weight:bold;">Transfermarkt Profili ➔</a></div></div>''', unsafe_allow_html=True)
+                    st.markdown(f'''<div style="padding:15px; border-radius:15px; margin-bottom:10px; border: 2px solid {card_border}; background: {bg_effect}; position:relative;"><div style="display:flex; justify-content:space-between;"><div><h4 style="margin:0; font-size:16px;">{p["oyuncu_adi"]}</h4><p style="font-size:11px; color:#8b949e; margin:2px 0;">🌍 {p.get("ulke","Bilinmiyor")} | 🎂 {p["yas"]} Yaş</p></div><div style="text-align:right;"><span style="background:#238636; color:white; padding:2px 8px; border-radius:5px; font-size:11px; font-weight:bold;">PA: {p["pa"]}</span><p style="font-size:10px; color:#58a6ff; margin-top:3px;">CA: {ca_val}</p></div></div><div style="border-top:1px solid #30363d; margin-top:10px; padding-top:10px; font-size:12px;"><p style="margin:0;">🏟️ <b>Kulüp:</b> {p.get("kulup","Serbest")}</p><p style="margin:0;">👟 <b>Mevki:</b> {p.get("mevki", "--")}</p><p style="margin:0; color:#00ff41;">💰 <b>Değer:</b> {display_val}</p></div><div style="margin-top:10px;"><a href="{tm_url}" target="_blank" style="color:#58a6ff; font-size:11px; text-decoration:none; font-weight:bold;">Transfermarkt Profili ➔</a></div></div>''', unsafe_allow_html=True)
                     btn_txt = "⭐ FAVORİDEN ÇIKAR" if is_fav else "☆ FAVORİLERE EKLE"
                     if st.button(btn_txt, key=f"scout_btn_{p['oyuncu_adi']}_{i}", use_container_width=True):
                         if is_fav: supabase.table("favoriler").delete().eq("oyuncu_adi", p['oyuncu_adi']).eq("kullanici_adi", curr_user).execute()
                         else: supabase.table("favoriler").insert({"oyuncu_adi": p['oyuncu_adi'], "kulup": p.get('kulup', 'Serbest'), "pa": p['pa'], "mevki": p['mevki'], "ca": p.get('ca', 0), "kullanici_adi": curr_user}).execute()
                         st.rerun()
+        
         st.markdown("---")
         c1, c2, c3 = st.columns([1, 2, 1])
         if c1.button("⬅️ Geri", use_container_width=True) and st.session_state.page > 0: st.session_state.page -= 1; st.rerun()
