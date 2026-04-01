@@ -150,7 +150,6 @@ with tabs[0]:
     v1, v2, v3 = st.columns(3)
     with v1: age_f = st.slider("🎂 Yaş Aralığı:", 14, 50, (14, 25))
     with v2: pa_f = st.slider("📊 PA Aralığı:", 100, 200, (135, 200))
-    # DEĞER ÇUBUĞU (0 - 300M)
     with v3: val_f = st.slider("💰 Bütçe (Milyon £):", 0, 300, (0, 300))
     
     is_descending = True if sort_dir == "En Yüksek / En Büyük" else False
@@ -170,22 +169,33 @@ with tabs[0]:
     if pos_f != "Hepsi": query = query.ilike("mevki", f"%{POS_TR[pos_f]}%")
     if reg_f != "Hepsi": query = query.in_("ulke", REG_TR[reg_f])
     
-    res = query.order(sort_f, desc=is_descending).range(st.session_state.page*12, (st.session_state.page*12)+100).execute()
+    # Bütçe filtresi için daha geniş veri çekiyoruz (Filtreleme kod tarafında kesinleşecek)
+    res = query.order(sort_f, desc=is_descending).limit(500).execute()
     
     if res.data:
-        # --- DEĞER ÇUBUĞUNUN ÇALIŞMASI İÇİN FİLTRELEME FONKSİYONU ---
         def get_numeric_value(val_str):
             try:
-                val_str = str(val_str).lower().replace('£','').replace('€','').strip()
-                if 'm' in val_str: return float(re.findall(r"(\d+\.?\d*)", val_str)[0])
-                if 'k' in val_str: return float(re.findall(r"(\d+\.?\d*)", val_str)[0]) / 1000
-                return 0
+                # Sayıyı temizle ve float'a çevir
+                s = str(val_str).lower().replace('£','').replace('€','').replace(',','').strip()
+                match = re.search(r"(\d+\.?\d*)", s)
+                if not match: return 0
+                num = float(match.group(1))
+                if 'm' in s: return num
+                if 'k' in s: return num / 1000
+                if num > 1000: return num / 1000000 # Eğer ham sayı gelirse
+                return num
             except: return 0
 
-        # Slider aralığına göre filtrele
+        # --- KESİN FİLTRELEME ---
         filtered_data = [p for p in res.data if val_f[0] <= get_numeric_value(p.get('deger', 0)) <= val_f[1]]
-        # Sayfalama için ilk 12'yi al
-        display_data = filtered_data[:12]
+        
+        # Sayfalama mantığı (Geniş listeden seçilen sayfa)
+        start_idx = st.session_state.page * 12
+        display_data = filtered_data[start_idx : start_idx + 12]
+
+        if not display_data and st.session_state.page > 0:
+            st.session_state.page = 0
+            st.rerun()
 
         cols = st.columns(2)
         user_is_vip = st.session_state.get('is_vip', False)
@@ -194,12 +204,12 @@ with tabs[0]:
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
             pa_val, ca_val = p.get("pa", 0), p.get("ca", "-")
             
-            # --- 300M OLANLARI SATILAMAZ YAP ---
-            raw_deger = str(p.get('deger', 'Bilinmiyor'))
-            if "300m" in raw_deger.lower() or get_numeric_value(raw_deger) >= 300:
+            # --- 300M VE ÜSTÜNÜ SATILAMAZ YAP ---
+            current_val_num = get_numeric_value(p.get('deger', 0))
+            if current_val_num >= 300:
                 display_val = "❌ Satılamaz"
             else:
-                display_val = raw_deger
+                display_val = p.get('deger', 'Bilinmiyor')
 
             with cols[i%2]:
                 if pa_val > 150 and not user_is_vip:
