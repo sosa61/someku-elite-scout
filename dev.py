@@ -349,70 +349,101 @@ with tabs[1]:
     else:
         st.warning("⚠️ Kriterlere uygun ucuz wonderkid bulunamadı. Tekrar dene!")
 
-# --- 3. İLK 11 (V165 - SÜRÜKLE BIRAK FIX) ---
+# --- 3. İLK 11 (V170 - TOTAL COMMANDER) ---
 with tabs[2]:
     st.markdown('<h2 style="text-align:center;">🏟️ ELITE ARENA - TAKTİK TAHTASI</h2>', unsafe_allow_html=True)
     
     curr_user = st.session_state.get('user')
+    
+    # Tüm oyuncuları ve favorileri harmanlayan havuz (Performans için limitli ama arama odaklı)
     try:
-        res_fav = supabase.table("favoriler").select("*").eq("kullanici_adi", curr_user).order("pa", desc=True).execute()
-        f_n = [f"{p['oyuncu_adi']} ({p['pa']})" for p in res_fav.data] if res_fav.data else ["Favori Mermi Yok"]
+        all_res = supabase.table("oyuncular").select("oyuncu_adi, pa").order("pa", desc=True).limit(500).execute()
+        fav_res = supabase.table("favoriler").select("oyuncu_adi, pa").eq("kullanici_adi", curr_user).execute()
+        
+        # Favorileri en üste koyan liste
+        favs = [f"⭐ {p['oyuncu_adi']} ({p['pa']})" for p in fav_res.data] if fav_res.data else []
+        others = [f"{p['oyuncu_adi']} ({p['pa']})" for p in all_res.data]
+        player_pool = ["Boş Slot"] + favs + list(set(others) - set([p.replace("⭐ ", "") for p in favs]))
     except:
-        f_n = ["Bağlantı Hatası"]
+        player_pool = ["Veri Hatası"]
 
     tactic = st.selectbox("🏟️ Ana Diziliş Seç:", 
-                         ["4-3-3", "4-4-2", "4-2-3-1", "3-5-2", "5-3-2", "4-1-2-1-2"], key="tactic_sel")
+                         ["4-3-3", "4-4-2", "4-2-3-1", "3-5-2", "5-3-2", "5-4-1", "3-4-3", "4-1-2-1-2"], key="tactic_sel")
     
-    st.info("💡 İpucu: Oyuncuları farenizle veya parmağınızla saha üzerinde özgürce hareket ettirebilirsiniz!")
+    st.info("💡 Oyuncuları seçin ve saha üzerinde özgürce sürükleyin!")
 
-    st.markdown('<div style="color:#58a6ff; font-weight:bold; font-size:12px;">🛡️ DEFANS</div>', unsafe_allow_html=True)
-    c1, c2, c3, c4, c5 = st.columns(5)
-    gk = c1.selectbox("GK", f_n, key="sl_gk"); lb = c2.selectbox("LB", f_n, key="sl_lb")
-    cb1 = c3.selectbox("CB1", f_n, key="sl_cb1"); cb2 = c4.selectbox("CB2", f_n, key="sl_cb2"); rb = c5.selectbox("RB", f_n, key="sl_rb")
+    # Mevki İsimleri Sözlüğü (Türkçe)
+    TR_POS = {
+        "GK": "KL", "LB": "SLB", "RB": "SĞB", "CB": "STP", "LWB": "SLKB", "RWB": "SĞKB",
+        "DM": "ÖNL", "CM": "MZS", "LM": "SLK", "RM": "SĞK", "AM": "OOS", "LW": "SLK", "RW": "SĞK", "ST": "FRV"
+    }
 
-    st.markdown('<div style="color:#238636; font-weight:bold; font-size:12px;">⚡ HÜCUM</div>', unsafe_allow_html=True)
+    # Dinamik Pozisyon Belirleme Motoru
+    positions = []
     
-    # Mevki koordinatlarını mermi gibi ayarlıyoruz
+    def add_player(label, key):
+        return st.selectbox(label, player_pool, key=f"tact_{key}")
+
+    # Saha koordinatlarını dizilişe göre ayarla (y, x)
     if tactic == "4-4-2":
+        c1, c2, c3, c4, c5 = st.columns(5)
+        gk = add_player("KL", "gk"); lb = add_player("SLB", "lb"); cb1 = add_player("STP1", "cb1"); cb2 = add_player("STP2", "cb2"); rb = add_player("SĞB", "rb")
         m1, m2, m3, m4 = st.columns(4)
-        lm = m1.selectbox("LM", f_n); cm1 = m2.selectbox("CM1", f_n); cm2 = m3.selectbox("CM2", f_n); rm = m4.selectbox("RM", f_n)
+        lm = add_player("SLK", "lm"); cm1 = add_player("MZS1", "cm1"); cm2 = add_player("MZS2", "cm2"); rm = add_player("SĞK", "rm")
         f1, f2 = st.columns(2)
-        st1 = f1.selectbox("ST1", f_n); st2 = f2.selectbox("ST2", f_n)
-        positions = [("GK",gk,82,39), ("LB",lb,65,2), ("CB",cb1,65,26), ("CB",cb2,65,51), ("RB",rb,65,75), ("LM",lm,40,2), ("CM",cm1,40,26), ("CM",cm2,40,51), ("RM",rm,40,75), ("ST",st1,13,26), ("ST",st2,13,51)]
-    
-    elif tactic == "4-2-3-1":
-        m1, m2, m3, m4, m5 = st.columns(5)
-        dm1 = m1.selectbox("CDM1", f_n); dm2 = m2.selectbox("CDM2", f_n); aml = m3.selectbox("LAM", f_n); amc = m4.selectbox("CAM", f_n); amr = m5.selectbox("RAM", f_n)
-        st1 = st.selectbox("ST", f_n)
-        positions = [("GK",gk,82,39), ("LB",lb,65,2), ("CB",cb1,65,26), ("CB",cb2,65,51), ("RB",rb,65,75), ("DM",dm1,52,26), ("DM",dm2,52,51), ("AM",aml,28,5), ("AM",amc,25,39), ("AM",amr,28,72), ("ST",st1,8,39)]
+        st1 = add_player("FRV1", "st1"); st2 = add_player("FRV2", "st2")
+        positions = [("KL",gk,82,39), ("SLB",lb,65,2), ("STP",cb1,65,26), ("STP",cb2,65,51), ("SĞB",rb,65,75), ("SLK",lm,40,2), ("MZS",cm1,40,26), ("MZS",cm2,40,51), ("SĞK",rm,40,75), ("FRV",st1,13,26), ("FRV",st2,13,51)]
 
-    elif tactic == "3-5-2":
-        m1, m2, m3, m4, m5 = st.columns(5)
-        lwb = m1.selectbox("LWB", f_n); cm1 = m2.selectbox("CM1", f_n); cdm = m3.selectbox("CDM", f_n); cm2 = m4.selectbox("CM2", f_n); rwb = m5.selectbox("RWB", f_n)
-        f1, f2 = st.columns(2)
-        st1 = f1.selectbox("ST1", f_n); st2 = f2.selectbox("ST2", f_n)
-        positions = [("GK",gk,82,39), ("CB",lb,70,12), ("CB",cb1,70,39), ("CB",cb2,70,66), ("LWB",lwb,45,2), ("DM",cdm,52,39), ("CM",cm1,43,23), ("CM",cm2,43,55), ("RWB",rwb,45,75), ("ST",st1,13,26), ("ST",st2,13,51)]
-
-    else: # Default 4-3-3
+    elif tactic == "5-3-2":
+        c1, c2, c3, c4, c5 = st.columns(5)
+        gk = add_player("KL", "gk"); lb = add_player("SLB", "lb"); cb1 = add_player("STP1", "cb1"); cb2 = add_player("STP2", "cb2"); cb3 = add_player("STP3", "cb3"); rb = add_player("SĞB", "rb")
         m1, m2, m3 = st.columns(3)
-        cm1 = m1.selectbox("LCM", f_n); cm2 = m2.selectbox("CM", f_n); cm3 = m3.selectbox("RCM", f_n)
-        f1, f2, f3 = st.columns(3)
-        lw = f1.selectbox("LW", f_n); st_p = f2.selectbox("ST", f_n); rw = f3.selectbox("RW", f_n)
-        positions = [("GK",gk,82,39), ("LB",lb,65,2), ("CB",cb1,65,26), ("CB",cb2,65,51), ("RB",rb,65,75), ("CM",cm1,43,10), ("CM",cm2,43,38), ("CM",cm3,43,66), ("LW",lw,14,5), ("ST",st_p,11,38), ("RW",rw,14,71)]
+        cm1 = add_player("MZS1", "cm1"); cdm = add_player("ÖNL", "cdm"); cm2 = add_player("MZS2", "cm2")
+        f1, f2 = st.columns(2)
+        st1 = add_player("FRV1", "st1"); st2 = add_player("FRV2", "st2")
+        positions = [("KL",gk,85,39), ("SLB",lb,68,2), ("STP",cb1,70,22), ("STP",cb2,70,39), ("STP",cb3,70,56), ("SĞB",rb,68,75), ("MZS",cm1,45,15), ("ÖNL",cdm,52,39), ("MZS",cm2,45,63), ("FRV",st1,15,26), ("FRV",st2,15,51)]
 
-    # --- HTML & SÜRÜKLEME MOTORU ---
-    players_divs = "".join([f'<div class="player draggable" style="top:{y}%; left:{x}%;" onmousedown="startDrag(event)" ontouchstart="startDrag(event)"><div class="pos">{p}</div><div class="name">{n}</div></div>' for p, n, y, x in positions])
+    elif tactic == "5-4-1":
+        c1, c2, c3, c4, c5, c6 = st.columns(6)
+        gk = add_player("KL", "gk"); lb = add_player("SLB", "lb"); cb1 = add_player("STP1", "cb1"); cb2 = add_player("STP2", "cb2"); cb3 = add_player("STP3", "cb3"); rb = add_player("SĞB", "rb")
+        m1, m2, m3, m4 = st.columns(4)
+        lm = add_player("SLK", "lm"); cm1 = add_player("MZS1", "cm1"); cm2 = add_player("MZS2", "cm2"); rm = add_player("SĞK", "rm")
+        st1 = add_player("FRV", "st1")
+        positions = [("KL",gk,85,39), ("SLB",lb,72,2), ("STP",cb1,75,22), ("STP",cb2,75,39), ("STP",cb3,75,56), ("SĞB",rb,72,75), ("SLK",lm,45,5), ("MZS",cm1,48,30), ("MZS",cm2,48,48), ("SĞK",rm,45,72), ("FRV",st1,15,39)]
+
+    elif tactic == "3-4-3":
+        c1, c2, c3, c4 = st.columns(4)
+        gk = add_player("KL", "gk"); cb1 = add_player("STP1", "cb1"); cb2 = add_player("STP2", "cb2"); cb3 = add_player("STP3", "cb3")
+        m1, m2, m3, m4 = st.columns(4)
+        lm = add_player("SLK", "lm"); cm1 = add_player("MZS1", "cm1"); cm2 = add_player("MZS2", "cm2"); rm = add_player("SĞK", "rm")
+        f1, f2, f3 = st.columns(3)
+        lw = add_player("SLFOR", "lw"); st1 = add_player("FRV", "st1"); rw = add_player("SĞFOR", "rw")
+        positions = [("KL",gk,85,39), ("STP",cb1,72,15), ("STP",cb2,72,39), ("STP",cb3,72,63), ("SLK",lm,45,2), ("MZS",cm1,48,26), ("MZS",cm2,48,51), ("SĞK",rm,45,75), ("SLFOR",lw,15,10), ("FRV",st1,12,39), ("SĞFOR",rw,15,68)]
+
+    else: # Default 4-3-3 ve diğerleri için ana şablon (Sadeleştirilmiş)
+        c1, c2, c3, c4, c5 = st.columns(5)
+        gk = add_player("KL", "gk"); lb = add_player("SLB", "lb"); cb1 = add_player("STP1", "cb1"); cb2 = add_player("STP2", "cb2"); rb = add_player("SĞB", "rb")
+        m1, m2, m3 = st.columns(3)
+        cm1 = add_player("MZS1", "cm1"); cm2 = add_player("MZS2", "cm2"); cm3 = add_player("MZS3", "cm3")
+        f1, f2, f3 = st.columns(3)
+        lw = add_player("SLFOR", "lw"); st1 = add_player("FRV", "st1"); rw = add_player("SĞFOR", "rw")
+        positions = [("KL",gk,82,39), ("SLB",lb,65,2), ("STP",cb1,65,26), ("STP",cb2,65,51), ("SĞB",rb,65,75), ("MZS",cm1,43,10), ("MZS",cm2,43,38), ("MZS",cm3,43,66), ("SLFOR",lw,14,5), ("FRV",st1,11,38), ("SĞFOR",rw,14,71)]
+
+    # --- HTML SÜRÜKLEME MOTORU ---
+    players_divs = "".join([f'<div class="player draggable" style="top:{y}%; left:{x}%;" onmousedown="startDrag(event)" ontouchstart="startDrag(event)"><div class="pos">{p}</div><div class="name">{n.split(" (")[0]}</div></div>' for p, n, y, x in positions])
 
     tahta_html = f"""
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <div id="capture" style="position:relative; background:#1e4620; border:4px solid #ffffff; border-radius:15px; width:360px; height:540px; margin:auto; overflow:hidden;">
+    <div id="capture" style="position:relative; background:#1e4620; border:4px solid #ffffff; border-radius:15px; width:360px; height:540px; margin:auto; overflow:hidden; background-image: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px); background-size: 20px 20px;">
         <div style="position:absolute; top:50%; left:0; width:100%; border-top:2px solid rgba(255,255,255,0.4);"></div>
         <div style="position:absolute; top:40%; left:30%; width:40%; height:20%; border:2px solid rgba(255,255,255,0.4); border-radius:50%;"></div>
+        <div style="position:absolute; top:0; left:20%; width:60%; height:15%; border:2px solid rgba(255,255,255,0.4); border-top:none;"></div>
+        <div style="position:absolute; bottom:0; left:20%; width:60%; height:15%; border:2px solid rgba(255,255,255,0.4); border-bottom:none;"></div>
         {players_divs}
-        <div style="position:absolute; bottom:5px; right:10px; color:rgba(255,255,255,0.3); font-size:9px;">SOMEKU ELITE SCOUT</div>
+        <div style="position:absolute; bottom:5px; right:10px; color:rgba(255,255,255,0.3); font-size:9px; font-weight:bold;">SOMEKU ELITE SCOUT</div>
     </div>
     
-    <button onclick="downloadImage()" style="width:100%; padding:12px; background:#238636; color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer; margin-top:15px;">📸 KADROYU PNG KAYDET</button>
+    <button onclick="downloadImage()" style="width:100%; padding:14px; background:#238636; color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer; margin-top:15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">📸 KADROYU PNG OLARAK KAYDET</button>
 
     <script>
         let activeEl = null;
@@ -431,8 +462,8 @@ with tabs[2]:
             let rect = document.getElementById('capture').getBoundingClientRect();
             let x = ((clientX - rect.left - 39) / rect.width) * 100;
             let y = ((clientY - rect.top - 20) / rect.height) * 100;
-            activeEl.style.left = x + "%";
-            activeEl.style.top = y + "%";
+            activeEl.style.left = Math.max(0, Math.min(x, 80)) + "%";
+            activeEl.style.top = Math.max(0, Math.min(y, 90)) + "%";
         }}
         function endDrag() {{ activeEl = null; }}
         function downloadImage() {{
@@ -445,16 +476,16 @@ with tabs[2]:
         }}
     </script>
     <style>
-        .player {{ position:absolute; background:rgba(13,17,23,0.9); border:1.5px solid #58a6ff; border-radius:8px; color:white; width:78px; padding:4px; text-align:center; cursor:grab; z-index:100; user-select:none; touch-action:none; }}
-        .player:active {{ cursor:grabbing; border-color:#f2cc60; transform: scale(1.05); }}
-        .pos {{ font-size:9px; color:#58a6ff; font-weight:bold; pointer-events:none; }}
-        .name {{ font-size:10px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none; }}
+        .player {{ position:absolute; background:rgba(13,17,23,0.95); border:1.5px solid #58a6ff; border-radius:6px; color:white; width:75px; padding:3px; text-align:center; cursor:grab; z-index:100; user-select:none; touch-action:none; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }}
+        .player:active {{ cursor:grabbing; border-color:#f2cc60; transform: scale(1.1); }}
+        .pos {{ font-size:8px; color:#58a6ff; font-weight:bold; pointer-events:none; text-transform: uppercase; }}
+        .name {{ font-size:9px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none; }}
     </style>
     """
-    st.components.v1.html(tahta_html, height=630)
+    st.components.v1.html(tahta_html, height=650)
 
     kadro_txt = f"Diziliş: {tactic}\n" + "\n".join([f"{p[0]}: {p[1]}" for p in positions])
-    st.download_button(label="📄 TXT İNDİR", data=kadro_txt, file_name="mermi-kadro.txt", use_container_width=True)
+    st.download_button(label="📄 KADROYU METİN OLARAK İNDİR", data=kadro_txt, file_name="mermi-kadro.txt", use_container_width=True)
 
 # --- 4. FAVORİLER (KİŞİYE ÖZEL) ---
 with tabs[3]:
