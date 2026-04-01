@@ -230,9 +230,9 @@ with tabs[0]:
         with c2: st.markdown(f"<p style='text-align:center;'>Sayfa: {st.session_state.page + 1}</p>", unsafe_allow_html=True)
         if c3.button("İleri ➡️", use_container_width=True): st.session_state.page += 1; st.rerun()
 
-# --- 2. RULET (V195 - STABİL VE HATASIZ) ---
+# --- 2. RULET (V196 - ECONOMY MIX) ---
 with tabs[1]:
-    st.markdown('<div style="text-align:center;"><h2 style="color:#ef4444;">🎰 WONDERKID RULETİ</h2><p style="color:#8b949e;">Maksimum 21 Yaş | Genç Yetenek Avı</p></div>', unsafe_allow_html=True)
+    st.markdown('<div style="text-align:center;"><h2 style="color:#ef4444;">🎰 WONDERKID RULETİ</h2><p style="color:#8b949e;">Maksimum 21 Yaş | Maksimum 30M Değer</p></div>', unsafe_allow_html=True)
     
     import random
     import json
@@ -255,20 +255,32 @@ with tabs[1]:
     if 'rulet_winner' not in st.session_state: st.session_state.rulet_winner = None
     if 'animasyon_tamam' not in st.session_state: st.session_state.animasyon_tamam = False
 
-    # --- GÜVENLİ VERİ ÇEKME (Hata Engelleyici) ---
+    # --- TAM KARIŞIK VE GÜVENLİ VERİ ÇEKME ---
     player_pool = []
     try:
-        # 502 hatasını önlemek için sorguyu optimize ettik
-        res = supabase.table("oyuncular").select("*").gte("pa", min_pa).lte("pa", max_pa).lte("yas", 21).limit(100).execute()
+        def get_price_num(txt):
+            try:
+                s = str(txt).lower().replace('£','').replace('€','').strip()
+                n = float(re.findall(r"(\d+\.?\d*)", s)[0])
+                if 'm' in s: return n
+                if 'k' in s: return n / 1000
+                return n if n < 1000 else n / 1000000
+            except: return 0
+
+        # Rastgele bir sayfadan çekerek tam karışıklık sağlıyoruz
+        random_offset = random.randint(0, 100)
+        res = supabase.table("oyuncular").select("*").gte("pa", min_pa).lte("pa", max_pa).lte("yas", 21).range(random_offset, random_offset + 150).execute()
+        
         if res.data:
-            player_pool = res.data
+            # Sadece değeri 30M ve altı olanları ayıkla
+            player_pool = [p for p in res.data if get_price_num(p.get('deger', 0)) <= 30]
             random.shuffle(player_pool)
     except Exception as e:
-        st.error(f"⚠️ Veritabanı meşgul, lütfen sayfayı yenile patron! (Hata: {str(e)[:50]})")
+        st.error("⚠️ Bağlantı hatası, lütfen tekrar dene patron!")
 
     if player_pool:
         btn_label = "🎰 ALTIN RULETİ ÇEVİR" if user_is_vip else "🎰 STANDART RULETİ ÇEVİR"
-        if st.button(btn_label, key="rulet_spin_btn_v195", use_container_width=True):
+        if st.button(btn_label, key="rulet_spin_btn_v196", use_container_width=True):
             winner = random.choice(player_pool)
             strip_players = [random.choice(player_pool) for _ in range(30)]
             strip_players[25] = winner
@@ -301,11 +313,8 @@ with tabs[1]:
         # --- OYUNCU KARTI ---
         if st.session_state.rulet_winner and st.session_state.animasyon_tamam:
             p = st.session_state.rulet_winner
-            
-            # Favori Kontrolü
             f_check = supabase.table("favoriler").select("oyuncu_adi").eq("oyuncu_adi", p['oyuncu_adi']).eq("kullanici_adi", curr_user).execute()
             is_fav = len(f_check.data) > 0
-            
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
             card_color = "#22c55e" if is_fav else ("#f2cc60" if user_is_vip else "#ef4444")
             
@@ -338,7 +347,7 @@ with tabs[1]:
             else:
                 st.info("✅ Bu oyuncu zaten favori listende patron.")
     else:
-        st.warning("⚠️ Kriterlere uygun wonderkid bulunamadı. Tekrar dene!")
+        st.warning("⚠️ Kriterlere uygun ucuz wonderkid bulunamadı. Tekrar dene!")
 
 # --- 3. İLK 11 (V165 - SÜRÜKLE BIRAK FIX) ---
 with tabs[2]:
