@@ -144,23 +144,20 @@ with tabs[0]:
         reg_f = st.selectbox("🌍 Bölge Seç:", list(REG_TR.keys()))
         country_f = st.text_input("Uyruk (Direkt Ülke):")
     with f3: 
-        # HATA DÜZELTME: deger_num kaldırıldı, mevcut sütunlar eklendi
         sort_f = st.selectbox("🔃 Sıralama Ölçütü:", ["pa", "ca", "yas"]) 
         sort_dir = st.selectbox("↕️ Sıralama Yönü:", ["En Yüksek / En Büyük", "En Düşük / En Küçük"])
     
     v1, v2, v3 = st.columns(3)
     with v1: age_f = st.slider("🎂 Yaş Aralığı:", 14, 50, (14, 25))
     with v2: pa_f = st.slider("📊 PA Aralığı:", 100, 200, (135, 200))
-    # GÜNCELLEME: Bütçe 300 Milyon £ yapıldı
+    # DEĞER ÇUBUĞU (0 - 300M)
     with v3: val_f = st.slider("💰 Bütçe (Milyon £):", 0, 300, (0, 300))
     
     is_descending = True if sort_dir == "En Yüksek / En Büyük" else False
 
-    # Favori listesini çek
     f_res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", curr_user).execute()
     st.session_state.fav_list = [x['oyuncu_adi'] for x in f_res.data] if f_res.data else []
 
-    # ANA SORGULAMA (Hatalı deger_num filtreleri temizlendi)
     query = supabase.table("oyuncular").select("*")\
         .gte("yas", age_f[0]).lte("yas", age_f[1])\
         .gte("pa", pa_f[0]).lte("pa", pa_f[1])
@@ -173,17 +170,36 @@ with tabs[0]:
     if pos_f != "Hepsi": query = query.ilike("mevki", f"%{POS_TR[pos_f]}%")
     if reg_f != "Hepsi": query = query.in_("ulke", REG_TR[reg_f])
     
-    # Veritabanı sorgusunu çalıştır
-    res = query.order(sort_f, desc=is_descending).range(st.session_state.page*12, (st.session_state.page*12)+11).execute()
+    res = query.order(sort_f, desc=is_descending).range(st.session_state.page*12, (st.session_state.page*12)+100).execute()
     
     if res.data:
+        # --- DEĞER ÇUBUĞUNUN ÇALIŞMASI İÇİN FİLTRELEME FONKSİYONU ---
+        def get_numeric_value(val_str):
+            try:
+                val_str = str(val_str).lower().replace('£','').replace('€','').strip()
+                if 'm' in val_str: return float(re.findall(r"(\d+\.?\d*)", val_str)[0])
+                if 'k' in val_str: return float(re.findall(r"(\d+\.?\d*)", val_str)[0]) / 1000
+                return 0
+            except: return 0
+
+        # Slider aralığına göre filtrele
+        filtered_data = [p for p in res.data if val_f[0] <= get_numeric_value(p.get('deger', 0)) <= val_f[1]]
+        # Sayfalama için ilk 12'yi al
+        display_data = filtered_data[:12]
+
         cols = st.columns(2)
         user_is_vip = st.session_state.get('is_vip', False)
-        for i, p in enumerate(res.data):
+        for i, p in enumerate(display_data):
             is_fav = p['oyuncu_adi'] in st.session_state.fav_list
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
             pa_val, ca_val = p.get("pa", 0), p.get("ca", "-")
-            display_val = p.get('deger', 'Bilinmiyor')
+            
+            # --- 300M OLANLARI SATILAMAZ YAP ---
+            raw_deger = str(p.get('deger', 'Bilinmiyor'))
+            if "300m" in raw_deger.lower() or get_numeric_value(raw_deger) >= 300:
+                display_val = "❌ Satılamaz"
+            else:
+                display_val = raw_deger
 
             with cols[i%2]:
                 if pa_val > 150 and not user_is_vip:
