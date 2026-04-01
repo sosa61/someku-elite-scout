@@ -144,13 +144,17 @@ with tabs[0]:
         reg_f = st.selectbox("🌍 Bölge Seç:", list(REG_TR.keys()))
         country_f = st.text_input("Uyruk (Direkt Ülke):")
     with f3: 
-        pos_f = st.selectbox("👟 Mevki Seç:", list(POS_TR.keys()))
-        sort_f = st.selectbox("🔃 Sıralama:", ["pa", "ca", "yas", "deger"])
+        sort_f = st.selectbox("🔃 Sıralama Ölçütü:", ["pa", "ca", "yas", "deger"])
+        # YENİ: Sıralama Yönü Seçeneği
+        sort_dir = st.selectbox("↕️ Sıralama Yönü:", ["En Yüksek / En Büyük", "En Düşük / En Küçük"])
     
     v1, v2 = st.columns(2)
     with v1: age_f = st.slider("🎂 Yaş Aralığı:", 14, 50, (14, 25))
     with v2: pa_f = st.slider("📊 PA Aralığı:", 100, 200, (135, 200))
     
+    # Sıralama mantığını belirle
+    is_descending = True if sort_dir == "En Yüksek / En Büyük" else False
+
    # Sadece giriş yapan kullanıcının favorilerini çek (Satır 105-107)
     f_res = supabase.table("favoriler").select("oyuncu_adi").eq("kullanici_adi", curr_user).execute()
     st.session_state.fav_list = [x['oyuncu_adi'] for x in f_res.data] if f_res.data else []
@@ -159,10 +163,17 @@ with tabs[0]:
     if name_f: query = query.ilike("oyuncu_adi", f"%{name_f}%")
     if team_f: query = query.ilike("kulup", f"%{team_f}%")
     if country_f: query = query.ilike("ulke", f"%{country_f}%")
+    if pos_f := st.session_state.get('pos_f_temp', 'Hepsi'): # Mevki seçimi için basit kontrol
+         pass # Mevki aşağıda seçiliyor
+
+    # Mevki Seçimi (Mevcut yapı bozulmasın diye f3 içine veya slider üstüne eklenebilir)
+    pos_f = st.selectbox("👟 Mevki Seç:", list(POS_TR.keys()))
+    
     if pos_f != "Hepsi": query = query.ilike("mevki", f"%{POS_TR[pos_f]}%")
     if reg_f != "Hepsi": query = query.in_("ulke", REG_TR[reg_f])
     
-    res = query.order(sort_f, desc=True).range(st.session_state.page*12, (st.session_state.page*12)+11).execute()
+    # Güncellenmiş Sıralama Sorgusu
+    res = query.order(sort_f, desc=is_descending).range(st.session_state.page*12, (st.session_state.page*12)+11).execute()
     
     if res.data:
         cols = st.columns(2)
