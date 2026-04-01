@@ -507,7 +507,7 @@ with tabs[3]:
     else:
         st.info("Henüz favori mermin yok. Rulet kısmından avlanmaya başla! 🕵️‍♂️")
         
-# --- 5. GİZLİ YETENEK AVI (V540 - KESKİN KURALLAR & NET BÖLGELER) ---
+# --- 5. GİZLİ YETENEK AVI (V550 - NET İSTİHBARAT MODU) ---
 with tabs[4]:
     import unicodedata
     import time
@@ -515,13 +515,12 @@ with tabs[4]:
     st.markdown('<h2 style="text-align:center; color:#f2cc60;">🕵️ GİZLİ YETENEK AVI</h2>', unsafe_allow_html=True)
     
     # --- OYUN KURALLARI ---
-    with st.expander("📖 Oyun Kuralları & Analiz Notları", expanded=True):
+    with st.expander("📖 Operasyon Talimatı", expanded=True):
         st.markdown("""
-        1. **Bölgesel Analiz:** Mevki karmaşasını bitirdik. Oyuncular 4 ana bölgede (Hücum, Orta Saha, Savunma, Kaleci) analiz edilir.
-        2. **Bonservis Kuralı:** Oyuncu kiralıksa, kiralık gittiği yer değil **asıl ait olduğu kulüp** görünür.
-        3. **İpucu Akışı:** Son 10s PA (Potansiyel), son 5s CA (Yetenek) verileri sistemden şak diye açılır.
-        4. **Akıllı Tespit:** Harf yazdığın an elit adaylar aşağıya dizilir. Seçtiğin an sistem kutuyu temizler ve teşhisi koyar.
-        5. **⚠️ Önemli:** Sistem yapay zeka destekli olduğu için nadiren veri sapmaları olabilir; gerçek bir scout her zaman tetiktedir!
+        1. **Net Veri:** Mevki karmaşası bitti. Kimlik tespiti için Ülke, Kulüp ve Yaş verilerini kullan.
+        2. **Sızan Bilgiler:** PA (Potansiyel) son 15 saniyede, CA (Yetenek) son 20 saniyede sistemden sızar.
+        3. **Hızlı Teşhis:** İsmi yazmaya başla, alttaki listeden hedefi işaretle.
+        4. **Puan:** Her doğru teşhis scout rütbeni yükseltir!
         """)
 
     # --- YARDIMCI FONKSİYONLAR ---
@@ -531,22 +530,6 @@ with tabs[4]:
         nfkd_form = unicodedata.normalize('NFKD', metin)
         return "".join([c for c in nfkd_form if not unicodedata.combining(c)])
 
-    def bolgesel_mevki_yap(m):
-        m = str(m).upper()
-        # 1. KALECİ
-        if "GK" in m: return "🧤 KALECİ"
-        
-        # 2. HÜCUM BÖLGESİ (Forvetler ve Kanatlar)
-        if any(x in m for x in ["ST", "CF", "AM R", "AM L", "MR", "ML", "LW", "RW"]): 
-            return "🔥 HÜCUM BÖLGESİ"
-        
-        # 3. SAVUNMA BÖLGESİ (Stoperler, Bekler ve Liberolar)
-        if any(x in m for x in ["D C", "DC", "D R", "DR", "D L", "DL", "SW", "WBR", "WBL"]): 
-            return "🛡️ SAVUNMA BÖLGESİ"
-        
-        # 4. ORTA SAHA BÖLGESİ (Diğer tüm orta saha türevleri)
-        return "🧠 ORTA SAHA BÖLGESİ"
-
     # --- DURUM YÖNETİMİ ---
     if 'game_active' not in st.session_state: st.session_state.game_active = False
     if 'target_p' not in st.session_state: st.session_state.target_p = None
@@ -555,8 +538,9 @@ with tabs[4]:
 
     def yeni_av_tetikle():
         st.session_state.last_result = None
-        st.session_state.input_key += 1 # Kutuyu sıfırlamak için anahtarı değiştir
-        res_g = supabase.table("oyuncular").select("*").not_.eq("kulup", "None").gte("pa", 165).execute()
+        st.session_state.input_key += 1
+        # Elit havuzdan oyuncu seç (PA 160+)
+        res_g = supabase.table("oyuncular").select("*").not_.eq("kulup", "None").gte("pa", 160).execute()
         if res_g.data:
             st.session_state.all_player_names = sorted(list(set([r['oyuncu_adi'] for r in res_g.data])))
             st.session_state.target_p = random.choice(res_g.data)
@@ -565,7 +549,7 @@ with tabs[4]:
 
     # --- BAŞLATMA ---
     if not st.session_state.game_active and st.session_state.last_result is None:
-        if st.button("🚀 ANALİZİ BAŞLAT", use_container_width=True):
+        if st.button("🚀 OPERASYONU BAŞLAT", use_container_width=True):
             yeni_av_tetikle()
             st.rerun()
 
@@ -576,34 +560,40 @@ with tabs[4]:
         yuzde = (kalan / 30) * 100
         
         if kalan > 0:
-            pa_hint = f"🔥 PA: {p['pa']}" if kalan <= 10 else "🔥 PA: ??"
-            ca_hint = f"📊 CA: {p.get('ca','?')}" if kalan <= 5 else "📊 CA: ??"
+            # --- ZAMANA BAĞLI İPUÇLARI ---
+            # CA Son 20 saniye kala açılır
+            ca_hint = f"📊 CA: {p.get('ca','?')}" if kalan <= 20 else "📊 CA: 🔒 Kilitli"
+            # PA Son 15 saniye kala açılır
+            pa_hint = f"🔥 PA: {p['pa']}" if kalan <= 15 else "🔥 PA: 🔒 Kilitli"
             
             st.markdown(f"""
-                <div style="background:#161b22; padding:20px; border-radius:15px; border:2px solid #30363d; text-align:center;">
-                    <h2 style="color:#f2cc60; margin:0;">{bolgesel_mevki_yap(p['mevki'])}</h2>
-                    <div style="width:100%; background:#333; height:10px; border-radius:10px; margin:10px 0;">
-                        <div style="width:{yuzde}%; background:#3b82f6; height:100%; border-radius:10px;"></div>
+                <div style="background:#161b22; padding:25px; border-radius:20px; border:2px solid #f2cc60; text-align:center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                    <h3 style="color:#8b949e; margin-bottom:10px;">HEDEF ANALİZİ</h3>
+                    <div style="width:100%; background:#333; height:8px; border-radius:10px; margin-bottom:20px;">
+                        <div style="width:{yuzde}%; background:#ef4444; height:100%; border-radius:10px; transition: width 0.5s;"></div>
                     </div>
-                    <p style="font-size:20px;">🎂 <b>{p['yas']} Yaş</b> | 🏟️ <b>{p['kulup']}</b></p>
-                    <div style="display:flex; justify-content:center; gap:20px; font-weight:bold; font-size:17px;">
-                        <span style="color:#f2cc60;">{pa_hint}</span>
+                    <div style="display:grid; grid-template-columns: 1fr; gap:10px; margin-bottom:20px;">
+                        <div style="font-size:22px; color:#fff;">🌍 <b>Uyruk:</b> {p.get('ulke','Bilinmiyor')}</div>
+                        <div style="font-size:22px; color:#fff;">🏟️ <b>Kulüp:</b> {p.get('kulup','Serbest')}</div>
+                        <div style="font-size:22px; color:#fff;">🎂 <b>Yaş:</b> {p['yas']}</div>
+                    </div>
+                    <div style="display:flex; justify-content:center; gap:30px; font-weight:bold; font-size:18px; border-top:1px solid #30363d; pt:15px;">
                         <span style="color:#58a6ff;">{ca_hint}</span>
+                        <span style="color:#f2cc60;">{pa_hint}</span>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
 
             st.write("")
-            query = st.text_input("Hedef ismini yazmaya başla...", key=f"input_{st.session_state.input_key}").strip()
+            query = st.text_input("Hedef ismini buraya yaz...", key=f"input_{st.session_state.input_key}").strip()
             
             if query:
                 matches = [name for name in st.session_state.all_player_names if metin_temizle(query) in metin_temizle(name)][:5]
-                
                 if matches:
-                    st.write("🎯 **Potansiyel Hedefler (Analiz Et):**")
+                    st.write("🎯 **Eşleşen Adaylar:**")
                     for match in matches:
                         if st.button(f"📍 {match}", key=f"btn_{match}", use_container_width=True):
-                            st.session_state.input_key += 1 # Kutuyu sıfırla
+                            st.session_state.input_key += 1
                             if metin_temizle(match) == metin_temizle(p['oyuncu_adi']):
                                 st.session_state.last_result = "WIN"
                                 st.session_state.game_active = False
@@ -623,27 +613,28 @@ with tabs[4]:
             st.session_state.game_active = False
             st.rerun()
 
-    # --- SONUÇ VE GERİ SAYIM ---
+    # --- SONUÇ EKRANI ---
     if st.session_state.last_result:
         p = st.session_state.target_p
         if st.session_state.last_result == "WIN":
             st.balloons()
-            st.success(f"🎯 HEDEF TESPİT EDİLDİ: {p['oyuncu_adi']}")
+            st.success(f"🎯 TEBRİKLER SCOUT! Hedef başarıyla tespit edildi: {p['oyuncu_adi']}")
         else:
-            st.error(f"⌛ VERİ ANALİZİ BAŞARISIZ! Aranan Hedef: {p['oyuncu_adi']}")
+            st.error(f"⌛ ZAMAN DOLDU! İstihbarat yetersiz kaldı. Aranan Hedef: {p['oyuncu_adi']}")
 
-        if st.button("🚫 Durdur / Vazgeç"):
+        if st.button("🚫 OPERASYONU DURDUR"):
             st.session_state.last_result = None
             st.session_state.input_key += 1
             st.rerun()
 
         placeholder = st.empty()
         for i in range(5, 0, -1):
-            placeholder.info(f"🔄 {i} saniye içinde yeni hedef belirlenecek...")
+            placeholder.info(f"🔄 {i} saniye içinde yeni hedef için veriler toplanıyor...")
             time.sleep(1)
         
         yeni_av_tetikle()
         st.rerun()
+
 
 
 
