@@ -599,11 +599,11 @@ with tabs[5]:
                 count = 0
             if count >= 3:
                 can_ask = False
-                st.warning("🔒 Günlük 3 ücretsiz analiz hakkınız dolmuştur. VIP ile sınırsız devam edebilirsiniz.")
+                st.warning("🔒 Günlük 3 ücretsiz analiz hakkınız dolmuştur. Daha fazla analiz için VIP paketine geçebilirsiniz.")
 
+    # --- BARROW GİRİŞ ALANI ---
     st.info("🤖 Selam patron! Ben Barrow. Bir yapay zeka olduğum için bazen verilerde ufak sapmalar yapabilirim, analizleri Transfermarkt ile teyit etmeyi unutma!")
-    
-    b_in = st.text_input("Kriterlerini veya 'Yeni Messi' gibi hedeflerini söyle:", placeholder="Örn: 22 yaş altı Arjantinli sağ bek veya Yeni Ronaldo", key="b_v600", disabled=not can_ask)
+    b_in = st.text_input("Kriterlerini veya 'Yeni Messi' gibi hedeflerini söyle:", placeholder="Örn: 20 yaş altı Arjantinli sağ bek veya Yeni Ronaldo", key="b_v600", disabled=not can_ask)
     
     if st.button("ANALİZİ BAŞLAT", disabled=not can_ask):
         if b_in:
@@ -611,71 +611,81 @@ with tabs[5]:
                 new_count = u_data.data[0].get('barrow_count', 0) + 1
                 supabase.table("users").update({"barrow_count": new_count}).eq("username", curr_user).execute()
 
-            st.write("🔍 İstihbarat toplanıyor, mermiler sürülüyor...")
+            st.write("🔍 İstihbarat toplanıyor, veritabanı taranıyor...")
             low_in = b_in.lower()
-            bq = supabase.table("oyuncular").select("*").gte("pa", 125) # Kaliteli oyuncu sınırı
+            bq = supabase.table("oyuncular").select("*").gte("pa", 125) # Kaliteli oyuncu tabanı
 
-            # --- A. ÖZEL KARAKTER ANALİZİ (Messi, Ronaldo, Ramos vb.) ---
-            special_scouts = {
+            # --- A. EFSANE OYUNCU TARZI ANALİZİ ---
+            legends = {
                 "messi": {"ulke": "Argentina", "mevki": "AM", "min_pa": 150},
                 "ronaldo": {"ulke": "Portugal", "mevki": "ST", "min_pa": 150},
                 "ramos": {"ulke": "Spain", "mevki": "D C", "min_pa": 145},
                 "neymar": {"ulke": "Brazil", "mevki": "AM", "min_pa": 145},
                 "mbappe": {"ulke": "France", "mevki": "ST", "min_pa": 160}
             }
-            for hero, traits in special_scouts.items():
+            found_legend = False
+            for hero, traits in legends.items():
                 if hero in low_in:
                     bq = bq.eq("ulke", traits["ulke"]).ilike("mevki", f"%{traits['mevki']}%").gte("pa", traits["min_pa"])
+                    found_legend = True
                     break
 
-            # --- B. FİYAT ANALİZİ (Milyon ve Bin Euro) ---
-            # "4m", "500bin", "max 3m" gibi
-            price_nums = re.findall(r'(\d+)\s*(m|milyon|bin|k)', low_in)
-            if price_nums:
-                val, unit = price_nums[0]
-                total_val = int(val) * 1_000_000 if unit in ["m", "milyon"] else int(val) * 1_000
-                if any(x in low_in for x in ["en fazla", "max", "kadar", "altı", "altında"]):
-                    bq = bq.lte("deger_num", total_val)
-                elif any(x in low_in for x in ["en az", "min", "üstü", "üzeri"]):
-                    bq = bq.gte("deger_num", total_val)
-                else: # Direkt rakam söylendiyse (4 milyon gibi)
-                    bq = bq.lte("deger_num", total_val)
+            if not found_legend:
+                # --- B. GELİŞMİŞ FİYAT ANALİZİ ---
+                price_nums = re.findall(r'(\d+)\s*(m|milyon|bin|k|euro)', low_in)
+                if price_nums:
+                    val, unit = price_nums[0]
+                    total_val = int(val) * 1_000_000 if unit in ["m", "milyon"] else int(val) * 1_000
+                    if any(x in low_in for x in ["en fazla", "max", "kadar", "altı", "altında"]):
+                        bq = bq.lte("deger_num", total_val)
+                    elif any(x in low_in for x in ["en az", "min", "üstü", "üzeri"]):
+                        bq = bq.gte("deger_num", total_val)
+                    else:
+                        bq = bq.lte("deger_num", total_val)
 
-            # --- C. YAŞ ANALİZİ ---
-            # "18 yaş", "18-22 arası", "en fazla 25 yaş"
-            age_range = re.search(r'(\d+)\s*(?:ile|ve|ila|-|–)\s*(\d+)', low_in)
-            age_nums = re.findall(r'(\d+)\s*yaş', low_in)
-            if age_range:
-                a1, a2 = int(age_range.group(1)), int(age_range.group(2))
-                bq = bq.gte("yas", min(a1, a2)).lte("yas", max(a1, a2))
-            elif any(x in low_in for x in ["en fazla", "max", "kadar", "altı"]) and age_nums:
-                bq = bq.lte("yas", int(age_nums[0]))
-            elif any(x in low_in for x in ["en az", "min", "üstü"]) and age_nums:
-                bq = bq.gte("yas", int(age_nums[0]))
-            elif age_nums:
-                bq = bq.eq("yas", int(age_nums[0]))
+                # --- C. YAŞ ANALİZİ ---
+                age_range = re.search(r'(\d+)\s*(?:ile|ve|ila|-|–)\s*(\d+)', low_in)
+                age_nums = re.findall(r'(\d+)\s*yaş', low_in)
+                if age_range:
+                    a1, a2 = int(age_range.group(1)), int(age_range.group(2))
+                    bq = bq.gte("yas", min(a1, a2)).lte("yas", max(a1, a2))
+                elif any(x in low_in for x in ["en fazla", "max", "kadar", "altı"]) and age_nums:
+                    bq = bq.lte("yas", int(age_nums[0]))
+                elif any(x in low_in for x in ["en az", "min", "üstü"]) and age_nums:
+                    bq = bq.gte("yas", int(age_nums[0]))
+                elif age_nums:
+                    bq = bq.eq("yas", int(age_nums[0]))
 
-            # --- D. ÜLKE VE BÖLGE (Her dilden arama desteği) ---
-            country_map = {
-                "arjantin": "Argentina", "brezilya": "Brazil", "frans": "France", "alman": "Germany", 
-                "türk": "Turkey", "portekiz": "Portugal", "ispany": "Spain", "italy": "Italy",
-                "holland": "Netherlands", "belçik": "Belgium", "ingiliz": "England", "norveç": "Norway"
-            }
-            for tr, en in country_map.items():
-                if tr in low_in:
-                    bq = bq.eq("ulke", en)
-                    break
-            
-            regions = {
-                "afrika": ["Nigeria", "Senegal", "Ivory Coast", "Ghana", "Cameroon", "Algeria", "Egypt", "Morocco"],
-                "güney amerika": ["Argentina", "Brazil", "Uruguay", "Colombia", "Chile", "Ecuador", "Paraguay"],
-                "iskandinav": ["Norway", "Sweden", "Denmark", "Finland", "Iceland"],
-                "balkan": ["Croatia", "Serbia", "Bosnia", "Albania", "Greece", "Bulgaria", "Slovenia"]
-            }
-            for reg, countries in regions.items():
-                if reg in low_in:
-                    bq = bq.in_("ulke", countries)
-                    break
+                # --- D. ÜLKE VE BÖLGE ANALİZİ ---
+                country_map = {
+                    "arjantin": "Argentina", "brezilya": "Brazil", "frans": "France", "alman": "Germany", 
+                    "türk": "Turkey", "portekiz": "Portugal", "ispany": "Spain", "italy": "Italy",
+                    "holland": "Netherlands", "belçik": "Belgium", "ingiliz": "England", "norveç": "Norway",
+                    "uruguay": "Uruguay", "kolombiya": "Colombia", "nijerya": "Nigeria", "mısır": "Egypt"
+                }
+                for tr, en in country_map.items():
+                    if tr in low_in:
+                        bq = bq.eq("ulke", en)
+                        break
+                
+                regions = {
+                    "afrika": ["Nigeria", "Senegal", "Ivory Coast", "Ghana", "Cameroon", "Algeria", "Egypt", "Morocco"],
+                    "güney amerika": ["Argentina", "Brazil", "Uruguay", "Colombia", "Chile", "Ecuador", "Paraguay"],
+                    "iskandinav": ["Norway", "Sweden", "Denmark", "Finland", "Iceland"],
+                    "balkan": ["Croatia", "Serbia", "Bosnia", "Albania", "Greece", "Bulgaria", "Slovenia"],
+                    "asya": ["South Korea", "Japan", "China", "Iran", "Australia"]
+                }
+                for reg, countries in regions.items():
+                    if reg in low_in:
+                        bq = bq.in_("ulke", countries)
+                        break
+
+                # --- E. MEVKİ ANALİZİ ---
+                m_map = {"kaleci": "GK", "sağ bek": "D R", "sol bek": "D L", "stoper": "D C", "ön libero": "DM", "orta saha": "M C", "on numara": "AM C", "kanat": "AM", "forvet": "ST", "santrafor": "ST"}
+                for k, v in m_map.items():
+                    if k in low_in:
+                        bq = bq.ilike("mevki", f"%{v}%")
+                        break
 
             res_b = bq.limit(100).execute()
             if res_b.data:
@@ -684,21 +694,21 @@ with tabs[5]:
                 st.session_state.barrow_player = "empty"
             st.rerun()
 
-    # --- OYUNCU KARTI (FAVORİ IŞIKLI VERSİON) ---
+    # --- OYUNCU KARTI (IŞIKLI VE GÜÇLENDİRİLMİŞ) ---
     if st.session_state.barrow_player and st.session_state.barrow_player != "empty":
         p = st.session_state.barrow_player
         f_check = supabase.table("favoriler").select("oyuncu_adi").eq("oyuncu_adi", p['oyuncu_adi']).eq("kullanici_adi", curr_user).execute()
         is_f = len(f_check.data) > 0
         
-        # Favoriyse kartın kenarı yansın
-        border_color = "#facc15" if is_f else "#ef4444"
-        shadow_color = "rgba(250, 204, 21, 0.4)" if is_f else "rgba(239, 68, 68, 0.2)"
-        fav_label = "⭐ FAVORİNDE" if is_f else "🤵 BARROW SEÇİMİ"
+        # Kart tasarımı: Favoriyse altın sarısı, değilse kırmızı yanar
+        card_border = "#facc15" if is_f else "#ef4444"
+        card_shadow = "rgba(250, 204, 21, 0.4)" if is_f else "rgba(239, 68, 68, 0.2)"
+        badge_text = "⭐ FAVORİNDE" if is_f else "🤵 BARROW SEÇİMİ"
 
         st.markdown(f'''
-        <div style="background:#111; border:2px solid {border_color}; padding:25px; border-radius:20px; margin-top:20px; position:relative; box-shadow: 0 10px 30px {shadow_color}; transition: 0.3s;">
+        <div style="background:#111; border:2px solid {card_border}; padding:25px; border-radius:20px; margin-top:20px; position:relative; box-shadow: 0 10px 30px {card_shadow};">
             <div style="position:absolute; top:15px; right:15px; text-align:right;">
-                <span style="background:{border_color}; color:#000; padding:5px 12px; border-radius:8px; font-weight:bold; font-size:14px;">{fav_label}</span><br>
+                <span style="background:{card_border}; color:#000; padding:5px 12px; border-radius:8px; font-weight:bold; font-size:14px;">{badge_text}</span><br>
                 <span style="color:#fff; font-weight:bold; font-size:18px; display:block; margin-top:10px;">PA: {p["pa"]}</span>
             </div>
             <h2 style="color:#fff; margin:0; font-size:28px;">{p["oyuncu_adi"]}</h2>
@@ -713,21 +723,21 @@ with tabs[5]:
         </div>
         ''', unsafe_allow_html=True)
 
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
+        col1, col2 = st.columns(2)
+        with col1:
             if st.button("⭐ FAVORİ EKLE / SİL", use_container_width=True):
                 if is_f:
                     supabase.table("favoriler").delete().eq("oyuncu_adi", p['oyuncu_adi']).eq("kullanici_adi", curr_user).execute()
-                    st.toast("Çıkarıldı!")
+                    st.toast("Favorilerden çıkarıldı.")
                 else:
                     supabase.table("favoriler").insert({
                         "oyuncu_adi": p['oyuncu_adi'], "kulup": p.get('kulup','Serbest'),
                         "pa": p['pa'], "mevki": p['mevki'], "ca": p.get('ca', 0),
                         "kullanici_adi": curr_user
                     }).execute()
-                    st.toast("Eklendi!")
+                    st.toast("Favorilere eklendi!")
                 st.rerun()
-        with col_f2:
+        with col2:
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
             st.markdown(f'<a href="{tm_url}" target="_blank" style="text-decoration:none;"><button style="width:100%; background:#1a1a1a; color:#58a6ff; border:1px solid #30363d; padding:8px; border-radius:8px; cursor:pointer;">Transfermarkt ➔</button></a>', unsafe_allow_html=True)
 
