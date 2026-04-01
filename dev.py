@@ -576,6 +576,17 @@ with tabs[4]:
             st.table(df)
     except:
         st.write("Tablo yüklenemedi.")
+        
+        
+# --- 5. BARROW AI (V730 - BAKIM MODU) ---
+with tabs[5]:
+    st.markdown('<div style="text-align:center; padding:100px 0;">', unsafe_allow_html=True)
+    st.markdown('<h1 style="color:#ef4444; font-size:60px;">🤵</h1>', unsafe_allow_html=True)
+    st.markdown('<h2 style="color:#fff;">BARROW AI BAKIMDA</h2>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#8b949e; font-size:18px;">Patron sistemi bakıma aldı. Barrow çok yakında mermi gibi filtrelerle geri dönecek!</p>', unsafe_allow_html=True)
+    st.markdown('<div style="background:#1a1a1a; color:#facc15; padding:10px; border-radius:10px; display:inline-block; border:1px solid #facc15;">⏳ ÇOK YAKINDA YAYINDA</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 # --- 6. ADMIN (V135 - TAM YETKİLİ YÖNETİM MERKEZİ) ---
