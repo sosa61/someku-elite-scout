@@ -116,17 +116,74 @@ st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️"
 # --- SAYFA AYARLARI ---
 st.set_page_config(page_title="SOMEKU SCOUT", layout="wide", page_icon="🕵️")
 
-# --- TASARIM (CSS) ---
+# --- BETA ÖZEL: MODERN PREMIUM TASARIM (CSS) ---
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
-    .stApp { background-color: #0d1117; color: white; }
-    .player-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; margin-bottom: 15px; border-left: 5px solid #3b82f6; transition: 0.3s; }
-    </style>
-""", unsafe_allow_html=True)
+    /* Ana Arka Plan Gradiyenti */
+    .stApp {
+        background: linear-gradient(145deg, #0d1117 0%, #161b22 100%);
+        color: #e6edf3;
+    }
 
-# --- ANA SEKMELER ---
-tabs = st.tabs(["🔍 SCOUT", "🎰 RULET", "📋 11 KUR", "⭐ FAVORİLER", "🕵️ YETENEK AVI", "🤖 BARROW AI", "🛠️ ADMIN"])
+    /* Kart Tasarımları (Glassmorphism) */
+    .stMarkdown div[data-testid="stMarkdownContainer"] p {
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Pro Kilit Kartı Tasarımı */
+    .vip-lock-card {
+        background: rgba(242, 204, 96, 0.05);
+        border: 1px dashed #f2cc60;
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        backdrop-filter: blur(5px);
+        margin: 10px 0;
+    }
+
+    /* Modern Butonlar */
+    div.stButton > button {
+        background: linear-gradient(90deg, #238636 0%, #2ea043 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 24px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+
+    div.stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(46, 160, 67, 0.4);
+    }
+
+    /* Sidebar (Yan Menü) Güzelleştirme */
+    [data-testid="stSidebar"] {
+        background-color: #0d1117;
+        border-right: 1px solid #30363d;
+    }
+
+    /* Tab (Sekme) Tasarımı */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: transparent;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        height: 45px;
+        background-color: #161b22;
+        border-radius: 8px 8px 0 0;
+        border: 1px solid #30363d;
+        color: #8b949e;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background-color: #238636 !important;
+        color: white !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # (Buradan aşağısı senin gönderdiğin SCOUT, RULET, 11 KUR vb. kodlarınla devam ediyor...)
 
