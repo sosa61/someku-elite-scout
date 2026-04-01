@@ -230,9 +230,9 @@ with tabs[0]:
         with c2: st.markdown(f"<p style='text-align:center;'>Sayfa: {st.session_state.page + 1}</p>", unsafe_allow_html=True)
         if c3.button("İleri ➡️", use_container_width=True): st.session_state.page += 1; st.rerun()
 
-## --- 2. RULET (V190 - WONDERKID EDITION) ---
+# --- 2. RULET (V195 - STABİL VE HATASIZ) ---
 with tabs[1]:
-    st.markdown('<div style="text-align:center;"><h2 style="color:#ef4444;">🎰 WONDERKID RULETİ</h2><p style="color:#8b949e;">Maksimum 21 Yaş | Minimum 125 PA</p></div>', unsafe_allow_html=True)
+    st.markdown('<div style="text-align:center;"><h2 style="color:#ef4444;">🎰 WONDERKID RULETİ</h2><p style="color:#8b949e;">Maksimum 21 Yaş | Genç Yetenek Avı</p></div>', unsafe_allow_html=True)
     
     import random
     import json
@@ -252,30 +252,30 @@ with tabs[1]:
         min_pa, max_pa = 125, 150 
         slot_border = "#30363d"
 
-    if 'rulet_winner' not in st.session_state:
-        st.session_state.rulet_winner = None
-    if 'animasyon_tamam' not in st.session_state:
-        st.session_state.animasyon_tamam = False
+    if 'rulet_winner' not in st.session_state: st.session_state.rulet_winner = None
+    if 'animasyon_tamam' not in st.session_state: st.session_state.animasyon_tamam = False
 
-    # Havuzu Tamamen Karışık Çek (Yaş <= 21 Şartıyla)
+    # --- GÜVENLİ VERİ ÇEKME (Hata Engelleyici) ---
+    player_pool = []
     try:
-        # Rastgelelik için offset kullanıyoruz
-        r_offset = random.randint(0, 50) 
-        res = supabase.table("oyuncular").select("*").gte("pa", min_pa).lte("pa", max_pa).lte("yas", 21).range(r_offset, r_offset + 100).execute()
-        player_pool = res.data if res.data else []
-        if player_pool: random.shuffle(player_pool)
-    except:
-        player_pool = []
+        # 502 hatasını önlemek için sorguyu optimize ettik
+        res = supabase.table("oyuncular").select("*").gte("pa", min_pa).lte("pa", max_pa).lte("yas", 21).limit(100).execute()
+        if res.data:
+            player_pool = res.data
+            random.shuffle(player_pool)
+    except Exception as e:
+        st.error(f"⚠️ Veritabanı meşgul, lütfen sayfayı yenile patron! (Hata: {str(e)[:50]})")
 
     if player_pool:
         btn_label = "🎰 ALTIN RULETİ ÇEVİR" if user_is_vip else "🎰 STANDART RULETİ ÇEVİR"
-        if st.button(btn_label, key="rulet_spin_btn", use_container_width=True):
-            # Animasyon için şerit oluştur
-            strip_players = [random.choice(player_pool) for _ in range(30)]
+        if st.button(btn_label, key="rulet_spin_btn_v195", use_container_width=True):
             winner = random.choice(player_pool)
+            strip_players = [random.choice(player_pool) for _ in range(30)]
+            strip_players[25] = winner
+            
             st.session_state.rulet_winner = winner
             st.session_state.animasyon_tamam = False
-            strip_players[25] = winner
+            
             players_json = json.dumps(strip_players)
             
             roulette_html = f"""
@@ -288,7 +288,7 @@ with tabs[1]:
                     const players = {players_json};
                     const track = document.getElementById('slot-track');
                     const itemH = 60; const contH = 160; const winI = 25;
-                    track.innerHTML = players.map((p, i) => `<div style="height:${{itemH}}px; width:100%; display:flex; flex-direction:column; justify-content:center; align-items:center;"><small style="color:#8b949e; font-size:10px;">${{p.kulup || 'Scout Agent'}}</small><b style="color:white; font-size:13px;">${{p.oyuncu_adi}}</b></div>`).join('');
+                    track.innerHTML = players.map(p => `<div style="height:${{itemH}}px; width:100%; display:flex; flex-direction:column; justify-content:center; align-items:center;"><small style="color:#8b949e; font-size:10px;">${{p.kulup || 'Scout Agent'}}</small><b style="color:white; font-size:13px;">${{p.oyuncu_adi}}</b></div>`).join('');
                     setTimeout(() => {{ track.style.top = "-" + ((winI * itemH) - (contH / 2 - itemH / 2)) + "px"; }}, 100);
                 }})();
             </script>
@@ -307,14 +307,13 @@ with tabs[1]:
             is_fav = len(f_check.data) > 0
             
             tm_url = f"https://www.transfermarkt.com.tr/schnellsuche/ergebnis/schnellsuche?query={urllib.parse.quote(p['oyuncu_adi'])}"
-            card_color = "#22c55e" if is_fav else ("#f2cc60" if user_is_vip else "#30363d")
-            fav_status = "⭐ FAVORİNDE" if is_fav else "🎰 RULET SONUCU"
-
+            card_color = "#22c55e" if is_fav else ("#f2cc60" if user_is_vip else "#ef4444")
+            
             st.markdown(f"""
-            <div style="background: #111; border: 2px solid {card_color}; border-radius: 20px; padding: 25px; margin-top:20px; position:relative;">
-                <div style="position:absolute; top:10px; right:15px; text-align:right;">
-                    <span style="color:{card_color}; font-weight:bold; font-size:12px;">{fav_status}</span><br>
-                    <span style="color:#fff; font-weight:bold; font-size:18px;">PA: {p['pa']}</span>
+            <div style="background: #111; border: 2px solid {card_color}; border-radius: 20px; padding: 25px; margin-top:20px; position:relative; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+                <div style="position:absolute; top:15px; right:15px; text-align:right;">
+                    <span style="background:{card_color}; color:#000; padding:2px 8px; border-radius:5px; font-weight:bold; font-size:12px;">{"⭐ FAVORİNDE" if is_fav else "🎰 RULET SONUCU"}</span><br>
+                    <span style="color:#fff; font-weight:bold; font-size:18px; display:block; margin-top:5px;">PA: {p['pa']}</span>
                 </div>
                 <h3 style="margin:0; font-size:22px; color:#fff;">{p['oyuncu_adi']}</h3>
                 <hr style="border-top:1px solid #333; margin:15px 0;">
@@ -325,28 +324,21 @@ with tabs[1]:
                     <div>🎂 <b>Yaş:</b> {p.get('yas','-')}</div>
                     <div style="grid-column: span 2; color:#00ff41; font-weight:bold; font-size:16px; margin-top:5px;">💰 Değer: {p.get('deger','-')}</div>
                 </div>
-                <div style="margin-top:15px;">
+                <div style="margin-top:20px;">
                     <a href="{tm_url}" target="_blank" style="text-decoration:none; color:#58a6ff; font-weight:bold; font-size:13px;">Transfermarkt Profili ➔</a>
                 </div>
             </div>
             """, unsafe_allow_html=True)
 
-            # Favori Butonu
             if not is_fav:
                 if st.button("⭐ FAVORİLERİME EKLE", key=f"fav_btn_rulet_{p['oyuncu_adi']}", use_container_width=True):
-                    supabase.table("favoriler").insert({
-                        "oyuncu_adi": p['oyuncu_adi'], 
-                        "kulup": p.get('kulup','Serbest'), 
-                        "pa": p['pa'], 
-                        "mevki": p['mevki'], 
-                        "kullanici_adi": curr_user
-                    }).execute()
-                    st.success(f"✅ {p['oyuncu_adi']} mermi listeye eklendi!")
+                    supabase.table("favoriler").insert({"oyuncu_adi": p['oyuncu_adi'], "kulup": p.get('kulup','Serbest'), "pa": p['pa'], "mevki": p['mevki'], "kullanici_adi": curr_user}).execute()
+                    st.toast("Mermi listeye eklendi!")
                     st.rerun()
             else:
-                st.button("✅ BU OYUNCU LİSTENDRE", disabled=True, use_container_width=True)
+                st.info("✅ Bu oyuncu zaten favori listende patron.")
     else:
-        st.warning("⚠️ Kriterlere uygun mermi bulunamadı. Lütfen daha sonra dene patron!")
+        st.warning("⚠️ Kriterlere uygun wonderkid bulunamadı. Tekrar dene!")
 
 # --- 3. İLK 11 (V165 - SÜRÜKLE BIRAK FIX) ---
 with tabs[2]:
