@@ -349,42 +349,39 @@ with tabs[1]:
     else:
         st.warning("⚠️ Kriterlere uygun ucuz wonderkid bulunamadı. Tekrar dene!")
 
-# --- 3. İLK 11 (V170 - TOTAL COMMANDER) ---
+# --- 3. İLK 11 (V175 - UNLIMITED COMMANDER) ---
 with tabs[2]:
     st.markdown('<h2 style="text-align:center;">🏟️ ELITE ARENA - TAKTİK TAHTASI</h2>', unsafe_allow_html=True)
     
     curr_user = st.session_state.get('user')
     
-    # Tüm oyuncuları ve favorileri harmanlayan havuz (Performans için limitli ama arama odaklı)
+    # --- TÜM OYUNCULARI GETİREN MOTOR ---
+    # Performans için PA 100 üstü herkesi çekiyoruz (Hemen hemen tüm veritabanı)
     try:
-        all_res = supabase.table("oyuncular").select("oyuncu_adi, pa").order("pa", desc=True).limit(500).execute()
+        # Favorileri en üste alacak şekilde tüm listeyi hazırlıyoruz
+        all_res = supabase.table("oyuncular").select("oyuncu_adi, pa").order("oyuncu_adi", desc=False).execute()
         fav_res = supabase.table("favoriler").select("oyuncu_adi, pa").eq("kullanici_adi", curr_user).execute()
         
-        # Favorileri en üste koyan liste
-        favs = [f"⭐ {p['oyuncu_adi']} ({p['pa']})" for p in fav_res.data] if fav_res.data else []
-        others = [f"{p['oyuncu_adi']} ({p['pa']})" for p in all_res.data]
-        player_pool = ["Boş Slot"] + favs + list(set(others) - set([p.replace("⭐ ", "") for p in favs]))
+        fav_names = [f"⭐ {p['oyuncu_adi']} ({p['pa']})" for p in fav_res.data] if fav_res.data else []
+        all_names = [f"{p['oyuncu_adi']} ({p['pa']})" for p in all_res.data]
+        
+        # Favorileri başa ekle, mükerrerleri sil
+        player_pool = ["Boş Slot"] + fav_names + [n for n in all_names if n.replace("⭐ ", "") not in [f.replace("⭐ ", "") for f in fav_names]]
     except:
-        player_pool = ["Veri Hatası"]
+        player_pool = ["Boş Slot", "Veri Bağlantı Hatası"]
 
     tactic = st.selectbox("🏟️ Ana Diziliş Seç:", 
                          ["4-3-3", "4-4-2", "4-2-3-1", "3-5-2", "5-3-2", "5-4-1", "3-4-3", "4-1-2-1-2"], key="tactic_sel")
     
-    st.info("💡 Oyuncuları seçin ve saha üzerinde özgürce sürükleyin!")
+    st.info("💡 Aşağıdaki kutulardan oyuncu seçin, sahadaki isimler anında güncellenir. Sonra tutup sürükleyebilirsiniz!")
 
-    # Mevki İsimleri Sözlüğü (Türkçe)
-    TR_POS = {
-        "GK": "KL", "LB": "SLB", "RB": "SĞB", "CB": "STP", "LWB": "SLKB", "RWB": "SĞKB",
-        "DM": "ÖNL", "CM": "MZS", "LM": "SLK", "RM": "SĞK", "AM": "OOS", "LW": "SLK", "RW": "SĞK", "ST": "FRV"
-    }
+    def add_player(label, key):
+        # Arama özelliği aktif (Tüm oyuncular burada)
+        return st.selectbox(label, player_pool, key=f"tact_{key}", help="Oyuncu ismini yazarak arayabilirsin.")
 
-    # Dinamik Pozisyon Belirleme Motoru
     positions = []
     
-    def add_player(label, key):
-        return st.selectbox(label, player_pool, key=f"tact_{key}")
-
-    # Saha koordinatlarını dizilişe göre ayarla (y, x)
+    # --- DİZİLİŞ VE KOORDİNAT SİSTEMİ ---
     if tactic == "4-4-2":
         c1, c2, c3, c4, c5 = st.columns(5)
         gk = add_player("KL", "gk"); lb = add_player("SLB", "lb"); cb1 = add_player("STP1", "cb1"); cb2 = add_player("STP2", "cb2"); rb = add_player("SĞB", "rb")
@@ -420,7 +417,7 @@ with tabs[2]:
         lw = add_player("SLFOR", "lw"); st1 = add_player("FRV", "st1"); rw = add_player("SĞFOR", "rw")
         positions = [("KL",gk,85,39), ("STP",cb1,72,15), ("STP",cb2,72,39), ("STP",cb3,72,63), ("SLK",lm,45,2), ("MZS",cm1,48,26), ("MZS",cm2,48,51), ("SĞK",rm,45,75), ("SLFOR",lw,15,10), ("FRV",st1,12,39), ("SĞFOR",rw,15,68)]
 
-    else: # Default 4-3-3 ve diğerleri için ana şablon (Sadeleştirilmiş)
+    else: # Default 4-3-3 ve diğerleri
         c1, c2, c3, c4, c5 = st.columns(5)
         gk = add_player("KL", "gk"); lb = add_player("SLB", "lb"); cb1 = add_player("STP1", "cb1"); cb2 = add_player("STP2", "cb2"); rb = add_player("SĞB", "rb")
         m1, m2, m3 = st.columns(3)
@@ -429,8 +426,9 @@ with tabs[2]:
         lw = add_player("SLFOR", "lw"); st1 = add_player("FRV", "st1"); rw = add_player("SĞFOR", "rw")
         positions = [("KL",gk,82,39), ("SLB",lb,65,2), ("STP",cb1,65,26), ("STP",cb2,65,51), ("SĞB",rb,65,75), ("MZS",cm1,43,10), ("MZS",cm2,43,38), ("MZS",cm3,43,66), ("SLFOR",lw,14,5), ("FRV",st1,11,38), ("SĞFOR",rw,14,71)]
 
-    # --- HTML SÜRÜKLEME MOTORU ---
-    players_divs = "".join([f'<div class="player draggable" style="top:{y}%; left:{x}%;" onmousedown="startDrag(event)" ontouchstart="startDrag(event)"><div class="pos">{p}</div><div class="name">{n.split(" (")[0]}</div></div>' for p, n, y, x in positions])
+    # --- HTML & SÜRÜKLEME MOTORU ---
+    # İsimleri temizle (Sadece oyuncu adı görünsün)
+    players_divs = "".join([f'<div class="player draggable" style="top:{y}%; left:{x}%;" onmousedown="startDrag(event)" ontouchstart="startDrag(event)"><div class="pos">{p}</div><div class="name">{n.split(" (")[0].replace("⭐ ", "")}</div></div>' for p, n, y, x in positions])
 
     tahta_html = f"""
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -443,7 +441,7 @@ with tabs[2]:
         <div style="position:absolute; bottom:5px; right:10px; color:rgba(255,255,255,0.3); font-size:9px; font-weight:bold;">SOMEKU ELITE SCOUT</div>
     </div>
     
-    <button onclick="downloadImage()" style="width:100%; padding:14px; background:#238636; color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer; margin-top:15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">📸 KADROYU PNG OLARAK KAYDET</button>
+    <button onclick="downloadImage()" style="width:100%; padding:14px; background:#238636; color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer; margin-top:15px;">📸 KADROYU PNG OLARAK KAYDET</button>
 
     <script>
         let activeEl = null;
@@ -478,7 +476,7 @@ with tabs[2]:
     <style>
         .player {{ position:absolute; background:rgba(13,17,23,0.95); border:1.5px solid #58a6ff; border-radius:6px; color:white; width:75px; padding:3px; text-align:center; cursor:grab; z-index:100; user-select:none; touch-action:none; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }}
         .player:active {{ cursor:grabbing; border-color:#f2cc60; transform: scale(1.1); }}
-        .pos {{ font-size:8px; color:#58a6ff; font-weight:bold; pointer-events:none; text-transform: uppercase; }}
+        .pos {{ font-size:8px; color:#58a6ff; font-weight:bold; pointer-events:none; }}
         .name {{ font-size:9px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none; }}
     </style>
     """
