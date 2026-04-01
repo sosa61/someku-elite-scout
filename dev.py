@@ -577,9 +577,9 @@ with tabs[4]:
     except:
         st.write("Tablo yüklenemedi.")
 
-# --- 5. BARROW AI (V680 - THE UNSTOPPABLE SCOUT) ---
+# --- 5. BARROW AI (V610 - DIRECT QUERY EDITION) ---
 with tabs[5]:
-    st.markdown('<div style="text-align:center;"><h1 style="color:#ef4444;">🤵 BARROW AI</h1><p style="color:#8b949e;">Hatasız Filtreleme - Master Edition</p></div>', unsafe_allow_html=True)
+    st.markdown('<div style="text-align:center;"><h1 style="color:#ef4444;">🤵 BARROW AI</h1><p style="color:#8b949e;">Doğrudan Veritabanı Sorgulu Scout</p></div>', unsafe_allow_html=True)
     
     user_is_vip = st.session_state.get('is_vip', False)
     curr_user = st.session_state.get('user')
@@ -589,115 +589,79 @@ with tabs[5]:
     # --- VIP VE HAK KONTROLÜ ---
     can_ask = True
     if not user_is_vip:
-        u_data = supabase.table("users").select("barrow_count", "last_barrow_date").eq("username", curr_user).execute()
+        u_data = supabase.table("users").select("barrow_count").eq("username", curr_user).execute()
         if u_data.data:
-            count = u_data.data[0].get('barrow_count', 0)
-            l_date = u_data.data[0].get('last_barrow_date')
-            today = str(datetime.date.today())
-            if l_date != today:
-                supabase.table("users").update({"barrow_count": 0, "last_barrow_date": today}).eq("username", curr_user).execute()
-                count = 0
-            if count >= 3:
+            if u_data.data[0].get('barrow_count', 0) >= 3:
                 can_ask = False
                 st.warning("🔒 Günlük ücretsiz analiz hakkınız dolmuştur.")
 
-    st.info("🤖 Selam patron! Filtreleri mühürledim. Artık 'Brezilyalı Forvet' diyince kimi bulacağını biliyorum!")
-    b_in = st.text_input("Kriterlerini yaz (Örn: 'Brezilyalı forvet 5m euro altı'):", placeholder="Buraya yaz patron...", key="b_v680", disabled=not can_ask)
+    st.info("🤖 Selam patron! Filtreleri direkt veritabanı motoruna bağladım. Artık hata payı yok!")
+    b_in = st.text_input("Kriterlerini yaz (Örn: 'Brezilyalı forvet' veya 'Afrikalı stoper'):", placeholder="Buraya yaz patron...", key="b_v610", disabled=not can_ask)
     
     if st.button("ANALİZİ BAŞLAT", disabled=not can_ask):
         if b_in:
             if not user_is_vip:
-                new_count = u_data.data[0].get('barrow_count', 0) + 1
-                supabase.table("users").update({"barrow_count": new_count}).eq("username", curr_user).execute()
+                supabase.table("users").update({"barrow_count": u_data.data[0]['barrow_count'] + 1}).eq("username", curr_user).execute()
 
-            st.write("🔍 Veritabanı derinliklerine iniliyor...")
+            st.write("🔍 Veritabanı süzülüyor...")
             low_in = b_in.lower()
             
-            # --- 1. GENİŞ VERİ ÇEKİMİ (Filtrelemeyi Python yapacak) ---
-            # Sadece PA sınırı koyarak geniş bir liste alıyoruz ki filtreler takılmasın
-            res_b = supabase.table("oyuncular").select("*").gte("pa", 120).limit(1000).execute()
+            # --- ANA SORGU ---
+            bq = supabase.table("oyuncular").select("*").gte("pa", 125)
+
+            # --- 1. ÜLKE VE KITA FİLTRESİ (Veritabanı Seviyesi) ---
+            country_dict = {
+                "arjantin": "Argentina", "brezilya": "Brazil", "fransa": "France", "fransız": "France", 
+                "almanya": "Germany", "alman": "Germany", "türkiye": "Turkey", "türk": "Turkey", 
+                "portekiz": "Portugal", "ispanya": "Spain", "ispanyol": "Spain", "hollanda": "Netherlands",
+                "uruguay": "Uruguay", "ingiltere": "England", "italya": "Italy", "nijerya": "Nigeria"
+            }
+            for tr, en in country_dict.items():
+                if tr in low_in:
+                    bq = bq.eq("ulke", en)
+                    break
+
+            # Kıtalar
+            regions = {
+                "afrika": ["Nigeria", "Senegal", "Ivory Coast", "Ghana", "Cameroon", "Algeria", "Morocco", "Egypt"],
+                "güney amerika": ["Argentina", "Brazil", "Uruguay", "Colombia", "Chile", "Ecuador"],
+                "iskandinav": ["Norway", "Sweden", "Denmark", "Finland", "Iceland"],
+                "balkan": ["Croatia", "Serbia", "Bosnia", "Albania", "Bulgaria", "Greece"]
+            }
+            for reg, countries in regions.items():
+                if reg in low_in:
+                    bq = bq.in_("ulke", countries)
+                    break
+
+            # --- 2. YAŞ FİLTRESİ ---
+            age_nums = re.findall(r'(\d+)', low_in)
+            if "yaş" in low_in and age_nums:
+                val = int(age_nums[0])
+                if any(x in low_in for x in ["en fazla", "max", "kadar", "altı"]): bq = bq.lte("yas", val)
+                elif any(x in low_in for x in ["en az", "min", "üstü"]): bq = bq.gte("yas", val)
+                else: bq = bq.eq("yas", val)
+
+            # --- 3. MEVKİ FİLTRESİ ---
+            m_map = {"kaleci": "GK", "bek": "D R", "stoper": "D C", "libero": "DM", "orta saha": "M C", "on numara": "AM C", "kanat": "AM", "forvet": "ST"}
+            for k, v in m_map.items():
+                if k in low_in:
+                    bq = bq.ilike("mevki", f"%{v}%")
+                    break
+
+            # --- 4. PARA FİLTRESİ (Basit ve Hatasız Metin Filtreleme) ---
+            if "milyon" in low_in or " m" in low_in:
+                price_match = re.search(r'(\d+)', low_in)
+                if price_match:
+                    p_val = price_match.group(1)
+                    # "3m", "3.5m" gibi metinleri veritabanında ara
+                    bq = bq.ilike("deger", f"%{p_val}m%")
+            elif "bin" in low_in or " k" in low_in:
+                bq = bq.ilike("deger", "%k%")
+
+            res_b = bq.limit(100).execute()
             
             if res_b.data:
-                scout_list = res_b.data
-
-                # --- 2. KITA VE ÜLKE FİLTRELEME ---
-                regions = {
-                    "afrika": ["Nigeria", "Senegal", "Ivory Coast", "Ghana", "Cameroon", "Algeria", "Morocco", "Egypt", "Mali", "Tunisia", "Angola"],
-                    "güney amerika": ["Argentina", "Brazil", "Uruguay", "Colombia", "Chile", "Ecuador", "Paraguay"],
-                    "iskandinav": ["Norway", "Sweden", "Denmark", "Finland", "Iceland"],
-                    "balkan": ["Croatia", "Serbia", "Bosnia", "Albania", "Bulgaria", "Greece", "Romania", "Slovenia"],
-                    "asya": ["Japan", "South Korea", "Iran", "Australia", "Saudi Arabia"],
-                    "avrupa": ["France", "Germany", "Spain", "Italy", "Portugal", "England", "Netherlands", "Belgium", "Turkey"]
-                }
-                
-                # Önce kıta kontrolü
-                for reg, countries in regions.items():
-                    if reg in low_in:
-                        scout_list = [x for x in scout_list if x.get('ulke') in countries]
-                        break
-                
-                # Sonra spesifik ülke kontrolü (Örn: Brezilyalı)
-                country_map = {
-                    "arjantin": "Argentina", "brezilya": "Brazil", "fransa": "France", "fransız": "France", 
-                    "almanya": "Germany", "alman": "Germany", "türkiye": "Turkey", "türk": "Turkey", 
-                    "portekiz": "Portugal", "ispanya": "Spain", "ispanyol": "Spain", "hollanda": "Netherlands",
-                    "uruguay": "Uruguay", "ingiliz": "England", "italyan": "Italy", "belçika": "Belgium"
-                }
-                for tr, en in country_map.items():
-                    if tr in low_in:
-                        scout_list = [x for x in scout_list if x.get('ulke') == en]
-                        break
-
-                # --- 3. MEVKİ FİLTRELEME ---
-                m_map = {
-                    "kaleci": "GK", "sağ bek": "D R", "sol bek": "D L", "stoper": "D C", 
-                    "ön libero": "DM", "orta saha": "M C", "on numara": "AM C", 
-                    "kanat": "AM", "forvet": "ST", "santrafor": "ST"
-                }
-                if "stoper" in low_in or ("defans" in low_in and "bek" not in low_in):
-                    scout_list = [x for x in scout_list if "D C" in str(x.get('mevki',''))]
-                else:
-                    for k, v in m_map.items():
-                        if k in low_in:
-                            scout_list = [x for x in scout_list if v in str(x.get('mevki',''))]
-                            break
-
-                # --- 4. YAŞ FİLTRELEME (Dokunulmaz Kısım) ---
-                age_nums = re.findall(r'(\d+)', low_in)
-                if "yaş" in low_in and age_nums:
-                    val = int(age_nums[0])
-                    if any(x in low_in for x in ["en fazla", "max", "kadar", "altı"]):
-                        scout_list = [x for x in scout_list if int(x.get('yas',0)) <= val]
-                    elif any(x in low_in for x in ["en az", "min", "üstü"]):
-                        scout_list = [x for x in scout_list if int(x.get('yas',0)) >= val]
-                    else:
-                        scout_list = [x for x in scout_list if int(x.get('yas',0)) == val]
-
-                # --- 5. PARA FİLTRELEME (Garantili Hesaplama) ---
-                p_match = re.search(r'(\d+)\s*(?:m|milyon|bin|k)', low_in)
-                if p_match:
-                    limit = float(p_match.group(1))
-                    is_million = "milyon" in low_in or " m" in low_in or "m " in low_in
-                    target_limit = limit * 1000000 if is_million else limit * 1000
-                    
-                    def get_price(txt):
-                        try:
-                            num = float(re.findall(r"(\d+\.?\d*)", txt.lower())[0])
-                            if 'm' in txt.lower(): return num * 1000000
-                            if 'k' in txt.lower(): return num * 1000
-                            return num
-                        except: return 0
-
-                    if any(x in low_in for x in ["en fazla", "max", "kadar", "altı"]):
-                        scout_list = [x for x in scout_list if get_price(x.get('deger','0')) <= target_limit]
-                    elif any(x in low_in for x in ["en az", "min", "üstü"]):
-                        scout_list = [x for x in scout_list if get_price(x.get('deger','0')) >= target_limit]
-
-                # --- SONUÇ ---
-                if scout_list:
-                    st.session_state.barrow_player = random.choice(scout_list)
-                else:
-                    st.session_state.barrow_player = "empty"
+                st.session_state.barrow_player = random.choice(res_b.data)
             else:
                 st.session_state.barrow_player = "empty"
             st.rerun()
@@ -740,7 +704,7 @@ with tabs[5]:
             st.markdown(f'<a href="{tm_url}" target="_blank" style="text-decoration:none;"><button style="width:100%; background:#1a1a1a; color:#58a6ff; border:1px solid #30363d; padding:8px; border-radius:8px; cursor:pointer; font-weight:bold;">Transfermarkt ➔</button></a>', unsafe_allow_html=True)
 
     elif st.session_state.barrow_player == "empty":
-        st.warning("⚠️ Kriterlere uygun bir mermi bulamadım patron. Kriterleri azıcık esnetelim!")
+        st.warning("⚠️ Kriterlere tam uyan bir oyuncu bulamadım patron. Biraz daha esnek kriterlerle dene!")
 
 # --- 6. ADMIN (V135 - TAM YETKİLİ YÖNETİM MERKEZİ) ---
 with tabs[6]: 
